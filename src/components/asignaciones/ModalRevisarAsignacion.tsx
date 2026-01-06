@@ -1,17 +1,18 @@
 // src/components/asignaciones/ModalRevisarAsignacion.tsx
 
-import React, { useState } from 'react';
-import { X, CheckCircle, XCircle } from 'lucide-react';
-import { Button } from '@/components/common';
-import { asignacionesApi } from '@/api/endpoints/asignaciones.api';
-import { Asignacion } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { X, CheckCircle, XCircle, Eye, Edit } from 'lucide-react';
+import { Button, LoadingScreen } from '@/components/common';
+import { asignacionesApi, respuestasApi } from '@/api/endpoints';
+import { Asignacion, Respuesta } from '@/types';
+import { TablaRespuestasRevision } from '@/pages/asignaciones/TablaRespuestasRevision';
 import toast from 'react-hot-toast';
 
 interface ModalRevisarAsignacionProps {
   asignacion: Asignacion;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => Promise<void>; // ⭐ Ahora retorna Promise
+  onSuccess: () => Promise<void>;
 }
 
 export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
@@ -23,16 +24,79 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
   const [accion, setAccion] = useState<'aprobar' | 'rechazar' | null>(null);
   const [comentarios, setComentarios] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [respuestas, setRespuestas] = useState<Respuesta[]>([]);
+  const [loadingRespuestas, setLoadingRespuestas] = useState(true);
 
-  if (!isOpen) return null;
+  const usuarioNombre =
+    asignacion.usuario_asignado_info?.nombre_completo ||
+    asignacion.usuario_asignado_nombre ||
+    'Sin nombre';
 
-  const usuarioNombre = asignacion.usuario_asignado_info?.nombre_completo || 
-                        asignacion.usuario_asignado_nombre || 
-                        'Sin nombre';
-  
-  const dimensionNombre = asignacion.dimension_info?.nombre || 
-                         asignacion.dimension_nombre || 
-                         'Sin dimensión';
+  const dimensionNombre =
+    asignacion.dimension_info?.nombre || asignacion.dimension_nombre || 'Sin dimensión';
+
+  useEffect(() => {
+    if (isOpen) {
+      cargarRespuestas();
+    }
+  }, [isOpen, asignacion.id]);
+
+  const cargarRespuestas = async () => {
+    try {
+      setLoadingRespuestas(true);
+      
+      const data = await respuestasApi.listParaRevision(asignacion.id);
+      
+      console.log('🔍 Respuestas para revisión:', data);
+      console.log('🔍 Primera respuesta:', data.results[0]);
+      console.log('🔍 Evidencias primera:', data.results[0]?.evidencias);
+      
+      setRespuestas(data.results);
+    } catch (error) {
+      console.error('❌ Error al cargar respuestas:', error);
+      toast.error('Error al cargar las respuestas');
+    } finally {
+      setLoadingRespuestas(false);
+    }
+  };
+
+  // ⭐ ACTUALIZADO: Incluir nivel de madurez
+  const handleEditarRespuesta = async (
+    respuestaId: string,
+    datos: { 
+      respuesta: string; 
+      justificacion: string;
+      nivel_madurez: number;
+      justificacion_madurez: string;
+    }
+  ) => {
+    try {
+      const payload: any = {
+        respuesta: datos.respuesta,
+        justificacion: datos.justificacion,
+        // ⭐ INCLUIR NIVEL DE MADUREZ
+        nivel_madurez: datos.nivel_madurez,
+        justificacion_madurez: datos.justificacion_madurez,
+        motivo_modificacion: 'Modificado durante revisión por administrador',
+      };
+
+      await respuestasApi.modificarAdmin(respuestaId, payload);
+
+      toast.success('Respuesta actualizada exitosamente');
+      await cargarRespuestas();
+    } catch (error: any) {
+      console.error('Error al editar respuesta:', error);
+      
+      const errorMsg = 
+        error.response?.data?.message || 
+        error.response?.data?.error ||
+        error.response?.data?.detail ||
+        'Error al actualizar la respuesta';
+      
+      toast.error(errorMsg);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,15 +113,11 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
 
     try {
       setSubmitting(true);
-      
-      console.log('📤 Enviando revisión:', { accion, asignacionId: asignacion.id });
 
-      const response = await asignacionesApi.revisar(asignacion.id, {
+      await asignacionesApi.revisar(asignacion.id, {
         accion,
         comentarios: comentarios.trim() || undefined,
       });
-      
-      console.log('✅ Respuesta del backend:', response);
 
       toast.success(
         accion === 'aprobar'
@@ -65,16 +125,9 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
           : '❌ Asignación rechazada. El usuario deberá completarla nuevamente.'
       );
 
-      console.log('🔄 Llamando a onSuccess...');
       await onSuccess();
-      console.log('✅ onSuccess completado');
-      
-      console.log('🚪 Cerrando modal...');
       onClose();
-      console.log('✅ Modal cerrado');
-      
     } catch (error: any) {
-      console.error('❌ Error en revisión:', error);
       const errorMsg =
         error.response?.data?.message ||
         error.response?.data?.error ||
@@ -85,12 +138,19 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Revisar Asignación</h2>
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Revisar Asignación</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {usuarioNombre} - {dimensionNombre}
+            </p>
+          </div>
           <button
             onClick={onClose}
             disabled={submitting}
@@ -102,35 +162,72 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Información de la asignación */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div>
-              <span className="text-sm text-gray-600">Usuario:</span>
-              <span className="ml-2 font-medium text-gray-900">
-                {usuarioNombre}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600">Dimensión:</span>
-              <span className="ml-2 font-medium text-gray-900">
-                {dimensionNombre}
-              </span>
-            </div>
-            <div>
-              <span className="text-sm text-gray-600">Progreso:</span>
-              <span className="ml-2 font-medium text-gray-900">
-                {asignacion.preguntas_respondidas} / {asignacion.total_preguntas} preguntas
-                ({Number(asignacion.porcentaje_avance || 0).toFixed(0)}%)
-              </span>
+          {/* Información resumida */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-xs text-gray-600">Progreso</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {Number(asignacion.porcentaje_avance || 0).toFixed(0)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Preguntas</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {asignacion.preguntas_respondidas} / {asignacion.total_preguntas}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Estado</p>
+                <p className="text-sm font-semibold text-yellow-700 uppercase mt-1">
+                  Pendiente Revisión
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Formulario */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Seleccionar acción */}
+          {/* Tabs: Ver / Editar */}
+          <div className="flex items-center gap-2 border-b">
+            <button
+              onClick={() => setModoEdicion(false)}
+              className={`px-4 py-2 font-medium text-sm transition-colors ${
+                !modoEdicion
+                  ? 'border-b-2 border-primary-600 text-primary-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Eye size={16} className="inline mr-2" />
+              Ver Respuestas
+            </button>
+            <button
+              onClick={() => setModoEdicion(true)}
+              className={`px-4 py-2 font-medium text-sm transition-colors ${
+                modoEdicion
+                  ? 'border-b-2 border-primary-600 text-primary-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Edit size={16} className="inline mr-2" />
+              Editar Respuestas
+            </button>
+          </div>
+
+          {/* Lista de respuestas */}
+          {loadingRespuestas ? (
+            <LoadingScreen message="Cargando respuestas..." />
+          ) : (
+            <TablaRespuestasRevision
+              respuestas={respuestas}
+              modoEdicion={modoEdicion}
+              onEditarRespuesta={handleEditarRespuesta}
+            />
+          )}
+
+          {/* Formulario de decisión */}
+          <form onSubmit={handleSubmit} className="space-y-6 border-t pt-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                ¿Qué deseas hacer? <span className="text-red-500">*</span>
+                Decisión Final <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-4">
                 <button
@@ -150,9 +247,7 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
                     }`}
                   />
                   <p className="font-medium text-gray-900">Aprobar</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Marcar como completada
-                  </p>
+                  <p className="text-xs text-gray-600 mt-1">Marcar como completada</p>
                 </button>
 
                 <button
@@ -172,14 +267,11 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
                     }`}
                   />
                   <p className="font-medium text-gray-900">Rechazar</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Solicitar correcciones
-                  </p>
+                  <p className="text-xs text-gray-600 mt-1">Solicitar correcciones</p>
                 </button>
               </div>
             </div>
 
-            {/* Comentarios */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Comentarios {accion === 'rechazar' && <span className="text-red-500">*</span>}
@@ -199,24 +291,12 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
               />
             </div>
 
-            {/* Botones */}
             <div className="flex items-center gap-3">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={submitting || !accion}
-              >
+              <Button type="submit" variant="primary" size="lg" disabled={submitting || !accion}>
                 {submitting ? 'Procesando...' : 'Confirmar Revisión'}
               </Button>
 
-              <Button
-                type="button"
-                variant="secondary"
-                size="lg"
-                onClick={onClose}
-                disabled={submitting}
-              >
+              <Button type="button" variant="secondary" size="lg" onClick={onClose} disabled={submitting}>
                 Cancelar
               </Button>
             </div>
