@@ -1,11 +1,15 @@
-// src/components/respuestas/PreguntaCard.tsx
+// src/components/respuestas/PreguntaCard.tsx - VERSIÓN SIMPLIFICADA
 
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, MinusCircle, AlertCircle, FileText, Upload, Trash2, Save, Send, ExternalLink } from 'lucide-react';
+import { CheckCircle, Save, Send } from 'lucide-react';
 import { Button, Card } from '@/components/common';
 import { respuestasApi } from '@/api/endpoints';
 import { Pregunta, RespuestaListItem, Evidencia } from '@/types';
 import { ModalEvidencia } from './ModalEvidencia';
+import { SelectorCumplimiento } from './SelectorCumplimiento';
+import { SelectorNivelMadurez } from './SelectorNivelMadurez';
+import { SeccionEvidencias } from './SeccionEvidencias';
+import { RespuestaTipo } from './types';
 import toast from 'react-hot-toast';
 
 interface PreguntaCardProps {
@@ -23,9 +27,11 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   respuestaExistente,
   onRespuestaChange
 }) => {
-  const [respuesta, setRespuesta] = useState<'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA' | ''>('');
+  const [respuesta, setRespuesta] = useState<RespuestaTipo>('');
   const [justificacion, setJustificacion] = useState('');
   const [comentarios, setComentarios] = useState('');
+  const [nivelMadurez, setNivelMadurez] = useState<number>(0);
+  const [justificacionMadurez, setJustificacionMadurez] = useState('');
   const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
   const [respuestaId, setRespuestaId] = useState<string | null>(null);
   const [estado, setEstado] = useState<'borrador' | 'enviado' | 'modificado_admin'>('borrador');
@@ -39,10 +45,25 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       setJustificacion(respuestaExistente.justificacion);
       setRespuestaId(respuestaExistente.id);
       setEstado(respuestaExistente.estado);
-      
+      setNivelMadurez(respuestaExistente.nivel_madurez || 0);
+      setJustificacionMadurez(respuestaExistente.justificacion_madurez || '');
       loadEvidencias(respuestaExistente.id);
     }
   }, [respuestaExistente]);
+
+  // Lógica
+  const puedeSubirEvidencias = respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
+  const requiereNivelMadurez = respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
+  const esNoImplementado = respuesta === 'NO_CUMPLE' || respuesta === 'NO_APLICA';
+  const puedeEditar = estado === 'borrador';
+
+  // Auto-reset nivel de madurez
+  useEffect(() => {
+    if (esNoImplementado) {
+      setNivelMadurez(0);
+      setJustificacionMadurez('');
+    }
+  }, [respuesta, esNoImplementado]);
 
   const loadEvidencias = async (respuestaId: string) => {
     try {
@@ -56,86 +77,50 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   };
 
   const handleGuardarBorrador = async () => {
+    // Validaciones
     if (!respuesta || justificacion.trim().length < 10) {
       toast.error('Completa la respuesta y justificación (mín 10 caracteres)');
       return;
     }
 
-    if (respuesta === 'SI_CUMPLE' && justificacion.trim().length < 10) {
-      toast.error('Para "Sí Cumple", la justificación debe tener al menos 10 caracteres');
-      return;
+    if (requiereNivelMadurez) {
+      if (nivelMadurez === 0) {
+        toast.error('Debes indicar un nivel de madurez mayor a 0');
+        return;
+      }
+      if (justificacionMadurez.trim().length < 10) {
+        toast.error('Debes justificar el nivel de madurez (mín 10 caracteres)');
+        return;
+      }
     }
 
     try {
       setSaving(true);
+      const data = {
+        respuesta,
+        justificacion,
+        comentarios_adicionales: comentarios,
+        nivel_madurez: nivelMadurez,
+        justificacion_madurez: justificacionMadurez.trim(),
+      };
 
       if (respuestaId) {
-        const response = await respuestasApi.update(respuestaId, {
-          respuesta,
-          justificacion,
-          comentarios_adicionales: comentarios
-        });
-        
+        const response = await respuestasApi.update(respuestaId, data);
         toast.success('Respuesta guardada como borrador');
-        
-        // ⭐ FIX: Convertir la respuesta completa a RespuestaListItem
-        const respuestaListItem: RespuestaListItem = {
-          id: response.data?.id || '',
-          asignacion: response.data?.asignacion || '',
-          pregunta: response.data?.pregunta || '',
-          pregunta_codigo: response.data?.pregunta_codigo || '',
-          pregunta_texto: response.data?.pregunta_texto || '',
-          respuesta: response.data?.respuesta || 'NO_APLICA',
-          respuesta_display: response.data?.respuesta_display || '',
-          justificacion: response.data?.justificacion || '',
-          estado: response.data?.estado || 'borrador',
-          estado_display: response.data?.estado_display || '',
-          respondido_por: Number(response.data?.respondido_por) || 0,
-          respondido_por_nombre: response.data?.respondido_por_nombre || '',
-          respondido_at: response.data?.respondido_at || '',
-          total_evidencias: response.data?.evidencias?.length || 0,
-          version: response.data?.version || 0,
-        };
-        
-        onRespuestaChange(respuestaListItem);
-        
+        onRespuestaChange(mapToListItem(response.data));
       } else {
         const response = await respuestasApi.create({
           asignacion: asignacionId,
           pregunta: pregunta.id,
-          respuesta,
-          justificacion,
-          comentarios_adicionales: comentarios
+          ...data,
         });
-        
         setRespuestaId(response.data?.id ?? null);
         toast.success('Respuesta creada como borrador');
-        
-        // ⭐ FIX: Convertir la respuesta completa a RespuestaListItem
-        const respuestaListItem: RespuestaListItem = {
-          id: response.data?.id || '',
-          asignacion: response.data?.asignacion || '',
-          pregunta: response.data?.pregunta || '',
-          pregunta_codigo: response.data?.pregunta_codigo || '',
-          pregunta_texto: response.data?.pregunta_texto || '',
-          respuesta: response.data?.respuesta || 'NO_APLICA',
-          respuesta_display: response.data?.respuesta_display || '',
-          justificacion: response.data?.justificacion || '',
-          estado: response.data?.estado || 'borrador',
-          estado_display: response.data?.estado_display || '',
-          respondido_por: Number(response.data?.respondido_por) || 0,
-          respondido_por_nombre: response.data?.respondido_por_nombre || '',
-          respondido_at: response.data?.respondido_at || '',
-          total_evidencias: response.data?.evidencias?.length || 0,
-          version: response.data?.version || 0,
-        };
-        
-        onRespuestaChange(respuestaListItem);
+        onRespuestaChange(mapToListItem(response.data));
       }
     } catch (error: any) {
       console.error('Error al guardar:', error);
-      const errorMsg = error.response?.data?.message || 'Error al guardar la respuesta';
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message || 'Error al guardar la respuesta');
     } finally {
       setSaving(false);
     }
@@ -147,8 +132,13 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       return;
     }
 
-    if (respuesta === 'SI_CUMPLE' && evidencias.length === 0) {
-      toast.error('Las respuestas "Sí Cumple" requieren al menos una evidencia');
+    if (puedeSubirEvidencias && evidencias.length === 0) {
+      toast.error(`Las respuestas "Sí Cumple" o "Cumple Parcial" requieren al menos una evidencia`);
+      return;
+    }
+
+    if (requiereNivelMadurez && nivelMadurez === 0) {
+      toast.error('Debes indicar un nivel de madurez mayor a 0 antes de enviar');
       return;
     }
 
@@ -158,60 +148,48 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       setEstado('enviado');
       toast.success('✅ Respuesta enviada exitosamente');
       
-      // ⭐ FIX: Obtener y convertir respuesta actualizada
       const respuestaActualizada = await respuestasApi.get(respuestaId);
-      
-      const respuestaListItem: RespuestaListItem = {
-        id: respuestaActualizada?.id || '',
-        asignacion: respuestaActualizada?.asignacion || '',
-        pregunta: respuestaActualizada?.pregunta || '',
-        pregunta_codigo: respuestaActualizada?.pregunta_codigo || '',
-        pregunta_texto: respuestaActualizada?.pregunta_texto || '',
-        respuesta: respuestaActualizada?.respuesta || 'NO_APLICA',
-        respuesta_display: respuestaActualizada?.respuesta_display || '',
-        justificacion: respuestaActualizada?.justificacion || '',
-        estado: respuestaActualizada?.estado || 'enviado',
-        estado_display: respuestaActualizada?.estado_display || '',
-        respondido_por: Number(respuestaActualizada?.respondido_por) || 0,
-        respondido_por_nombre: respuestaActualizada?.respondido_por_nombre || '',
-        respondido_at: respuestaActualizada?.respondido_at || '',
-        total_evidencias: respuestaActualizada?.evidencias?.length || 0,
-        version: respuestaActualizada?.version || 0,
-      };
-      
-      onRespuestaChange(respuestaListItem);
-      
+      onRespuestaChange(mapToListItem(respuestaActualizada));
     } catch (error: any) {
       console.error('Error al enviar:', error);
-      const errorMsg = error.response?.data?.message || 'Error al enviar la respuesta';
-      toast.error(errorMsg);
+      toast.error(error.response?.data?.message || 'Error al enviar la respuesta');
     } finally {
       setSaving(false);
     }
   };
 
   const handleEliminarEvidencia = async (evidenciaId: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta evidencia?')) {
-      return;
-    }
+    if (!confirm('¿Estás seguro de eliminar esta evidencia?')) return;
 
     try {
       await respuestasApi.eliminarEvidencia(evidenciaId);
       setEvidencias(prev => prev.filter(e => e.id !== evidenciaId));
       toast.success('Evidencia eliminada');
-    } catch (error: any) {
-      console.error('Error al eliminar:', error);
+    } catch (error) {
       toast.error('Error al eliminar la evidencia');
     }
   };
 
-  const handleEvidenciaSubida = () => {
-    if (respuestaId) {
-      loadEvidencias(respuestaId);
-    }
-  };
-
-  const puedeEditar = estado === 'borrador';
+  const mapToListItem = (data: any): RespuestaListItem => ({
+    id: data?.id || '',
+    asignacion: data?.asignacion || '',
+    pregunta: data?.pregunta || '',
+    pregunta_codigo: data?.pregunta_codigo || '',
+    pregunta_texto: data?.pregunta_texto || '',
+    respuesta: data?.respuesta || 'NO_APLICA',
+    respuesta_display: data?.respuesta_display || '',
+    justificacion: data?.justificacion || '',
+    nivel_madurez: data?.nivel_madurez || 0,
+    nivel_madurez_display: data?.nivel_madurez_display || '',
+    justificacion_madurez: data?.justificacion_madurez || '',
+    estado: data?.estado || 'borrador',
+    estado_display: data?.estado_display || '',
+    respondido_por: Number(data?.respondido_por) || 0,
+    respondido_por_nombre: data?.respondido_por_nombre || '',
+    respondido_at: data?.respondido_at || '',
+    total_evidencias: data?.evidencias?.length || 0,
+    version: data?.version || 0,
+  });
 
   return (
     <>
@@ -247,121 +225,23 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </div>
           </div>
 
-          {/* ⭐ NUEVO: 4 Columnas Responsive */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Nivel de Cumplimiento <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Sí Cumple */}
-              <button
-                onClick={() => puedeEditar && setRespuesta('SI_CUMPLE')}
-                disabled={!puedeEditar}
-                type="button"
-                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                  respuesta === 'SI_CUMPLE'
-                    ? 'border-green-500 bg-green-50 shadow-sm'
-                    : 'border-gray-200 hover:border-green-300 hover:bg-gray-50'
-                } ${!puedeEditar ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <CheckCircle
-                  size={24}
-                  className={respuesta === 'SI_CUMPLE' ? 'text-green-600' : 'text-gray-400'}
-                />
-                <div className="text-center">
-                  <span className={`text-sm font-semibold block ${
-                    respuesta === 'SI_CUMPLE' ? 'text-green-900' : 'text-gray-700'
-                  }`}>
-                    Sí Cumple
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Cumplimiento completo
-                  </p>
-                </div>
-              </button>
+          {/* Selector de cumplimiento */}
+          <SelectorCumplimiento
+            valor={respuesta}
+            onChange={setRespuesta}
+            disabled={!puedeEditar}
+          />
 
-              {/* Cumple Parcialmente */}
-              <button
-                onClick={() => puedeEditar && setRespuesta('CUMPLE_PARCIAL')}
-                disabled={!puedeEditar}
-                type="button"
-                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                  respuesta === 'CUMPLE_PARCIAL'
-                    ? 'border-yellow-500 bg-yellow-50 shadow-sm'
-                    : 'border-gray-200 hover:border-yellow-300 hover:bg-gray-50'
-                } ${!puedeEditar ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <AlertCircle
-                  size={24}
-                  className={respuesta === 'CUMPLE_PARCIAL' ? 'text-yellow-600' : 'text-gray-400'}
-                />
-                <div className="text-center">
-                  <span className={`text-sm font-semibold block ${
-                    respuesta === 'CUMPLE_PARCIAL' ? 'text-yellow-900' : 'text-gray-700'
-                  }`}>
-                    Cumple Parcial
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Cumplimiento parcial
-                  </p>
-                </div>
-              </button>
-
-              {/* No Cumple */}
-              <button
-                onClick={() => puedeEditar && setRespuesta('NO_CUMPLE')}
-                disabled={!puedeEditar}
-                type="button"
-                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                  respuesta === 'NO_CUMPLE'
-                    ? 'border-red-500 bg-red-50 shadow-sm'
-                    : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
-                } ${!puedeEditar ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <XCircle
-                  size={24}
-                  className={respuesta === 'NO_CUMPLE' ? 'text-red-600' : 'text-gray-400'}
-                />
-                <div className="text-center">
-                  <span className={`text-sm font-semibold block ${
-                    respuesta === 'NO_CUMPLE' ? 'text-red-900' : 'text-gray-700'
-                  }`}>
-                    No Cumple
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Sin cumplimiento
-                  </p>
-                </div>
-              </button>
-
-              {/* No Aplica */}
-              <button
-                onClick={() => puedeEditar && setRespuesta('NO_APLICA')}
-                disabled={!puedeEditar}
-                type="button"
-                className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                  respuesta === 'NO_APLICA'
-                    ? 'border-gray-400 bg-gray-50 shadow-sm'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                } ${!puedeEditar ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <MinusCircle
-                  size={24}
-                  className={respuesta === 'NO_APLICA' ? 'text-gray-600' : 'text-gray-400'}
-                />
-                <div className="text-center">
-                  <span className={`text-sm font-semibold block ${
-                    respuesta === 'NO_APLICA' ? 'text-gray-900' : 'text-gray-700'
-                  }`}>
-                    No Aplica
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Criterio no aplicable
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
+          {/* Selector de nivel de madurez */}
+          {requiereNivelMadurez && (
+            <SelectorNivelMadurez
+              nivelMadurez={nivelMadurez}
+              onNivelChange={setNivelMadurez}
+              justificacion={justificacionMadurez}
+              onJustificacionChange={setJustificacionMadurez}
+              modoLectura={!puedeEditar}
+            />
+          )}
 
           {/* Justificación */}
           <div>
@@ -370,11 +250,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
               <span className="text-gray-500 font-normal ml-2 text-xs">
                 (mínimo 10 caracteres)
               </span>
-              {respuesta === 'SI_CUMPLE' && (
-                <span className="text-amber-600 font-medium ml-2 text-xs">
-                  • Obligatorio para "Sí Cumple"
-                </span>
-              )}
             </label>
             <textarea
               value={justificacion}
@@ -389,84 +264,18 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </p>
           </div>
 
-          {/* Evidencias (solo si es "Sí Cumple") */}
-          {respuesta === 'SI_CUMPLE' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Evidencias <span className="text-red-500">*</span>
-                <span className="text-gray-500 font-normal ml-2 text-xs">
-                  (máximo 3 archivos)
-                </span>
-              </label>
-
-              {/* Lista de evidencias */}
-              {evidencias.length > 0 && (
-                <div className="space-y-2 mb-3">
-                  {evidencias.map((evidencia) => (
-                    <div
-                      key={evidencia.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div className="flex items-center gap-3 flex-1">
-                        <FileText size={18} className="text-gray-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {evidencia.codigo_documento} - {evidencia.titulo_documento}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {evidencia.tipo_documento_display} · {evidencia.nombre_archivo_original} ({evidencia.tamanio_mb} MB)
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {evidencia.url_archivo && (
-                          <a
-                            href={evidencia.url_archivo}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary-600 hover:text-primary-700"
-                          >
-                            <ExternalLink size={16} />
-                          </a>
-                        )}
-                        {puedeEditar && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleEliminarEvidencia(evidencia.id)}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Botón agregar evidencia */}
-              {puedeEditar && evidencias.length < 3 && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setMostrarModalEvidencia(true)}
-                  disabled={!respuestaId}
-                  type="button"
-                >
-                  <Upload size={16} className="mr-2" />
-                  Agregar Evidencia
-                </Button>
-              )}
-
-              {!respuestaId && puedeEditar && (
-                <p className="text-xs text-amber-600 mt-2">
-                  💡 Guarda primero la respuesta como borrador para poder agregar evidencias
-                </p>
-              )}
-            </div>
+          {/* Evidencias */}
+          {puedeSubirEvidencias && (
+            <SeccionEvidencias
+              evidencias={evidencias}
+              puedeEditar={puedeEditar}
+              respuestaId={respuestaId}
+              onAgregarEvidencia={() => setMostrarModalEvidencia(true)}
+              onEliminarEvidencia={handleEliminarEvidencia}
+            />
           )}
 
-          {/* Comentarios Adicionales */}
+          {/* Comentarios */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Comentarios Adicionales <span className="text-gray-500 font-normal text-xs">(Opcional)</span>
@@ -481,14 +290,19 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             />
           </div>
 
-          {/* Botones de Acción */}
+          {/* Botones */}
           {puedeEditar && (
             <div className="flex items-center gap-3 pt-4 border-t">
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={handleGuardarBorrador}
-                disabled={saving || !respuesta || justificacion.trim().length < 10}
+                disabled={
+                  saving || 
+                  !respuesta || 
+                  justificacion.trim().length < 10 ||
+                  (requiereNivelMadurez && (nivelMadurez === 0 || justificacionMadurez.trim().length < 10))
+                }
                 type="button"
               >
                 <Save size={16} className="mr-2" />
@@ -502,7 +316,8 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                 disabled={
                   saving ||
                   !respuestaId ||
-                  (respuesta === 'SI_CUMPLE' && evidencias.length === 0)
+                  (puedeSubirEvidencias && evidencias.length === 0) ||
+                  (requiereNivelMadurez && nivelMadurez === 0)
                 }
                 type="button"
               >
@@ -514,12 +329,12 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
         </div>
       </Card>
 
-      {/* Modal de Evidencia */}
+      {/* Modal */}
       {mostrarModalEvidencia && respuestaId && (
         <ModalEvidencia
           respuestaId={respuestaId}
           onClose={() => setMostrarModalEvidencia(false)}
-          onSuccess={handleEvidenciaSubida}
+          onSuccess={() => loadEvidencias(respuestaId)}
         />
       )}
     </>
