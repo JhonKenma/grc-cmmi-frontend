@@ -28,15 +28,21 @@ import { EditarEncuesta } from '@/pages/encuestas/EditarEncuesta';
 import { EditarDimension } from '@/pages/encuestas/EditarDimension';    // ⭐ NUEVO
 import { EditarPregunta } from '@/pages/encuestas/EditarPregunta';      // ⭐ NUEVO
 import { EditarNivel } from '@/pages/encuestas/EditarNivel';            // ⭐ NUEVO
+
 // ⭐ IMPORTAR ESTOS COMPONENTES
 import { AsignarEvaluacion } from '@/pages/asignaciones/AsignarEvaluacion';
-import { AsignarDimensiones } from '@/pages/asignaciones/AsignarDimensiones'; 
+//import { AsignarDimensiones } from '@/pages/asignaciones/AsignarDimensiones'; //quitar esto
 import { ListaAsignaciones } from '@/pages/asignaciones/ListaAsignaciones';
 import { MisTareas } from '@/pages/asignaciones/MisTareas';
 import { ConfigurarNivelesEvaluacion } from '@/pages/asignaciones/ConfigurarNivelesEvaluacion';
-import { AsignarDimension } from '@/pages/asignaciones/AsignarDimension';
+import { AsignarDimensionesEvaluacion } from '@/pages/asignaciones/AsignarDimensionesEvaluacion';
+import { ProgresoEvaluacion } from '@/pages/asignaciones/ProgresoEvaluacion';
+
 import { PendientesRevision } from '@/pages/asignaciones/PendientesRevision';
 import { ResponderDimension } from '@/pages/respuestas/ResponderDimension';
+import { MisEvaluaciones } from '@/pages/asignaciones/MisEvaluaciones';
+import { ReporteEvaluacion } from '@/pages/reportes/ReporteEvaluacion';
+
 
 
 function App() {
@@ -253,17 +259,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* ⭐ NUEVA RUTA: Admin asigna una o varias dimensiones */}
-            <Route
-              path="/asignaciones/asignar-dimensiones"
-              element={
-                <ProtectedRoute allowedRoles={['administrador']}>
-                  <MainLayout>
-                    <AsignarDimensiones />
-                  </MainLayout>
-                </ProtectedRoute>
-              }
-            />
 
             {/* ⭐ NUEVA RUTA: Pendientes de Revisión */}
             <Route
@@ -305,6 +300,58 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/asignaciones/mis-evaluaciones"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'usuario', 'auditor']}>
+                  <MainLayout>
+                    <MisEvaluaciones />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/evaluaciones/:evaluacionId/configurar-niveles"
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <ConfigurarNivelesEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluaciones/:evaluacionId/asignar-dimensiones"
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <AsignarDimensionesEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluaciones/:evaluacionId/progreso"
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <ProgresoEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reportes/evaluacion"
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <ReporteEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
             {/* Rutas por defecto */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
