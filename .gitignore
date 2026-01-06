@@ -38,4 +38,5 @@ coverage
 build
 .cache
 .parcel-cache
-.eslintcache
+.eslintcachesrc/components/respuestas/ejemplo.txt
+src/components/respuestas/ejemplo02.txt
