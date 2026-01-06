@@ -5,6 +5,7 @@ import { ApiResponse } from '@/types';
 
 export interface ConfigNivelDeseado {
   id: string;
+  evaluacion_empresa: string | null;
   dimension: string;
   dimension_info: {
     id: string;
@@ -29,54 +30,77 @@ export interface ConfigNivelDeseado {
 }
 
 export interface ConfigNivelDeseadoCreateData {
+  evaluacion_empresa_id: string;
   dimension: string;
-  empresa: number;
   nivel_deseado: 1 | 2 | 3 | 4 | 5;
   motivo_cambio?: string;
 }
 
-// ⭐ NUEVO: Type específico para actualización
 export interface ConfigNivelDeseadoUpdateData {
   nivel_deseado: 1 | 2 | 3 | 4 | 5;
   motivo_cambio?: string;
 }
 
-/**
- * API de Configuración de Niveles Deseados
- */
+export interface ConfiguracionMultiple {
+  dimension_id: string;
+  nivel_deseado: 1 | 2 | 3 | 4 | 5;
+  motivo_cambio?: string;
+}
+
 export const configNivelesApi = {
   /**
    * Listar configuraciones de niveles
-   * GET /api/encuestas/config-niveles/
    */
   list: async (): Promise<ConfigNivelDeseado[]> => {
-    const response = await axiosInstance.get<ConfigNivelDeseado[]>('/encuestas/config-niveles/');
+    const response = await axiosInstance.get<ConfigNivelDeseado[]>('/encuestas/config-niveles/'); // ⭐ CAMBIO
     return response.data;
   },
 
   /**
    * Obtener configuración por ID
-   * GET /api/encuestas/config-niveles/{id}/
    */
   get: async (id: string): Promise<ConfigNivelDeseado> => {
-    const response = await axiosInstance.get<ConfigNivelDeseado>(`/encuestas/config-niveles/${id}/`);
+    const response = await axiosInstance.get<ConfigNivelDeseado>(`/encuestas/config-niveles/${id}/`); // ⭐ CAMBIO
     return response.data;
   },
 
   /**
-   * Obtener configuración por dimensión y empresa
-   * GET /api/encuestas/config-niveles/por_dimension/?dimension_id=xxx&empresa_id=yyy
+   * Obtener configuración por dimensión y evaluación
    */
-  getPorDimension: async (dimensionId: string, empresaId: number): Promise<{
+  getPorDimension: async (
+    evaluacionEmpresaId: string,
+    dimensionId: string
+  ): Promise<{
     mensaje?: string;
     nivel_deseado: number | null;
+    evaluacion_empresa_id?: string;
+    dimension_id?: string;
   } | ConfigNivelDeseado> => {
     const response = await axiosInstance.get(
-      '/encuestas/config-niveles/por_dimension/',
+      '/encuestas/config-niveles/por_dimension/', // ⭐ CAMBIO
       {
         params: {
+          evaluacion_empresa_id: evaluacionEmpresaId,
           dimension_id: dimensionId,
-          empresa_id: empresaId,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Obtener todas las configuraciones de una evaluación
+   */
+  getPorEvaluacion: async (evaluacionEmpresaId: string): Promise<{
+    evaluacion_empresa_id: string;
+    total_configuraciones: number;
+    configuraciones: ConfigNivelDeseado[];
+  }> => {
+    const response = await axiosInstance.get(
+      '/encuestas/niveles-deseados/por_evaluacion/',  // ⭐ DEBE SER ESTA URL
+      {
+        params: {
+          evaluacion_empresa_id: evaluacionEmpresaId,
         },
       }
     );
@@ -85,11 +109,10 @@ export const configNivelesApi = {
 
   /**
    * Crear configuración de nivel deseado
-   * POST /api/encuestas/config-niveles/
    */
   create: async (data: ConfigNivelDeseadoCreateData): Promise<ApiResponse<ConfigNivelDeseado>> => {
     const response = await axiosInstance.post<ApiResponse<ConfigNivelDeseado>>(
-      '/encuestas/config-niveles/',
+      '/encuestas/config-niveles/', // ⭐ CAMBIO
       data
     );
     return response.data;
@@ -97,36 +120,53 @@ export const configNivelesApi = {
 
   /**
    * Actualizar configuración
-   * PATCH /api/encuestas/config-niveles/{id}/
-   * 
-   * ⭐ IMPORTANTE: Solo permite actualizar nivel_deseado y motivo_cambio
    */
-update: async (
-  id: string,
-  data: ConfigNivelDeseadoUpdateData  // ⭐ DEBE SER ESTE TYPE
-): Promise<ApiResponse<ConfigNivelDeseado>> => {
-  // ⭐ Construir payload limpio
-  const payload: any = {
-    nivel_deseado: data.nivel_deseado,
-  };
-  
-  // Solo agregar motivo_cambio si tiene valor
-  if (data.motivo_cambio && data.motivo_cambio.trim() !== '') {
-    payload.motivo_cambio = data.motivo_cambio;
-  }
-  
-  const response = await axiosInstance.patch<ApiResponse<ConfigNivelDeseado>>(
-    `/encuestas/config-niveles/${id}/`,
-    payload  // ⭐ DEBE ENVIAR SOLO payload
-  );
-  return response.data;
-},
+  update: async (
+    id: string,
+    data: ConfigNivelDeseadoUpdateData
+  ): Promise<ApiResponse<ConfigNivelDeseado>> => {
+    const payload: any = {
+      nivel_deseado: data.nivel_deseado,
+    };
+    
+    if (data.motivo_cambio && data.motivo_cambio.trim() !== '') {
+      payload.motivo_cambio = data.motivo_cambio;
+    }
+    
+    const response = await axiosInstance.patch<ApiResponse<ConfigNivelDeseado>>(
+      `/encuestas/config-niveles/${id}/`, // ⭐ CAMBIO
+      payload
+    );
+    return response.data;
+  },
+
+  /**
+   * Configurar múltiples dimensiones a la vez
+   */
+  configurarMultiple: async (
+    evaluacionEmpresaId: string,
+    configuraciones: ConfiguracionMultiple[]
+  ): Promise<{
+    total_procesados: number;
+    exitosos: number;
+    errores: number;
+    resultados: any[];
+    errores_detalle: any[];
+  }> => {
+    const response = await axiosInstance.post(
+      '/encuestas/niveles-deseados/configurar_multiple/',  // ⭐ CORREGIR ESTA URL
+      {
+        evaluacion_empresa_id: evaluacionEmpresaId,
+        configuraciones,
+      }
+    );
+    return response.data;
+  },
 
   /**
    * Eliminar configuración
-   * DELETE /api/encuestas/config-niveles/{id}/
    */
   delete: async (id: string): Promise<void> => {
-    await axiosInstance.delete(`/encuestas/config-niveles/${id}/`);
+    await axiosInstance.delete(`/encuestas/niveles-deseados/${id}/`); // ⭐ CAMBIO
   },
 };
