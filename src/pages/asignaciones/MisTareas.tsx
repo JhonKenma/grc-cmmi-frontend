@@ -1,4 +1,4 @@
-// src/pages/asignaciones/MisTareas.tsx - VERSIÓN ACTUALIZADA CON REVISIÓN
+// src/pages/asignaciones/MisTareas.tsx - SIN MODAL
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,13 +12,12 @@ import {
   FileText,
   Layers,
   Target,
-  Eye,        // ⭐ NUEVO
-  XCircle     // ⭐ NUEVO
+  Eye,
+  XCircle
 } from 'lucide-react';
 import { Card, LoadingScreen } from '@/components/common';
 import { asignacionesApi } from '@/api/endpoints/asignaciones.api';
 import { AsignacionListItem } from '@/types';
-import { ConfigurarNivelModal } from '@/components/asignaciones/ConfigurarNivelModal';
 import toast from 'react-hot-toast';
 
 export const MisTareas: React.FC = () => {
@@ -27,14 +26,6 @@ export const MisTareas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [asignaciones, setAsignaciones] = useState<AsignacionListItem[]>([]);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
-
-  // Estados para el modal
-  const [modalConfigNivel, setModalConfigNivel] = useState(false);
-  const [dimensionSeleccionada, setDimensionSeleccionada] = useState<{
-    id: string;
-    nombre: string;
-    codigo: string;
-  } | null>(null);
 
   // ==========================================
   // CARGAR ASIGNACIONES
@@ -65,7 +56,7 @@ export const MisTareas: React.FC = () => {
   });
 
   // ==========================================
-  // ESTADÍSTICAS - ⭐ ACTUALIZADO
+  // ESTADÍSTICAS
   // ==========================================
   const stats = {
     total: asignaciones.length,
@@ -73,12 +64,12 @@ export const MisTareas: React.FC = () => {
     en_progreso: asignaciones.filter((a) => a.estado === 'en_progreso').length,
     completadas: asignaciones.filter((a) => a.estado === 'completado').length,
     vencidas: asignaciones.filter((a) => a.estado === 'vencido').length,
-    pendientes_revision: asignaciones.filter((a) => a.estado === 'pendiente_revision').length, // ⭐ NUEVO
-    rechazadas: asignaciones.filter((a) => a.estado === 'rechazado').length, // ⭐ NUEVO
+    pendientes_revision: asignaciones.filter((a) => a.estado === 'pendiente_revision').length,
+    rechazadas: asignaciones.filter((a) => a.estado === 'rechazado').length,
   };
 
   // ==========================================
-  // HELPERS - ⭐ ACTUALIZADO
+  // HELPERS
   // ==========================================
   const getEstadoBadge = (estado: string) => {
     const estados = {
@@ -86,8 +77,8 @@ export const MisTareas: React.FC = () => {
       en_progreso: { label: 'En Progreso', color: 'blue', icon: '🔄' },
       completado: { label: 'Completado', color: 'green', icon: '✅' },
       vencido: { label: 'Vencido', color: 'red', icon: '❌' },
-      pendiente_revision: { label: 'En Revisión', color: 'purple', icon: '👁️' }, // ⭐ NUEVO
-      rechazado: { label: 'Rechazado', color: 'orange', icon: '🔴' }, // ⭐ NUEVO
+      pendiente_revision: { label: 'En Revisión', color: 'purple', icon: '👁️' },
+      rechazado: { label: 'Rechazado', color: 'orange', icon: '🔴' },
     };
     
     const config = estados[estado as keyof typeof estados] || estados.pendiente;
@@ -97,8 +88,8 @@ export const MisTareas: React.FC = () => {
       blue: 'bg-blue-100 text-blue-800',
       green: 'bg-green-100 text-green-800',
       red: 'bg-red-100 text-red-800',
-      purple: 'bg-purple-100 text-purple-800',   // ⭐ NUEVO
-      orange: 'bg-orange-100 text-orange-800',   // ⭐ NUEVO
+      purple: 'bg-purple-100 text-purple-800',
+      orange: 'bg-orange-100 text-orange-800',
     };
     
     return (
@@ -115,18 +106,6 @@ export const MisTareas: React.FC = () => {
     return 'text-green-600';
   };
 
-  // ⭐ FUNCIÓN: Abrir modal de configurar nivel
-  const handleConfigurarNivel = (asignacion: AsignacionListItem) => {
-    if (asignacion.dimension_nombre && asignacion.dimension_id) {
-      setDimensionSeleccionada({
-        id: asignacion.dimension_id,
-        nombre: asignacion.dimension_nombre,
-        codigo: asignacion.dimension_codigo || 'DIM',
-      });
-      setModalConfigNivel(true);
-    }
-  };
-
   if (loading) {
     return <LoadingScreen message="Cargando tus tareas..." />;
   }
@@ -141,7 +120,7 @@ export const MisTareas: React.FC = () => {
         </p>
       </div>
 
-      {/* Estadísticas - ⭐ ACTUALIZADO con 2 nuevas cards */}
+      {/* Estadísticas */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
         <Card className="hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3">
@@ -179,7 +158,6 @@ export const MisTareas: React.FC = () => {
           </div>
         </Card>
 
-        {/* ⭐ NUEVA CARD: En Revisión */}
         <Card className="hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -204,7 +182,6 @@ export const MisTareas: React.FC = () => {
           </div>
         </Card>
 
-        {/* ⭐ NUEVA CARD: Rechazadas */}
         <Card className="hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -230,7 +207,7 @@ export const MisTareas: React.FC = () => {
         </Card>
       </div>
 
-      {/* Filtros - ⭐ ACTUALIZADO con nuevos estados */}
+      {/* Filtros */}
       <Card>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm font-medium text-gray-700">Filtrar por:</span>
@@ -238,8 +215,8 @@ export const MisTareas: React.FC = () => {
             'todos', 
             'pendiente', 
             'en_progreso', 
-            'pendiente_revision',  // ⭐ NUEVO
-            'rechazado',          // ⭐ NUEVO
+            'pendiente_revision',
+            'rechazado',
             'completado', 
             'vencido'
           ].map((estado) => (
@@ -291,7 +268,6 @@ export const MisTareas: React.FC = () => {
                     </h3>
                     {getEstadoBadge(asignacion.estado)}
                     
-                    {/* ⭐ NUEVO: Badge "Requiere Revisión" */}
                     {asignacion.requiere_revision && asignacion.estado !== 'completado' && (
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
                         📋 Requiere Revisión
@@ -345,7 +321,7 @@ export const MisTareas: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* ⭐ NUEVO: Mensaje de rechazo */}
+                  {/* Mensaje de rechazo */}
                   {asignacion.estado === 'rechazado' && (
                     <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                       <div className="flex items-start gap-2">
@@ -362,7 +338,7 @@ export const MisTareas: React.FC = () => {
                     </div>
                   )}
 
-                  {/* ⭐ NUEVO: Mensaje de pendiente revisión */}
+                  {/* Mensaje de pendiente revisión */}
                   {asignacion.estado === 'pendiente_revision' && (
                     <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                       <div className="flex items-start gap-2">
@@ -380,89 +356,48 @@ export const MisTareas: React.FC = () => {
                   )}
                 </div>
 
-              {/* Botones de acción */}
-              <div className="flex flex-col gap-2">
-                {/* ⭐ Botón Responder - SOLO PARA USUARIOS */}
-                {user?.rol !== 'administrador' && user?.rol !== 'superadmin' && (
-                  <button
-                    onClick={() => navigate(`/respuestas/${asignacion.id}`)}
-                    className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                      asignacion.estado === 'completado'
-                        ? 'bg-gray-600 hover:bg-gray-700'
+                {/* Botones de acción */}
+                <div className="flex flex-col gap-2">
+                  {/* Botón Responder - SOLO PARA USUARIOS */}
+                  {user?.rol !== 'administrador' && user?.rol !== 'superadmin' && (
+                    <button
+                      onClick={() => navigate(`/respuestas/${asignacion.id}`)}
+                      className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                        asignacion.estado === 'completado'
+                          ? 'bg-gray-600 hover:bg-gray-700'
+                          : asignacion.estado === 'pendiente_revision'
+                          ? 'bg-purple-600 hover:bg-purple-700'
+                          : asignacion.estado === 'rechazado'
+                          ? 'bg-orange-600 hover:bg-orange-700'
+                          : 'bg-primary-600 hover:bg-primary-700'
+                      } text-white`}
+                    >
+                      {asignacion.estado === 'completado'
+                        ? 'Ver Respuestas'
                         : asignacion.estado === 'pendiente_revision'
-                        ? 'bg-purple-600 hover:bg-purple-700'
+                        ? 'En Revisión'
                         : asignacion.estado === 'rechazado'
-                        ? 'bg-orange-600 hover:bg-orange-700'
-                        : 'bg-primary-600 hover:bg-primary-700'
-                    } text-white`}
-                  >
-                    {asignacion.estado === 'completado'
-                      ? 'Ver Respuestas'
-                      : asignacion.estado === 'pendiente_revision'
-                      ? 'En Revisión'
-                      : asignacion.estado === 'rechazado'
-                      ? 'Corregir'
-                      : 'Responder'}
-                  </button>
-                )}
+                        ? 'Corregir'
+                        : 'Responder'}
+                    </button>
+                  )}
 
-                {/* ⭐ Botón Ver Respuestas - SOLO PARA ADMINISTRADORES */}
-                {(user?.rol === 'administrador' || user?.rol === 'superadmin') && (
-                  <button
-                    onClick={() => navigate(`/asignaciones/${asignacion.id}/revisar`)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center justify-center gap-1"
-                  >
-                    <Eye size={16} />
-                    <span>Revisar Respuestas</span>
-                  </button>
-                )}
+                  {/* Botón Ver Respuestas - SOLO PARA ADMINISTRADORES */}
+                  {(user?.rol === 'administrador' || user?.rol === 'superadmin') && (
+                    <button
+                      onClick={() => navigate(`/asignaciones/${asignacion.id}/revisar`)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                    >
+                      <Eye size={16} />
+                      <span>Revisar Respuestas</span>
+                    </button>
+                  )}
 
-                {/* Botón: Configurar Niveles (solo para admins) */}
-                {(user?.rol === 'administrador' || user?.rol === 'superadmin') && (
-                  <button
-                    onClick={() => {
-                      if (asignacion.dimension_nombre && asignacion.dimension_id) {
-                        handleConfigurarNivel(asignacion);
-                      } else {
-                        navigate(`/asignaciones/${asignacion.id}/configurar-niveles`);
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-1"
-                    title={
-                      asignacion.dimension_nombre
-                        ? 'Configurar nivel deseado para esta dimensión'
-                        : 'Configurar niveles deseados para todas las dimensiones'
-                    }
-                  >
-                    <Target size={16} />
-                    <span>
-                      {asignacion.dimension_nombre ? 'Configurar Nivel' : 'Configurar Niveles'}
-                    </span>
-                  </button>
-                )}
-              </div>
+                </div>
               </div>
             </Card>
           ))}
         </div>
-      )}
-
-      {/* Modal de configurar nivel */}
-      {modalConfigNivel && dimensionSeleccionada && (
-        <ConfigurarNivelModal
-          isOpen={modalConfigNivel}
-          onClose={() => {
-            setModalConfigNivel(false);
-            setDimensionSeleccionada(null);
-          }}
-          dimensionId={dimensionSeleccionada.id}
-          dimensionNombre={dimensionSeleccionada.nombre}
-          dimensionCodigo={dimensionSeleccionada.codigo}
-          onConfigured={() => {
-            toast.success('Nivel configurado correctamente');
-            loadAsignaciones();
-          }}
-        />
       )}
     </div>
   );
