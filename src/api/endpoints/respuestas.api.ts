@@ -27,6 +27,18 @@ export const respuestasApi = {
   },
 
   /**
+   * ⭐ NUEVO: Listar respuestas para revisión (incluye evidencias completas)
+   * GET /api/respuestas/revision/?asignacion={id}
+   */
+  listParaRevision: async (asignacionId: string): Promise<{ count: number; results: Respuesta[] }> => {
+    const response = await axiosInstance.get<{ count: number; results: Respuesta[] }>(
+      '/respuestas/revision/',
+      { params: { asignacion: asignacionId } }
+    );
+    return response.data;
+  },
+
+  /**
    * Obtener detalle de una respuesta
    * GET /api/respuestas/{id}/
    */
@@ -71,17 +83,50 @@ export const respuestasApi = {
   },
 
   /**
+   * ⭐ NUEVO: Modificar respuesta como administrador
+   * POST /api/respuestas/{id}/modificar_admin/
+   */
+  modificarAdmin: async (
+    id: string,
+    data: {
+      respuesta?: string;
+      justificacion?: string;
+      comentarios_adicionales?: string;
+      motivo_modificacion?: string;
+    }
+  ): Promise<ApiResponse<Respuesta>> => {
+    const response = await axiosInstance.post<ApiResponse<Respuesta>>(
+      `/respuestas/${id}/modificar_admin/`,
+      data
+    );
+    return response.data;
+  },  
+
+  /**
    * Subir evidencia
    * POST /api/evidencias/
    */
   subirEvidencia: async (data: EvidenciaCreate): Promise<ApiResponse<Evidencia>> => {
     const formData = new FormData();
+    
+    // ⭐ ORDEN CORRECTO: Campos primero, archivo al final
     formData.append('respuesta', data.respuesta);
+    formData.append('codigo_documento', data.codigo_documento);  // ⭐ AGREGADO
     formData.append('tipo_documento_enum', data.tipo_documento_enum);
     formData.append('titulo_documento', data.titulo_documento);
     formData.append('objetivo_documento', data.objetivo_documento);
     formData.append('fecha_ultima_actualizacion', data.fecha_ultima_actualizacion);
     formData.append('archivo', data.archivo);
+
+    // ⭐ LOG: Verificar FormData antes de enviar
+    console.log('🔍 [API] FormData a enviar:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`   - ${key}: ${value.name}`);
+      } else {
+        console.log(`   - ${key}: ${value}`);
+      }
+    }
 
     const response = await axiosInstance.post<ApiResponse<Evidencia>>(
       '/evidencias/',
@@ -125,5 +170,4 @@ export const respuestasApi = {
     );
     return response.data;
   },
-  
 };
