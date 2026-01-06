@@ -68,33 +68,24 @@ export const asignacionesApi = {
   },
   
   /**
-   * ⭐ ACTUALIZADO: Obtener dimensiones disponibles para asignar a nivel EMPRESA
-   * GET /api/asignaciones/dimensiones_disponibles/?encuesta_id=xxx&empresa_id=1
-   * 
-   * Retorna solo las dimensiones que NO han sido asignadas a NINGÚN usuario de la empresa
+   * Obtener dimensiones disponibles para asignar
+   * GET /api/asignaciones/dimensiones-disponibles/?evaluacion_empresa_id=xxx
    */
   getDimensionesDisponibles: async (
-    encuestaId: string, 
-    empresaId: number  // ⭐ CAMBIO: Ahora es empresa_id, no usuario_id
-  ): Promise<{
-    total_dimensiones: number;
-    dimensiones_asignadas: number;
-    dimensiones_disponibles: number;
-    dimensiones: DimensionListItem[];
-    detalle_asignaciones?: DetalleAsignacion[];  // ⭐ NUEVO: Info de quién tiene cada dimensión
-  }> => {
+    evaluacionEmpresaId: string
+  ): Promise<any> => {
+    console.log('🔍 Llamando a:', `/asignaciones/dimensiones_disponibles/?evaluacion_empresa_id=${evaluacionEmpresaId}`);
+    
     const response = await axiosInstance.get(
-      '/asignaciones/dimensiones_disponibles/',
+      '/asignaciones/dimensiones_disponibles/',  // ⭐ CON UNDERSCORE
       { 
         params: { 
-          encuesta_id: encuestaId, 
-          empresa_id: empresaId  // ⭐ CAMBIO: empresa_id en lugar de usuario_id
+          evaluacion_empresa_id: evaluacionEmpresaId
         } 
       }
     );
     return response.data;
   },
-
   /**
    * Obtener mis asignaciones
    */
