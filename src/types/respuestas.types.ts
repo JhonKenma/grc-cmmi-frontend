@@ -70,6 +70,9 @@ export interface Respuesta {
   respuesta_display: string;
   justificacion: string;
   comentarios_adicionales: string;
+  nivel_madurez: number;
+  nivel_madurez_display?: string;
+  justificacion_madurez: string;
   estado: 'borrador' | 'enviado' | 'modificado_admin';
   estado_display: string;
   respondido_por: number;
@@ -91,6 +94,9 @@ export interface RespuestaListItem {
   respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
   respuesta_display: string;
   justificacion: string;
+  nivel_madurez: number;
+  nivel_madurez_display?: string;
+  justificacion_madurez: string;
   estado: 'borrador' | 'enviado' | 'modificado_admin';
   estado_display: string;
   respondido_por: number;
@@ -106,12 +112,16 @@ export interface RespuestaCreate {
   respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
   justificacion: string;
   comentarios_adicionales?: string;
+  nivel_madurez: number;
+  justificacion_madurez?: string;
 }
 
 export interface RespuestaUpdate {
   respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
   justificacion: string;
   comentarios_adicionales?: string;
+  nivel_madurez?: number;
+  justificacion_madurez?: string;
 }
 
 export interface HistorialRespuesta {
