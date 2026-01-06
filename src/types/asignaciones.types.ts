@@ -72,21 +72,22 @@ export interface Asignacion {
 
 export interface AsignacionListItem {
   id: string;
+  evaluacion_empresa_id: string | null;  // ⭐ AGREGAR - Puede ser null en asignaciones antiguas
+  evaluacion_nombre: string;              // ⭐ AGREGAR
   encuesta_nombre: string;
   dimension_id: string | null;
   dimension_nombre: string | null;
   dimension_codigo: string | null;
   usuario_asignado_nombre: string;
-  usuario_asignado_email?: string; // ⭐ AGREGADO
+  usuario_asignado_email?: string;
   fecha_limite: string;
   estado: 'pendiente' | 'en_progreso' | 'completado' | 'vencido' | 'pendiente_revision' | 'rechazado';
-  estado_display?: string; // ⭐ AGREGADO
+  estado_display?: string;
   porcentaje_avance: number;
   dias_restantes: number;
-  requiere_revision?: boolean;
-  fecha_creacion?: string; // ⭐ AGREGADO
+  requiere_revision?: boolean;  // ⭐ IMPORTANTE
+  fecha_creacion?: string;
 }
-
 export interface AsignacionEvaluacionData {
   encuesta_id: string;
   administrador_id: number;
@@ -95,9 +96,8 @@ export interface AsignacionEvaluacionData {
 }
 
 export interface AsignacionDimensionData {
-  encuesta_id: string;
-  dimension_id?: string;
-  dimension_ids?: string[];
+  evaluacion_empresa_id: string;  // ⭐ REQUERIDO
+  dimension_ids: string[];        // ⭐ Siempre array (no singular)
   usuario_id: number;
   fecha_limite: string;
   observaciones?: string;
