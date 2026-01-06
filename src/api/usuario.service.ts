@@ -88,4 +88,14 @@ export const usuarioService = {
     
     return [];
   },
+
+  async getByEmpresa(empresaId: number, rol?: string): Promise<Usuario[]> {
+    const params: any = { empresa_id: empresaId };
+    if (rol) params.rol = rol;
+    
+    // ⭐ CORRECCIÓN: /auth/usuarios/ (no solo /auth/)
+    const response = await api.get('/auth/usuarios/por_empresa/', { params });
+    return response.data.results || response.data;
+  },
+
 };
