@@ -1,4 +1,4 @@
-// src/components/layout/MainLayout.tsx - VERSIÓN ACTUALIZADA CON CAMPANITA
+// src/components/layout/MainLayout.tsx
 
 import { ReactNode, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -14,10 +14,11 @@ import {
   ChevronDown,
   User,
   Upload,
-  Bell  // ⭐ AGREGAR
+  Bell,
+  BarChart3  // ⭐ AGREGAR ICONO PARA REPORTES
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { NotificationBell } from '@/components/notifications/NotificationBell';  // ⭐ IMPORTAR
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -66,19 +67,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['superadmin'],
       requireSuperAdmin: true,
     },
-    // ⭐ AGREGAR ITEM DE ASIGNACIONES
     {
       name: 'Asignaciones',
       icon: ClipboardList,
-      path: '/asignaciones',
+      path: '/asignaciones/mis-evaluaciones',
       roles: ['superadmin', 'administrador'],
     },
-    // ⭐ ACTUALIZAR: Mis Tareas (Usuarios y Administradores)
     {
       name: 'Mis Tareas',
       icon: ClipboardList,
       path: '/mis-tareas',
-      roles: ['usuario', 'administrador'],
+      roles: ['usuario'],
+    },
+    // ⭐ AGREGAR ITEM DE REPORTES
+    {
+      name: 'Análisis GAP',
+      icon: BarChart3,
+      path: '/reportes/evaluacion',
+      roles: ['superadmin', 'administrador'],
     },
   ];
 
@@ -169,7 +175,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </h2>
           </div>
 
-          {/* ⭐ ÁREA DE NOTIFICACIONES Y USER MENU */}
+          {/* Área de Notificaciones y User Menu */}
           <div className="flex items-center gap-4">
             {/* Campanita de notificaciones */}
             <NotificationBell />
