@@ -43,12 +43,6 @@ export const SelectorNivelMadurez: React.FC<SelectorNivelMadurezProps> = ({
             </div>
           </div>
         </div>
-        {justificacion && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Justificación Técnica:</p>
-            <p className="text-sm text-gray-700 italic mt-1 leading-relaxed">"{justificacion}"</p>
-          </div>
-        )}
       </div>
     );
   }
@@ -91,28 +85,6 @@ export const SelectorNivelMadurez: React.FC<SelectorNivelMadurezProps> = ({
         {nivelMadurez > 0 && (
           <div className="animate-in fade-in slide-in-from-top-2 duration-300">
             <VistaPreviewNivelMadurez nivelMadurez={nivelMadurez} />
-          </div>
-        )}
-
-        {/* Textarea de justificación */}
-        {nivelMadurez > 0 && (
-          <div className="pt-2 border-t border-gray-50">
-            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-tight">
-              ¿Por qué este nivel? <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              value={justificacion}
-              onChange={(e) => onJustificacionChange(e.target.value)}
-              rows={3}
-              className="w-full p-3 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none"
-              placeholder="Ej: El proceso está estandarizado y se mide mediante KPIs mensuales..."
-            />
-            <div className="flex justify-between mt-1 px-1">
-               <span className={`text-[10px] font-medium ${justificacion.length >= 10 ? 'text-green-600' : 'text-gray-400'}`}>
-                {justificacion.length >= 10 ? '✓ Mínimo alcanzado' : `${10 - justificacion.length} caracteres restantes`}
-              </span>
-              <span className="text-[10px] text-gray-400">{justificacion.length} caracteres</span>
-            </div>
           </div>
         )}
       </div>

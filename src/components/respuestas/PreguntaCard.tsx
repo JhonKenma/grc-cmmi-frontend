@@ -1,4 +1,4 @@
-// src/components/respuestas/PreguntaCard.tsx - VERSIÓN SIMPLIFICADA
+// src/components/respuestas/PreguntaCard.tsx - CÓDIGO COMPLETO CORREGIDO
 
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Save, Send } from 'lucide-react';
@@ -38,24 +38,35 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   const [saving, setSaving] = useState(false);
   const [mostrarModalEvidencia, setMostrarModalEvidencia] = useState(false);
 
-  // Cargar datos existentes
-  useEffect(() => {
-    if (respuestaExistente) {
-      setRespuesta(respuestaExistente.respuesta);
-      setJustificacion(respuestaExistente.justificacion);
-      setRespuestaId(respuestaExistente.id);
-      setEstado(respuestaExistente.estado);
-      setNivelMadurez(respuestaExistente.nivel_madurez || 0);
-      setJustificacionMadurez(respuestaExistente.justificacion_madurez || '');
-      loadEvidencias(respuestaExistente.id);
-    }
-  }, [respuestaExistente]);
-
   // Lógica
   const puedeSubirEvidencias = respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
   const requiereNivelMadurez = respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
   const esNoImplementado = respuesta === 'NO_CUMPLE' || respuesta === 'NO_APLICA';
   const puedeEditar = estado === 'borrador';
+
+  // ⭐ FIX 4: Mejorar carga inicial de datos
+  useEffect(() => {
+    if (respuestaExistente) {
+      console.log('📥 Cargando respuesta existente:', respuestaExistente);
+      
+      setRespuesta(respuestaExistente.respuesta);
+      setJustificacion(respuestaExistente.justificacion || '');
+      setComentarios(respuestaExistente.comentarios_adicionales || '');
+      setRespuestaId(respuestaExistente.id);
+      setEstado(respuestaExistente.estado);
+      
+      // ⭐ FIX: Asegurar que nivel_madurez sea número válido
+      const nivelCargado = Number(respuestaExistente.nivel_madurez);
+      setNivelMadurez(isNaN(nivelCargado) ? 0 : nivelCargado);
+      
+      setJustificacionMadurez(respuestaExistente.justificacion_madurez || '');
+      
+      // Cargar evidencias
+      if (respuestaExistente.id) {
+        loadEvidencias(respuestaExistente.id);
+      }
+    }
+  }, [respuestaExistente]);
 
   // Auto-reset nivel de madurez
   useEffect(() => {
@@ -83,15 +94,9 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       return;
     }
 
-    if (requiereNivelMadurez) {
-      if (nivelMadurez === 0) {
-        toast.error('Debes indicar un nivel de madurez mayor a 0');
-        return;
-      }
-      if (justificacionMadurez.trim().length < 10) {
-        toast.error('Debes justificar el nivel de madurez (mín 10 caracteres)');
-        return;
-      }
+    if (requiereNivelMadurez && nivelMadurez === 0) {
+      toast.error('Debes indicar un nivel de madurez mayor a 0');
+      return;
     }
 
     try {
@@ -105,22 +110,100 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       };
 
       if (respuestaId) {
-        const response = await respuestasApi.update(respuestaId, data);
+        // ════════════════════════════════════════════════════
+        // UPDATE EXISTENTE
+        // ════════════════════════════════════════════════════
+        console.log('📝 Actualizando respuesta existente:', respuestaId);
+        await respuestasApi.update(respuestaId, data);
+        
+        // Recargar la respuesta completa desde el servidor
+        const respuestaCompleta = await respuestasApi.get(respuestaId);
+        console.log('✅ Respuesta actualizada y recargada:', respuestaCompleta);
+        
+        // Actualizar estados locales
+        setRespuesta(respuestaCompleta.respuesta);
+        setJustificacion(respuestaCompleta.justificacion);
+        setNivelMadurez(Number(respuestaCompleta.nivel_madurez) || 0);
+        setJustificacionMadurez(respuestaCompleta.justificacion_madurez || '');
+        setComentarios(respuestaCompleta.comentarios_adicionales || '');
+        setEstado(respuestaCompleta.estado);
+        
+        // Recargar evidencias
+        if (respuestaCompleta.evidencias) {
+          setEvidencias(respuestaCompleta.evidencias);
+        }
+        
+        // Notificar al padre
+        onRespuestaChange(mapToListItem(respuestaCompleta));
+        
         toast.success('Respuesta guardada como borrador');
-        onRespuestaChange(mapToListItem(response.data));
+        
       } else {
-        const response = await respuestasApi.create({
+        // ════════════════════════════════════════════════════
+        // CREATE NUEVA
+        // ════════════════════════════════════════════════════
+        console.log('🆕 Creando nueva respuesta para pregunta:', pregunta.id);
+        console.log('📤 Datos a enviar:', { asignacion: asignacionId, pregunta: pregunta.id, ...data });
+        
+        const createResponse = await respuestasApi.create({
           asignacion: asignacionId,
           pregunta: pregunta.id,
           ...data,
         });
-        setRespuestaId(response.data?.id ?? null);
+        
+        console.log('📥 createResponse COMPLETO:', createResponse); // ⭐ DEBUG
+        console.log('📥 createResponse.data:', createResponse.data); // ⭐ DEBUG
+        console.log('📥 Tipo de createResponse.data:', typeof createResponse.data); // ⭐ DEBUG
+        console.log('📥 createResponse.data tiene id?:', createResponse.data?.id); // ⭐ DEBUG
+        
+        // ⭐ Intentar diferentes formas de extraer el data
+        let createdData = createResponse.data;
+        
+        // Si viene envuelto en { success, data, message }
+        if (createdData && typeof createdData === 'object' && 'data' in createdData) {
+          console.log('⚠️ Respuesta envuelta, extrayendo data...');
+          createdData = (createdData as any).data;
+        }
+        
+        console.log('📦 createdData final:', createdData); // ⭐ DEBUG
+        
+        if (!createdData || !createdData.id) {
+          console.error('❌ createdData inválido:', createdData);
+          console.error('❌ createResponse completo:', JSON.stringify(createResponse, null, 2));
+          throw new Error('No se recibió respuesta válida del servidor');
+        }
+        
+        console.log('✅ ID de respuesta creada:', createdData.id);
+        setRespuestaId(createdData.id);
+        
+        // Recargar la respuesta completa desde el servidor
+        const respuestaCompleta = await respuestasApi.get(createdData.id);
+        console.log('✅ Respuesta creada y recargada:', respuestaCompleta);
+        
+        // Actualizar estados locales
+        setRespuesta(respuestaCompleta.respuesta);
+        setJustificacion(respuestaCompleta.justificacion);
+        setNivelMadurez(Number(respuestaCompleta.nivel_madurez) || 0);
+        setJustificacionMadurez(respuestaCompleta.justificacion_madurez || '');
+        setComentarios(respuestaCompleta.comentarios_adicionales || '');
+        setEstado(respuestaCompleta.estado);
+        
+        // Recargar evidencias
+        if (respuestaCompleta.evidencias) {
+          setEvidencias(respuestaCompleta.evidencias);
+        }
+        
+        // Notificar al padre
+        onRespuestaChange(mapToListItem(respuestaCompleta));
+        
         toast.success('Respuesta creada como borrador');
-        onRespuestaChange(mapToListItem(response.data));
       }
+
     } catch (error: any) {
-      console.error('Error al guardar:', error);
-      toast.error(error.response?.data?.message || 'Error al guardar la respuesta');
+      console.error('❌ Error al guardar:', error);
+      console.error('❌ Error.response:', error.response);
+      console.error('❌ Error.response.data:', error.response?.data);
+      toast.error(error.response?.data?.message || error.message || 'Error al guardar la respuesta');
     } finally {
       setSaving(false);
     }
@@ -170,26 +253,32 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
     }
   };
 
-  const mapToListItem = (data: any): RespuestaListItem => ({
-    id: data?.id || '',
-    asignacion: data?.asignacion || '',
-    pregunta: data?.pregunta || '',
-    pregunta_codigo: data?.pregunta_codigo || '',
-    pregunta_texto: data?.pregunta_texto || '',
-    respuesta: data?.respuesta || 'NO_APLICA',
-    respuesta_display: data?.respuesta_display || '',
-    justificacion: data?.justificacion || '',
-    nivel_madurez: data?.nivel_madurez || 0,
-    nivel_madurez_display: data?.nivel_madurez_display || '',
-    justificacion_madurez: data?.justificacion_madurez || '',
-    estado: data?.estado || 'borrador',
-    estado_display: data?.estado_display || '',
-    respondido_por: Number(data?.respondido_por) || 0,
-    respondido_por_nombre: data?.respondido_por_nombre || '',
-    respondido_at: data?.respondido_at || '',
-    total_evidencias: data?.evidencias?.length || 0,
-    version: data?.version || 0,
-  });
+  // ⭐ FIX 3: Mejorar mapToListItem para manejar valores null/undefined
+  const mapToListItem = (data: any): RespuestaListItem => {
+    console.log('📋 mapToListItem input:', data);
+
+    return {
+      id: data?.id || '',
+      asignacion: data?.asignacion || '',
+      pregunta: data?.pregunta || '',
+      pregunta_codigo: data?.pregunta_codigo || '',
+      pregunta_texto: data?.pregunta_texto || '',
+      respuesta: data?.respuesta || 'NO_APLICA',
+      respuesta_display: data?.respuesta_display || '',
+      justificacion: data?.justificacion || '',
+      nivel_madurez: Number(data?.nivel_madurez) || 0,  // ⭐ Convertir a número
+      nivel_madurez_display: data?.nivel_madurez_display || '',
+      justificacion_madurez: data?.justificacion_madurez || '',
+      comentarios_adicionales: data?.comentarios_adicionales || '',  // ⭐ AGREGAR
+      estado: data?.estado || 'borrador',
+      estado_display: data?.estado_display || '',
+      respondido_por: Number(data?.respondido_por) || 0,
+      respondido_por_nombre: data?.respondido_por_nombre || '',
+      respondido_at: data?.respondido_at || '',
+      total_evidencias: data?.evidencias?.length || data?.total_evidencias || 0,
+      version: data?.version || 0,
+    };
+  };
 
   return (
     <>
@@ -301,7 +390,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   saving || 
                   !respuesta || 
                   justificacion.trim().length < 10 ||
-                  (requiereNivelMadurez && (nivelMadurez === 0 || justificacionMadurez.trim().length < 10))
+                  (requiereNivelMadurez && nivelMadurez === 0)
                 }
                 type="button"
               >

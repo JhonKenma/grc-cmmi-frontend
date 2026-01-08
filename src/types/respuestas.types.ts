@@ -97,6 +97,7 @@ export interface RespuestaListItem {
   nivel_madurez: number;
   nivel_madurez_display?: string;
   justificacion_madurez: string;
+  comentarios_adicionales?: string;
   estado: 'borrador' | 'enviado' | 'modificado_admin';
   estado_display: string;
   respondido_por: number;
