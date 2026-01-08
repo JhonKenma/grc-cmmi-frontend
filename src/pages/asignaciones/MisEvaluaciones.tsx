@@ -207,16 +207,34 @@ export const MisEvaluaciones: React.FC = () => {
                         )}
 
                         {/* 2. Asignar Dimensiones (condicional) */}
-                        {ev.dimensiones_asignadas < ev.total_dimensiones && (
-                          <button
-                            onClick={() => navigate(`/evaluaciones/${ev.id}/asignar-dimensiones`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 border border-emerald-200 rounded-lg transition-all"
-                            title="Asignar dimensiones pendientes"
-                          >
-                            <Plus size={14} />
-                            <span>Asignar</span>
-                          </button>
-                        )}
+                        {(() => {
+                          // Mostrar si:
+                          // 1. Hay dimensiones pendientes de asignar (dimensiones_asignadas < total_dimensiones)
+                          // 2. O hay dimensiones asignadas pero no completadas (dimensiones_asignadas > dimensiones_completadas)
+                          const dimensionesPendientes = ev.total_dimensiones - ev.dimensiones_asignadas;
+                          const dimensionesIncompletas = ev.dimensiones_asignadas - ev.dimensiones_completadas;
+                          const mostrarBoton = dimensionesPendientes > 0 || dimensionesIncompletas > 0;
+                          
+                          if (!mostrarBoton) return null;
+                          
+                          return (
+                            <button
+                              onClick={() => navigate(`/evaluaciones/${ev.id}/asignar-dimensiones`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 border border-emerald-200 rounded-lg transition-all"
+                              title={
+                                dimensionesPendientes > 0 
+                                  ? `${dimensionesPendientes} dimensión(es) sin asignar` 
+                                  : `${dimensionesIncompletas} dimensión(es) en progreso`
+                              }
+                            >
+                              <Plus size={14} />
+                              <span>
+                                Asignar
+                                {dimensionesPendientes > 0 && ` (${dimensionesPendientes})`}
+                              </span>
+                            </button>
+                          );
+                        })()}
 
                         {/* 3. Ver Progreso */}
                         <button
