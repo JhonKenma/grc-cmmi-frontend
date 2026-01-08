@@ -1,4 +1,4 @@
-// src/components/asignaciones/TablaRespuestasRevision.tsx
+// src/pages/asignaciones/TablaRespuestasRevision.tsx - SIN validaciones de justificacion_madurez
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Edit2, Save, X, FileText, ExternalLink } from 'lucide-react';
@@ -29,7 +29,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
   const [respuestaEditada, setRespuestaEditada] = useState('');
   const [justificacionEditada, setJustificacionEditada] = useState('');
   
-  // ⭐ NUEVOS ESTADOS PARA NIVEL DE MADUREZ
+  // ⭐ ESTADOS PARA NIVEL DE MADUREZ (sin validación obligatoria)
   const [nivelMadurezEditado, setNivelMadurezEditado] = useState<number>(0);
   const [justificacionMadurezEditada, setJustificacionMadurezEditada] = useState('');
 
@@ -62,7 +62,6 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
     setEditando(respuesta.id);
     setRespuestaEditada(respuesta.respuesta);
     setJustificacionEditada(respuesta.justificacion);
-    // ⭐ CARGAR NIVEL DE MADUREZ
     setNivelMadurezEditado(respuesta.nivel_madurez || 0);
     setJustificacionMadurezEditada(respuesta.justificacion_madurez || '');
   };
@@ -71,7 +70,6 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
     setEditando(null);
     setRespuestaEditada('');
     setJustificacionEditada('');
-    // ⭐ RESETEAR NIVEL DE MADUREZ
     setNivelMadurezEditado(0);
     setJustificacionMadurezEditada('');
   };
@@ -80,9 +78,8 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
     onEditarRespuesta(respuestaId, {
       respuesta: respuestaEditada,
       justificacion: justificacionEditada,
-      // ⭐ INCLUIR NIVEL DE MADUREZ
       nivel_madurez: nivelMadurezEditado,
-      justificacion_madurez: justificacionMadurezEditada,
+      justificacion_madurez: justificacionMadurezEditada, // ⭐ Opcional
     });
     setEditando(null);
   };
@@ -117,7 +114,6 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
     }
   };
 
-  // ⭐ DETERMINAR SI REQUIERE NIVEL DE MADUREZ
   const requiereNivelMadurez = (respuesta: string) => {
     return respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
   };
@@ -149,7 +145,6 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* ⭐ BADGE DE NIVEL DE MADUREZ */}
                   {muestraNivelMadurez && (
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
                       Madurez: {respuesta.nivel_madurez}
@@ -229,7 +224,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                       </div>
                     </div>
 
-                    {/* ⭐ NUEVO: SELECTOR DE NIVEL DE MADUREZ */}
+                    {/* ⭐ SELECTOR DE NIVEL DE MADUREZ (SIN validación de justificacion_madurez) */}
                     {requiereNivelMadurez(respuestaEditada) && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -238,7 +233,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                         <select
                           value={nivelMadurezEditado}
                           onChange={(e) => setNivelMadurezEditado(Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent mb-3"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         >
                           {NIVELES_MADUREZ.map((nivel) => (
                             <option key={nivel.value} value={nivel.value}>
@@ -247,8 +242,9 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                           ))}
                         </select>
 
+                        {/* ❌ ELIMINAR TODO ESTE BLOQUE DE JUSTIFICACIÓN DE MADUREZ
                         {nivelMadurezEditado > 0 && (
-                          <div>
+                          <div className="mt-3">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Justificación del Nivel de Madurez <span className="text-red-500">*</span>
                             </label>
@@ -264,6 +260,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                             </p>
                           </div>
                         )}
+                        */}
                       </div>
                     )}
 
@@ -292,8 +289,8 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                         onClick={() => guardarEdicion(respuesta.id)}
                         disabled={
                           justificacionEditada.trim().length < 10 ||
-                          (requiereNivelMadurez(respuestaEditada) && 
-                            (nivelMadurezEditado === 0 || justificacionMadurezEditada.trim().length < 10))
+                          (requiereNivelMadurez(respuestaEditada) && nivelMadurezEditado === 0)
+                          // ❌ ELIMINAR: || (requiereNivelMadurez(respuestaEditada) && justificacionMadurezEditada.trim().length < 10)
                         }
                       >
                         <Save size={14} className="mr-1" />
@@ -312,7 +309,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                 ) : (
                   // MODO VISUALIZACIÓN
                   <>
-                    {/* ⭐ NUEVO: MOSTRAR NIVEL DE MADUREZ */}
+                    {/* MOSTRAR NIVEL DE MADUREZ */}
                     {muestraNivelMadurez && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
@@ -323,12 +320,14 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                             {NIVELES_MADUREZ.find(n => n.value === respuesta.nivel_madurez)?.label}
                           </span>
                         </div>
+                        {/* ❌ ELIMINAR JUSTIFICACIÓN DE MADUREZ DEL MODO VISUALIZACIÓN
                         {respuesta.justificacion_madurez && (
                           <>
                             <p className="text-xs font-medium text-gray-700 mb-1">Justificación del nivel:</p>
                             <p className="text-sm text-gray-800">{respuesta.justificacion_madurez}</p>
                           </>
                         )}
+                        */}
                       </div>
                     )}
 
@@ -391,7 +390,6 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                                   </div>
                                 </div>
                                 
-                                {/* Botón para ver/descargar */}
                                 {evidencia.url_archivo && (
                                   <a
                                     href={`http://localhost:8000${evidencia.url_archivo}`}

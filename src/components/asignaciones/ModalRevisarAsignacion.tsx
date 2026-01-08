@@ -1,4 +1,4 @@
-// src/components/asignaciones/ModalRevisarAsignacion.tsx
+// src/components/asignaciones/ModalRevisarAsignacion.tsx - SIN validaciones de justificacion_madurez
 
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, XCircle, Eye, Edit } from 'lucide-react';
@@ -61,23 +61,22 @@ export const ModalRevisarAsignacion: React.FC<ModalRevisarAsignacionProps> = ({
     }
   };
 
-  // ⭐ ACTUALIZADO: Incluir nivel de madurez
+  // ⭐ ACTUALIZADO: Nivel de madurez sin justificacion_madurez obligatoria
   const handleEditarRespuesta = async (
     respuestaId: string,
     datos: { 
       respuesta: string; 
       justificacion: string;
       nivel_madurez: number;
-      justificacion_madurez: string;
+      justificacion_madurez: string; // ⭐ Opcional
     }
   ) => {
     try {
       const payload: any = {
         respuesta: datos.respuesta,
         justificacion: datos.justificacion,
-        // ⭐ INCLUIR NIVEL DE MADUREZ
         nivel_madurez: datos.nivel_madurez,
-        justificacion_madurez: datos.justificacion_madurez,
+        justificacion_madurez: datos.justificacion_madurez, // ⭐ Se envía pero es opcional
         motivo_modificacion: 'Modificado durante revisión por administrador',
       };
 
