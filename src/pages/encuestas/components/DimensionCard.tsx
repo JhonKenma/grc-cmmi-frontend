@@ -99,15 +99,13 @@ export const DimensionCard: React.FC<DimensionCardProps> = ({
         {/* Preguntas (expandible) */}
         {isExpanded && (
           <div className="mt-6 space-y-4 pl-16">
-            {dimension.preguntas
-              .sort((a, b) => a.orden - b.orden)
-              .map((pregunta, index) => (
-                <PreguntaItem
-                  key={pregunta.id}
-                  pregunta={pregunta}
-                  numero={index + 1}
-                />
-              ))}
+            {(dimension.preguntas ?? []).slice().sort((a, b) => a.orden - b.orden).map((pregunta, index) => (
+              <PreguntaItem
+                key={pregunta.id}
+                pregunta={pregunta}
+                numero={index + 1}
+              />
+            ))}
           </div>
         )}
       </div>

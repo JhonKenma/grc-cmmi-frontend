@@ -1,7 +1,7 @@
 // src/pages/encuestas/components/EncuestaCard.tsx
 
 import React from 'react';
-import { FileText, Layers, CheckCircle, Calendar } from 'lucide-react';
+import { Layers, CheckCircle, Calendar } from 'lucide-react';
 import { Card } from '@/components/common';
 import { EncuestaActions } from './EncuestaActions';
 import { EncuestaListItem } from '@/types';
@@ -43,7 +43,7 @@ export const EncuestaCard: React.FC<EncuestaCardProps> = ({
                 Inactiva
               </span>
             )}
-            {encuesta.es_plantilla && (
+            {((encuesta as any).es_plantilla || (encuesta as any).esPlantilla) && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 Plantilla
               </span>
