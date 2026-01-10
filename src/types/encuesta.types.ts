@@ -75,6 +75,7 @@ export interface Pregunta {
   activo: boolean;
   fecha_creacion?: string;
   fecha_actualizacion?: string;
+  niveles_referencia?: NivelReferencia[];
 }
 
 export interface PreguntaListItem {
