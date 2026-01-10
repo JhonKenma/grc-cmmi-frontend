@@ -32,6 +32,8 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
   // ⭐ ESTADOS PARA NIVEL DE MADUREZ (sin validación obligatoria)
   const [nivelMadurezEditado, setNivelMadurezEditado] = useState<number>(0);
   const [justificacionMadurezEditada, setJustificacionMadurezEditada] = useState('');
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 
   // ⭐ NIVELES DE MADUREZ - SOLO NÚMEROS
   const NIVELES_MADUREZ = [
@@ -392,7 +394,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                                 
                                 {evidencia.url_archivo && (
                                   <a
-                                    href={`http://localhost:8000${evidencia.url_archivo}`}
+                                    href={`${BACKEND_URL}${evidencia.url_archivo}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="ml-3 p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded transition-colors flex-shrink-0"

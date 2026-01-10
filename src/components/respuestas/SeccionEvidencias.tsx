@@ -1,9 +1,12 @@
-// src/components/respuestas/SeccionEvidencias.tsx
+// src/components/respuestas/SeccionEvidencias.tsx - MODIFICAR
 
 import React from 'react';
 import { FileText, Upload, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/common';
 import { Evidencia } from '@/types';
+
+// ⭐ AGREGAR ESTA LÍNEA AL INICIO
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 interface SeccionEvidenciasProps {
   evidencias: Evidencia[];
@@ -51,7 +54,7 @@ export const SeccionEvidencias: React.FC<SeccionEvidenciasProps> = ({
               <div className="flex items-center gap-2">
                 {evidencia.url_archivo && (
                   <a
-                    href={`http://localhost:8000${evidencia.url_archivo}`}
+                    href={`${BACKEND_URL}${evidencia.url_archivo}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary-600 hover:text-primary-700"

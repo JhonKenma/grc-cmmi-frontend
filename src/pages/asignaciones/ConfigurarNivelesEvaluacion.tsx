@@ -7,6 +7,7 @@ import { Button, Card, LoadingScreen } from '@/components/common';
 import { evaluacionesApi } from '@/api/endpoints/evaluaciones.api';
 import { configNivelesApi, ConfiguracionMultiple } from '@/api/endpoints/config-niveles.api';
 import toast from 'react-hot-toast';
+import axiosInstance from '@/api/axios';
 
 export const ConfigurarNivelesEvaluacion: React.FC = () => {
   const { evaluacionId } = useParams<{ evaluacionId: string }>();
@@ -35,24 +36,14 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
       const evaluacionData = await evaluacionesApi.get(evaluacionId);
       setEvaluacion(evaluacionData);
 
-      // 2. Cargar dimensiones desde API
-      const token = localStorage.getItem('access_token');
-      const dimResponse = await fetch(
-        `http://localhost:8000/api/encuestas/dimensiones/?encuesta=${evaluacionData.encuesta}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+      // 2. Cargar dimensiones usando axiosInstance ⭐
+      const dimResponse = await axiosInstance.get('/encuestas/dimensiones/', {
+        params: { encuesta: evaluacionData.encuesta }
+      });
 
-      if (!dimResponse.ok) {
-        throw new Error('Error al cargar dimensiones');
-      }
-
-      const dimData = await dimResponse.json();
-      const dims = Array.isArray(dimData) ? dimData : dimData.results || [];
+      const dims = Array.isArray(dimResponse.data) 
+        ? dimResponse.data 
+        : dimResponse.data.results || [];
       setDimensiones(dims);
 
       // 3. Cargar configuraciones existentes
@@ -72,7 +63,7 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
         setNiveles(nivelesMap);
         setMotivos(motivosMap);
       } catch (error) {
-        // No hay configuraciones previas - esto es normal en primera configuración
+        // No hay configuraciones previas - esto es normal
       }
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
