@@ -1,3 +1,4 @@
+cat > .gitignore << 'EOF'
 # Logs
 logs
 *.log
@@ -38,7 +39,13 @@ coverage
 build
 .cache
 .parcel-cache
-.eslintcachesrc/components/respuestas/ejemplo.txt
-src/components/respuestas/ejemplo02.txt
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# Ejemplos y archivos temporales
 src/components/respuestas/ejemplo.txt
+src/components/respuestas/ejemplo02.txt
 src/components/respuestas/preguntacard.txt
+EOF
