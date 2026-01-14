@@ -79,8 +79,13 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   const loadEvidencias = async (respuestaId: string) => {
     try {
       const respuestaDetalle = await respuestasApi.get(respuestaId);
-      if (respuestaDetalle.evidencias) {
-        setEvidencias(respuestaDetalle.evidencias);
+      console.log("🔍 Revisando detalle para evidencias:", respuestaDetalle);
+      
+      // IMPORTANTE: Algunos backends devuelven el objeto directo, otros en .data
+      const data = (respuestaDetalle as any).data || respuestaDetalle;
+      
+      if (data && data.evidencias) {
+        setEvidencias(data.evidencias); // Esto es lo que pinta la lista
       }
     } catch (error) {
       console.error('Error al cargar evidencias:', error);
