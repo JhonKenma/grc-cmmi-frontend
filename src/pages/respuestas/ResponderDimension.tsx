@@ -50,30 +50,25 @@ export const ResponderDimension: React.FC = () => {
       );
 
       // 5️⃣ Cargar respuestas existentes
-      const respuestasResponse = await respuestasApi.list(asignacionId!);
+      const response = await respuestasApi.list(asignacionId!);
+      
+      // DRF suele devolver { results: [] } o directamente []
+      // Usamos una lógica robusta para extraer el array
+      const respuestasArray = Array.isArray(response) 
+        ? response 
+        : (response as any).results || [];
 
-      // Tipado seguro
-      let respuestasArray: RespuestaListItem[] = [];
-
-      if (Array.isArray(respuestasResponse)) {
-        respuestasArray = respuestasResponse;
-      } else if (
-        respuestasResponse &&
-        typeof respuestasResponse === 'object' &&
-        'results' in respuestasResponse &&
-        Array.isArray((respuestasResponse as any).results)
-      ) {
-        respuestasArray = (respuestasResponse as any).results as RespuestaListItem[];
-      }
-
-      // ⭐ FILTRAR respuestas válidas antes de crear el Map
-      const respuestasValidas = respuestasArray.filter(
-        r => r && r.id && r.pregunta
-      );
-
-      const respuestasMap = new Map<string, RespuestaListItem>(
-        respuestasValidas.map(r => [r.pregunta, r])
-      );
+      // ⭐ IMPORTANTE: Verificar que estamos usando el ID de la PREGUNTA como llave
+      const respuestasMap = new Map<string, RespuestaListItem>();
+      
+      respuestasArray.forEach((r: any) => {
+        // Si el backend devuelve el objeto pregunta completo, usamos r.pregunta.id
+        // Si devuelve solo el UUID, usamos r.pregunta
+        const preguntaKey = typeof r.pregunta === 'object' ? r.pregunta.id : r.pregunta;
+        if (preguntaKey) {
+          respuestasMap.set(preguntaKey, r);
+        }
+      });
 
       setRespuestas(respuestasMap);
 
