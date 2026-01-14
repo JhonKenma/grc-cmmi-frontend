@@ -26,7 +26,6 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
     tipo_documento_enum: 'otro' as 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro',
     titulo_documento: '',
     objetivo_documento: '',
-    fecha_ultima_actualizacion: '',
     archivo: null as File | null,
   });
 
@@ -108,21 +107,16 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
       return;
     }
 
-    if (!formData.fecha_ultima_actualizacion) {
-      toast.error('La fecha de actualización es obligatoria');
-      return;
-    }
-
     try {
       setUploading(true);
 
       const evidenciaData: EvidenciaCreate = {
-        respuesta: respuestaId,
+        respuesta_id: respuestaId,
         codigo_documento: formData.codigo_documento.trim().toUpperCase(),  // ⭐ NUEVO
         tipo_documento_enum: formData.tipo_documento_enum,
         titulo_documento: formData.titulo_documento.trim(),
         objetivo_documento: formData.objetivo_documento.trim(),
-        fecha_ultima_actualizacion: formData.fecha_ultima_actualizacion,
+        //fecha_ultima_actualizacion: formData.fecha_ultima_actualizacion,
         archivo: formData.archivo,
       };
 
@@ -299,24 +293,6 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
             <p className="text-xs text-gray-500 mt-1">
               {formData.objetivo_documento.length}/180 caracteres
             </p>
-          </div>
-
-          {/* Fecha de Última Actualización */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fecha de Última Actualización <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={formData.fecha_ultima_actualizacion}
-              onChange={(e) => setFormData(prev => ({
-                ...prev,
-                fecha_ultima_actualizacion: e.target.value
-              }))}
-              max={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              required
-            />
           </div>
 
           {/* Archivo */}
