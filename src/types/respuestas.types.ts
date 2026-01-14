@@ -11,17 +11,25 @@ export interface TipoDocumento {
 export interface Evidencia {
   id: string;
   respuesta: string;
-  codigo_documento: string; 
+  
+  // Metadatos del documento
+  codigo_documento: string;
   tipo_documento_enum: 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro';
   tipo_documento_display: string;
   titulo_documento: string;
   objetivo_documento: string;
   fecha_ultima_actualizacion: string;
+  
+  // Datos del archivo
   nombre_archivo_original: string;
-  archivo: string;
+  archivo: string;  // ⭐ Ruta en Supabase (no URL completa)
+  url_archivo: string;  // ⭐ URL firmada temporal de Supabase
+  extension: string;  // ⭐ NUEVO: Extensión del archivo (.pdf, .docx, etc)
   tamanio_bytes: number;
   tamanio_mb: number;
-  url_archivo: string;
+  tipo_mime: string;  // ⭐ NUEVO: Tipo MIME (application/pdf, etc)
+  
+  // Auditoría
   subido_por: number;
   subido_por_nombre: string;
   fecha_creacion: string;
@@ -29,13 +37,12 @@ export interface Evidencia {
 }
 
 export interface EvidenciaCreate {
-  respuesta: string;
+  respuesta_id: string;  // ⭐ CAMBIAR de 'respuesta' a 'respuesta_id'
   codigo_documento: string;
   tipo_documento_enum: 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro';
   titulo_documento: string;
   objetivo_documento: string;
-  fecha_ultima_actualizacion: string;
-  archivo: File;
+  archivo: File;  // ⭐ Solo el archivo, fecha_ultima_actualizacion se genera automáticamente
 }
 
 export interface VerificacionCodigoResponse {
@@ -58,6 +65,8 @@ export interface VerificacionCodigoResponse {
   total_encontradas: number;
   mensaje: string;
 }
+
+
 
 export interface Respuesta {
   id: string;
