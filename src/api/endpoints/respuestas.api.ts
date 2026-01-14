@@ -103,49 +103,63 @@ export const respuestasApi = {
   },  
 
   /**
-   * Subir evidencia
-   * POST /api/evidencias/
+   * Subir evidencia a Supabase Storage
+   * POST /api/evidencias//12/01/2026
    */
   subirEvidencia: async (data: EvidenciaCreate): Promise<ApiResponse<Evidencia>> => {
     const formData = new FormData();
     
-    // ⭐ ORDEN CORRECTO: Campos primero, archivo al final
-    formData.append('respuesta', data.respuesta);
-    formData.append('codigo_documento', data.codigo_documento);  // ⭐ AGREGADO
+    // ⭐ ORDEN: Campos de metadatos primero, archivo al final
+    formData.append('respuesta_id', data.respuesta_id);  // ⭐ Cambió de 'respuesta'
+    formData.append('codigo_documento', data.codigo_documento);
     formData.append('tipo_documento_enum', data.tipo_documento_enum);
     formData.append('titulo_documento', data.titulo_documento);
     formData.append('objetivo_documento', data.objetivo_documento);
-    formData.append('fecha_ultima_actualizacion', data.fecha_ultima_actualizacion);
     formData.append('archivo', data.archivo);
+    
+    // ⭐ NO enviar fecha_ultima_actualizacion (se genera automáticamente en backend)
 
-    // ⭐ LOG: Verificar FormData antes de enviar
-    console.log('🔍 [API] FormData a enviar:');
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`   - ${key}: ${value.name}`);
-      } else {
-        console.log(`   - ${key}: ${value}`);
-      }
+    // Log para debugging
+    console.log('📤 [API] Subiendo evidencia a Supabase:');
+    console.log('   - Respuesta ID:', data.respuesta_id);
+    console.log('   - Código:', data.codigo_documento);
+    console.log('   - Tipo:', data.tipo_documento_enum);
+    console.log('   - Título:', data.titulo_documento);
+    console.log('   - Archivo:', data.archivo.name, `(${(data.archivo.size / 1024 / 1024).toFixed(2)} MB)`);
+
+    try {
+      const response = await axiosInstance.post<ApiResponse<Evidencia>>(
+        '/evidencias/',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      
+      console.log('✅ [API] Evidencia subida exitosamente:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ [API] Error al subir evidencia:', error.response?.data || error);
+      throw error;
     }
-
-    const response = await axiosInstance.post<ApiResponse<Evidencia>>(
-      '/evidencias/',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    return response.data;
   },
 
   /**
-   * Eliminar evidencia
+   * Eliminar evidencia de Supabase y BD//12/01/2026
    * DELETE /api/evidencias/{id}/
    */
   eliminarEvidencia: async (id: string): Promise<void> => {
-    await axiosInstance.delete(`/evidencias/${id}/`);
+    console.log('🗑️ [API] Eliminando evidencia:', id);
+    
+    try {
+      await axiosInstance.delete(`/evidencias/${id}/`);
+      console.log('✅ [API] Evidencia eliminada exitosamente');
+    } catch (error: any) {
+      console.error('❌ [API] Error al eliminar evidencia:', error.response?.data || error);
+      throw error;
+    }
   },
 
   /**
@@ -160,14 +174,30 @@ export const respuestasApi = {
   },
 
   /**
-   * ⭐ NUEVO: Verificar si un código de documento ya existe
+   * Verificar si código de documento existe//12/01/2026
    * POST /api/evidencias/verificar_codigo/
    */
   verificarCodigoDocumento: async (codigoDocumento: string): Promise<VerificacionCodigoResponse> => {
+    console.log('🔍 [API] Verificando código:', codigoDocumento);
+    
     const response = await axiosInstance.post<VerificacionCodigoResponse>(
       '/evidencias/verificar_codigo/',
       { codigo_documento: codigoDocumento }
     );
+    
+    console.log('✅ [API] Verificación completada:', response.data);
     return response.data;
   },
+
+  /**
+   * Listar evidencias de una respuesta
+   * GET /api/evidencias/?respuesta={id}
+   */
+  listarEvidencias: async (respuestaId: string): Promise<ApiResponse<Evidencia[]>> => {
+    const response = await axiosInstance.get<ApiResponse<Evidencia[]>>(
+      '/evidencias/',
+      { params: { respuesta: respuestaId } }
+    );
+    return response.data;
+  },  
 };
