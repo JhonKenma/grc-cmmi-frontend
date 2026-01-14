@@ -1,4 +1,4 @@
-// src/pages/asignaciones/TablaRespuestasRevision.tsx - SIN validaciones de justificacion_madurez
+// src/pages/asignaciones/TablaRespuestasRevision.tsx
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Edit2, Save, X, FileText, ExternalLink } from 'lucide-react';
@@ -29,13 +29,19 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
   const [respuestaEditada, setRespuestaEditada] = useState('');
   const [justificacionEditada, setJustificacionEditada] = useState('');
   
-  // ⭐ ESTADOS PARA NIVEL DE MADUREZ (sin validación obligatoria)
   const [nivelMadurezEditado, setNivelMadurezEditado] = useState<number>(0);
   const [justificacionMadurezEditada, setJustificacionMadurezEditada] = useState('');
+  
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
+  // Lógica inteligente para determinar la URL del archivo
+  const getFileUrl = (url: string) => {
+    if (!url) return '#';
+    // Si la URL ya es completa (ej: Supabase), se usa tal cual.
+    // Si es relativa (ej: /media/...), se concatena el BACKEND_URL.
+    return url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+  };
 
-  // ⭐ NIVELES DE MADUREZ - SOLO NÚMEROS
   const NIVELES_MADUREZ = [
     { value: 0, label: '0' },
     { value: 0.5, label: '0.5' },
@@ -81,38 +87,28 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
       respuesta: respuestaEditada,
       justificacion: justificacionEditada,
       nivel_madurez: nivelMadurezEditado,
-      justificacion_madurez: justificacionMadurezEditada, // ⭐ Opcional
+      justificacion_madurez: justificacionMadurezEditada,
     });
     setEditando(null);
   };
 
   const getColorRespuesta = (respuesta: string) => {
     switch (respuesta) {
-      case 'SI_CUMPLE':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'CUMPLE_PARCIAL':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'NO_CUMPLE':
-        return 'bg-red-100 text-red-800 border-red-300';
-      case 'NO_APLICA':
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'SI_CUMPLE': return 'bg-green-100 text-green-800 border-green-300';
+      case 'CUMPLE_PARCIAL': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'NO_CUMPLE': return 'bg-red-100 text-red-800 border-red-300';
+      case 'NO_APLICA': return 'bg-gray-100 text-gray-800 border-gray-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
   const getNombreRespuesta = (respuesta: string) => {
     switch (respuesta) {
-      case 'SI_CUMPLE':
-        return 'Sí Cumple';
-      case 'CUMPLE_PARCIAL':
-        return 'Cumple Parcial';
-      case 'NO_CUMPLE':
-        return 'No Cumple';
-      case 'NO_APLICA':
-        return 'No Aplica';
-      default:
-        return respuesta;
+      case 'SI_CUMPLE': return 'Sí Cumple';
+      case 'CUMPLE_PARCIAL': return 'Cumple Parcial';
+      case 'NO_CUMPLE': return 'No Cumple';
+      case 'NO_APLICA': return 'No Aplica';
+      default: return respuesta;
     }
   };
 
@@ -128,11 +124,8 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
         const muestraNivelMadurez = respuesta.nivel_madurez > 0;
 
         return (
-          <div
-            key={respuesta.id}
-            className="border border-gray-200 rounded-lg overflow-hidden bg-white"
-          >
-            {/* Header de la pregunta */}
+          <div key={respuesta.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+            {/* Header */}
             <div
               className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
               onClick={() => !estaEditando && toggleExpandir(respuesta.id)}
@@ -152,11 +145,7 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
                       Madurez: {respuesta.nivel_madurez}
                     </span>
                   )}
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium border ${getColorRespuesta(
-                      respuesta.respuesta
-                    )}`}
-                  >
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getColorRespuesta(respuesta.respuesta)}`}>
                     {getNombreRespuesta(respuesta.respuesta)}
                   </span>
                 </div>
@@ -165,257 +154,111 @@ export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = (
               <div className="flex items-center gap-2 ml-4">
                 {modoEdicion && !estaEditando && (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      iniciarEdicion(respuesta);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); iniciarEdicion(respuesta); }}
                     className="p-2 hover:bg-primary-100 rounded transition-colors"
-                    title="Editar respuesta"
                   >
                     <Edit2 size={16} className="text-primary-600" />
                   </button>
                 )}
-                {!estaEditando && (
-                  estaExpandida ? (
-                    <ChevronUp size={20} className="text-gray-400" />
-                  ) : (
-                    <ChevronDown size={20} className="text-gray-400" />
-                  )
-                )}
+                {!estaEditando && (estaExpandida ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
               </div>
             </div>
 
-            {/* Contenido expandido */}
+            {/* Contenido */}
             {estaExpandida && (
               <div className="p-4 space-y-4 border-t border-gray-200">
                 {estaEditando ? (
-                  // MODO EDICIÓN
                   <div className="space-y-4">
-                    {/* Selector de respuesta */}
+                    {/* Campos de edición simplificados */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Respuesta <span className="text-red-500">*</span>
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Respuesta</label>
                       <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { value: 'SI_CUMPLE', label: 'Sí Cumple', color: 'green' },
-                          { value: 'CUMPLE_PARCIAL', label: 'Cumple Parcial', color: 'yellow' },
-                          { value: 'NO_CUMPLE', label: 'No Cumple', color: 'red' },
-                          { value: 'NO_APLICA', label: 'No Aplica', color: 'gray' },
-                        ].map((opcion) => (
+                        {['SI_CUMPLE', 'CUMPLE_PARCIAL', 'NO_CUMPLE', 'NO_APLICA'].map((opt) => (
                           <button
-                            key={opcion.value}
+                            key={opt}
                             type="button"
-                            onClick={() => {
-                              setRespuestaEditada(opcion.value);
-                              // ⭐ AUTO-RESET: Nivel a 0 si NO_CUMPLE o NO_APLICA
-                              if (opcion.value === 'NO_CUMPLE' || opcion.value === 'NO_APLICA') {
-                                setNivelMadurezEditado(0);
-                                setJustificacionMadurezEditada('');
-                              }
-                            }}
-                            className={`p-2 rounded border-2 text-sm font-medium transition-all ${
-                              respuestaEditada === opcion.value
-                                ? `border-${opcion.color}-500 bg-${opcion.color}-50 text-${opcion.color}-900`
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
+                            onClick={() => setRespuestaEditada(opt)}
+                            className={`p-2 rounded border text-xs font-medium ${respuestaEditada === opt ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-gray-200'}`}
                           >
-                            {opcion.label}
+                            {getNombreRespuesta(opt)}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* ⭐ SELECTOR DE NIVEL DE MADUREZ (SIN validación de justificacion_madurez) */}
                     {requiereNivelMadurez(respuestaEditada) && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <label className="block text-sm font-medium text-gray-900 mb-2">
-                          Nivel de Madurez <span className="text-red-500">*</span>
-                        </label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Nivel de Madurez</label>
                         <select
                           value={nivelMadurezEditado}
                           onChange={(e) => setNivelMadurezEditado(Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
                         >
-                          {NIVELES_MADUREZ.map((nivel) => (
-                            <option key={nivel.value} value={nivel.value}>
-                              {nivel.label}
-                            </option>
-                          ))}
+                          {NIVELES_MADUREZ.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
                         </select>
-
-                        {/* ❌ ELIMINAR TODO ESTE BLOQUE DE JUSTIFICACIÓN DE MADUREZ
-                        {nivelMadurezEditado > 0 && (
-                          <div className="mt-3">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Justificación del Nivel de Madurez <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                              value={justificacionMadurezEditada}
-                              onChange={(e) => setJustificacionMadurezEditada(e.target.value)}
-                              rows={3}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                              placeholder="Justifica el nivel de madurez..."
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              {justificacionMadurezEditada.length} / 10 caracteres mínimos
-                            </p>
-                          </div>
-                        )}
-                        */}
                       </div>
                     )}
 
-                    {/* Editor de justificación */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Justificación <span className="text-red-500">*</span>
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Justificación</label>
                       <textarea
                         value={justificacionEditada}
                         onChange={(e) => setJustificacionEditada(e.target.value)}
-                        rows={4}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        placeholder="Justificación..."
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        rows={3}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        {justificacionEditada.length} caracteres
-                      </p>
                     </div>
 
-                    {/* Botones de acción */}
-                    <div className="flex items-center gap-2 pt-2 border-t">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => guardarEdicion(respuesta.id)}
-                        disabled={
-                          justificacionEditada.trim().length < 10 ||
-                          (requiereNivelMadurez(respuestaEditada) && nivelMadurezEditado === 0)
-                          // ❌ ELIMINAR: || (requiereNivelMadurez(respuestaEditada) && justificacionMadurezEditada.trim().length < 10)
-                        }
-                      >
-                        <Save size={14} className="mr-1" />
-                        Guardar Cambios
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={cancelarEdicion}
-                      >
-                        <X size={14} className="mr-1" />
-                        Cancelar
-                      </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => guardarEdicion(respuesta.id)}>Guardar</Button>
+                      <Button size="sm" variant="secondary" onClick={cancelarEdicion}>Cancelar</Button>
                     </div>
                   </div>
                 ) : (
-                  // MODO VISUALIZACIÓN
                   <>
-                    {/* MOSTRAR NIVEL DE MADUREZ */}
-                    {muestraNivelMadurez && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-semibold text-gray-900">
-                            Nivel de Madurez: <span className="text-blue-700">{respuesta.nivel_madurez}</span>
-                          </p>
-                          <span className="text-xs text-blue-600 font-medium">
-                            {NIVELES_MADUREZ.find(n => n.value === respuesta.nivel_madurez)?.label}
-                          </span>
-                        </div>
-                        {/* ❌ ELIMINAR JUSTIFICACIÓN DE MADUREZ DEL MODO VISUALIZACIÓN
-                        {respuesta.justificacion_madurez && (
-                          <>
-                            <p className="text-xs font-medium text-gray-700 mb-1">Justificación del nivel:</p>
-                            <p className="text-sm text-gray-800">{respuesta.justificacion_madurez}</p>
-                          </>
-                        )}
-                        */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase">Justificación</p>
+                        <p className="text-sm text-gray-800 mt-1">{respuesta.justificacion}</p>
                       </div>
-                    )}
-
-                    {/* Justificación */}
-                    <div>
-                      <p className="text-xs font-medium text-gray-600 mb-1">Justificación:</p>
-                      <p className="text-sm text-gray-800">{respuesta.justificacion}</p>
+                      {respuesta.comentarios_adicionales && (
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase">Comentarios</p>
+                          <p className="text-sm text-gray-800 mt-1">{respuesta.comentarios_adicionales}</p>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Comentarios adicionales */}
-                    {respuesta.comentarios_adicionales && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-1">
-                          Comentarios adicionales:
-                        </p>
-                        <p className="text-sm text-gray-800">
-                          {respuesta.comentarios_adicionales}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Evidencias */}
+                    {/* Sección de Evidencias Corregida */}
                     {respuesta.evidencias && respuesta.evidencias.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-2">
-                          Evidencias ({respuesta.evidencias.length}):
-                        </p>
+                      <div className="pt-4 border-t border-gray-100">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-3">Evidencias Adjuntas</p>
                         <div className="space-y-2">
-                          {respuesta.evidencias
-                            .filter(evidencia => evidencia.activo)
-                            .map((evidencia) => (
-                              <div
-                                key={evidencia.id}
-                                className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200 hover:bg-gray-100 transition-colors"
-                              >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <FileText size={20} className="text-primary-600 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900">
-                                      {evidencia.titulo_documento}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs text-gray-500">
-                                        {evidencia.codigo_documento}
-                                      </span>
-                                      <span className="text-xs text-gray-400">•</span>
-                                      <span className="text-xs text-gray-500">
-                                        {evidencia.tipo_documento_display}
-                                      </span>
-                                      <span className="text-xs text-gray-400">•</span>
-                                      <span className="text-xs text-gray-500">
-                                        {evidencia.tamanio_mb} MB
-                                      </span>
-                                    </div>
-                                    {evidencia.objetivo_documento && (
-                                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                                        {evidencia.objetivo_documento}
-                                      </p>
-                                    )}
-                                  </div>
+                          {respuesta.evidencias.filter(ev => ev.activo).map((evidencia) => (
+                            <div key={evidencia.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <FileText size={18} className="text-primary-500" />
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">{evidencia.titulo_documento}</p>
+                                  <p className="text-xs text-gray-500">{evidencia.codigo_documento} • {evidencia.tipo_documento_display}</p>
                                 </div>
-                                
-                                {evidencia.url_archivo && (
-                                  <a
-                                    href={`${BACKEND_URL}${evidencia.url_archivo}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="ml-3 p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded transition-colors flex-shrink-0"
-                                    title="Ver evidencia"
-                                  >
-                                    <ExternalLink size={18} />
-                                  </a>
-                                )}
                               </div>
-                            ))}
+                              {evidencia.url_archivo && (
+                                <a
+                                  href={getFileUrl(evidencia.url_archivo)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-full transition-colors"
+                                  title="Ver documento"
+                                >
+                                  <ExternalLink size={18} />
+                                </a>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
-
-                    {/* Info de auditoría */}
-                    <div className="pt-2 border-t border-gray-100">
-                      <p className="text-xs text-gray-500">
-                        Respondido por: {respuesta.respondido_por_nombre} el{' '}
-                        {new Date(respuesta.respondido_at).toLocaleString('es-ES')}
-                      </p>
-                    </div>
                   </>
                 )}
               </div>
