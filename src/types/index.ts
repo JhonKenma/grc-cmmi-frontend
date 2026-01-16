@@ -108,3 +108,4 @@ export * from './notificaciones.types';
 export * from './asignaciones.types'; 
 export * from './respuestas.types';
 export * from './evaluaciones.types';
+export * from './proyecto-remediacion.types';
