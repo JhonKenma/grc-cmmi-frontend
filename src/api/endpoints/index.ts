@@ -11,4 +11,5 @@ export { usuarioService as usuariosApi } from '../usuario.service';
 export * from './config-niveles.api';
 export * from './respuestas.api';
 export * from './reportes.api';
+export * from './proyectos-remediacion.api';
 // Aquí puedes agregar más exports según vayas creando APIs
