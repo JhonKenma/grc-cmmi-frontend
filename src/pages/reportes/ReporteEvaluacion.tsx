@@ -1,4 +1,4 @@
-// src/pages/reportes/ReporteEvaluacion.tsx - VERSIÓN MINIMALISTA PROFESIONAL
+// src/pages/reportes/ReporteEvaluacion.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -25,6 +25,9 @@ import { TablaDetalleDimensiones } from './components/TablaDetalleDimensiones';
 import { ProgresoUsuarios } from './components/ProgresoUsuarios';
 import { ExportButtons } from './components/ExportButtons'; 
 
+// Importar el Modal de GAP
+import { ModalCrearDesdeGAP } from '@/pages/proyectos-remediacion/ModalCrearDesdeGAP';
+
 type TabType = 'resumen' | 'dimensiones' | 'usuarios' | 'analisis';
 
 interface Tab {
@@ -48,6 +51,12 @@ export const ReporteEvaluacion: React.FC = () => {
   const [reporte, setReporte] = useState<ReporteEvaluacionType | null>(null);
   const [loadingReporte, setLoadingReporte] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('resumen');
+
+  // ═══════════════════════════════════════════════════════════════
+  // ESTADOS PARA EL MODAL DE PROYECTOS GAP
+  // ═══════════════════════════════════════════════════════════════
+  const [modalGAPOpen, setModalGAPOpen] = useState(false);
+  const [selectedGAP, setSelectedGAP] = useState<any>(null);
 
   useEffect(() => {
     loadEvaluaciones();
@@ -85,13 +94,35 @@ export const ReporteEvaluacion: React.FC = () => {
     }
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // FUNCIÓN PARA ABRIR MODAL DE PROYECTO DESDE LA BRECHA
+  // ═══════════════════════════════════════════════════════════════
+  const handleCrearProyectoDesdeBrecha = (gapData: {
+    calculoNivelId: string;
+    dimension_nombre: string;
+    dimension_codigo: string;
+    gap: number;
+    clasificacion_gap: string;
+    nivel_actual: number;
+    nivel_deseado: number;
+  }) => {
+    setSelectedGAP({
+      calculoNivelId: gapData.calculoNivelId,
+      gapInfo: {
+        dimension_nombre: gapData.dimension_nombre,
+        dimension_codigo: gapData.dimension_codigo,
+        gap: gapData.gap,
+        clasificacion_gap: gapData.clasificacion_gap,
+        nivel_actual: gapData.nivel_actual,
+        nivel_deseado: gapData.nivel_deseado,
+      }
+    });
+    setModalGAPOpen(true);
+  };
+
   const handleChangeEvaluacion = (evaluacionId: string) => {
     setEvaluacionSeleccionada(evaluacionId);
     loadReporte(evaluacionId);
-  };
-
-  const handleExportPDF = () => {
-    window.print();
   };
 
   if (loading) return <LoadingScreen message="Cargando evaluaciones..." />;
@@ -116,10 +147,9 @@ export const ReporteEvaluacion: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      {/* ⭐ HEADER MINIMALISTA ULTRA PROFESIONAL */}
+      {/* HEADER PROFESIONAL */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          {/* Título y controles en una fila */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
@@ -143,15 +173,13 @@ export const ReporteEvaluacion: React.FC = () => {
                 ))}
               </select>
 
-              {/* ⭐ REEMPLAZAR EL BOTÓN PDF CON ESTO */}
               {evaluacionSeleccionada && (
                 <ExportButtons evaluacionId={evaluacionSeleccionada} />
               )}
-              
             </div>
           </div>
 
-          {/* Métricas en línea horizontal */}
+          {/* MÉTRICAS EN LÍNEA */}
           {reporte && (
             <div className="flex items-center gap-8 pb-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
@@ -168,20 +196,6 @@ export const ReporteEvaluacion: React.FC = () => {
                   <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Estado</p>
                   <p className="text-sm font-bold text-gray-900 capitalize">
                     {reporte.evaluacion.estado.replace('_', ' ')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-12 bg-orange-600 rounded-full" />
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Fecha Límite</p>
-                  <p className="text-sm font-bold text-gray-900">
-                    {new Date(reporte.evaluacion.fecha_limite).toLocaleDateString('es-ES', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
                   </p>
                 </div>
               </div>
@@ -206,7 +220,7 @@ export const ReporteEvaluacion: React.FC = () => {
             </div>
           )}
 
-          {/* Tabs minimalistas */}
+          {/* TABS DE NAVEGACIÓN */}
           <div className="flex gap-8 mt-6">
             {TABS.map((tab) => (
               <button
@@ -228,7 +242,7 @@ export const ReporteEvaluacion: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenido de tabs */}
+      {/* CONTENIDO DE CADA TAB */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {loadingReporte ? (
@@ -243,11 +257,9 @@ export const ReporteEvaluacion: React.FC = () => {
             </Card>
           ) : (
             <>
-              {/* Tab: Resumen General */}
               {activeTab === 'resumen' && (
                 <div className="space-y-6">
                   <ResumenGeneral resumen={reporte.resumen} />
-                  
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <GraficoRadar dimensiones={reporte.por_dimension} />
                     <GraficoPastelClasificacion clasificaciones={reporte.clasificaciones_gap} />
@@ -255,7 +267,6 @@ export const ReporteEvaluacion: React.FC = () => {
                 </div>
               )}
 
-              {/* Tab: Dimensiones */}
               {activeTab === 'dimensiones' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -263,18 +274,20 @@ export const ReporteEvaluacion: React.FC = () => {
                     <GraficoBarrasGap dimensiones={reporte.por_dimension} />
                   </div>
                   
-                  <TablaDetalleDimensiones dimensiones={reporte.por_dimension} />
+                  {/* ✅ USAMOS LOS DATOS REALES SIN SOBRESCRIBIR total_proyectos */}
+                  <TablaDetalleDimensiones 
+                    dimensiones={reporte.por_dimension}
+                    onCrearProyecto={handleCrearProyectoDesdeBrecha}
+                  />
                 </div>
               )}
 
-              {/* Tab: Usuarios */}
               {activeTab === 'usuarios' && (
                 <div className="space-y-6">
                   <ProgresoUsuarios usuarios={reporte.por_usuario} />
                 </div>
               )}
 
-              {/* Tab: Análisis de Brechas */}
               {activeTab === 'analisis' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -282,33 +295,31 @@ export const ReporteEvaluacion: React.FC = () => {
                     <GraficoBarrasGap dimensiones={reporte.por_dimension} />
                   </div>
 
-                  {/* Cards de métricas de GAP */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 border-red-200">
                       <h3 className="text-sm font-medium text-red-800 mb-2">Críticos/Altos</h3>
                       <p className="text-4xl font-bold text-red-600">
-                        {reporte.clasificaciones_gap.critico + reporte.clasificaciones_gap.alto}
+                        {(reporte.clasificaciones_gap.critico || 0) + (reporte.clasificaciones_gap.alto || 0)}
                       </p>
-                      <p className="text-xs text-red-700 mt-2">Requieren atención inmediata</p>
+                      <p className="text-xs text-red-700 mt-2">Atención inmediata</p>
                     </Card>
 
                     <Card className="p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
                       <h3 className="text-sm font-medium text-yellow-800 mb-2">Medios/Bajos</h3>
                       <p className="text-4xl font-bold text-yellow-600">
-                        {reporte.clasificaciones_gap.medio + reporte.clasificaciones_gap.bajo}
+                        {(reporte.clasificaciones_gap.medio || 0) + (reporte.clasificaciones_gap.bajo || 0)}
                       </p>
-                      <p className="text-xs text-yellow-700 mt-2">En proceso de mejora</p>
+                      <p className="text-xs text-yellow-700 mt-2">En mejora</p>
                     </Card>
 
                     <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                       <h3 className="text-sm font-medium text-green-800 mb-2">Cumplidos</h3>
                       <p className="text-4xl font-bold text-green-600">
-                        {reporte.clasificaciones_gap.cumplido + reporte.clasificaciones_gap.superado}
+                        {(reporte.clasificaciones_gap.cumplido || 0) + (reporte.clasificaciones_gap.superado || 0)}
                       </p>
-                      <p className="text-xs text-green-700 mt-2">Objetivos alcanzados</p>
+                      <p className="text-xs text-green-700 mt-2">Objetivos logrados</p>
                     </Card>
                   </div>
-
                   <GraficoPastelRespuestas distribucion={reporte.distribucion_respuestas} />
                 </div>
               )}
@@ -316,6 +327,28 @@ export const ReporteEvaluacion: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          MODAL DE CREACIÓN DE PROYECTO DESDE GAP
+      ═══════════════════════════════════════════════════════════════ */}
+      {selectedGAP && (
+        <ModalCrearDesdeGAP
+          isOpen={modalGAPOpen}
+          onClose={() => {
+            setModalGAPOpen(false);
+            setSelectedGAP(null);
+          }}
+          onSuccess={() => {
+            // ✅ RECARGAR EL REPORTE PARA ACTUALIZAR CONTADORES DE PROYECTOS
+            loadReporte(evaluacionSeleccionada);
+            setModalGAPOpen(false);
+            setSelectedGAP(null);
+            toast.success('Proyecto creado exitosamente');
+          }}
+          calculoNivelId={selectedGAP.calculoNivelId}
+          gapInfo={selectedGAP.gapInfo}
+        />
+      )}
     </div>
   );
 };
