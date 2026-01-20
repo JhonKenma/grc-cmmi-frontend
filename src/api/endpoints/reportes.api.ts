@@ -33,6 +33,7 @@ export interface ReporteEvaluacion {
     gap_promedio: number;
     porcentaje_cumplimiento_promedio: number;
     total_usuarios_evaluados: number;
+    total_proyectos: number;
     usuarios: Array<{
       usuario_id: number;
       usuario_nombre: string;
@@ -42,6 +43,7 @@ export interface ReporteEvaluacion {
       clasificacion_gap_display: string;
       porcentaje_cumplimiento: number;
       total_preguntas: number;
+      calculo_nivel_id?: string;
       respuestas: {
         si_cumple: number;
         cumple_parcial: number;
