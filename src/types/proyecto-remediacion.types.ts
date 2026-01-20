@@ -504,7 +504,8 @@ export interface ProyectosFiltros {
   estado?: EstadoProyecto;
   prioridad?: PrioridadProyecto;
   categoria?: CategoriaProyecto;
-  empresa?: number;
+  empresa?: string;
+  calculo_nivel?: string;
   search?: string;
   ordering?: string;
   page?: number;
@@ -599,3 +600,12 @@ export const MONEDAS_OPTIONS = [
   { value: 'CLP', label: 'CLP - Peso Chileno' },
   { value: 'ARS', label: 'ARS - Peso Argentino' },
 ] as const;
+
+export interface GAPInfo {
+  dimension_nombre: string;
+  dimension_codigo: string;
+  gap: number;
+  clasificacion_gap: string;
+  nivel_actual: number;
+  nivel_deseado: number;
+}
