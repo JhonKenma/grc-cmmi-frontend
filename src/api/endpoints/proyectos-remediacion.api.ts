@@ -36,25 +36,45 @@ export const proyectosRemediacionApi = {
   
   /**
    * Listar proyectos con filtros y paginación
-   * GET /api/proyectos-remediacion/
    */
   listar: async (filtros?: ProyectosFiltros): Promise<ProyectosListResponse> => {
     const params = new URLSearchParams();
     
+    // ✅ Filtros de relaciones
+    if (filtros?.calculo_nivel) params.append('calculo_nivel', filtros.calculo_nivel);
+    if (filtros?.empresa) params.append('empresa', filtros.empresa);
+    
+    // Filtros de estado
     if (filtros?.estado) params.append('estado', filtros.estado);
     if (filtros?.prioridad) params.append('prioridad', filtros.prioridad);
     if (filtros?.categoria) params.append('categoria', filtros.categoria);
-    if (filtros?.empresa) params.append('empresa', filtros.empresa.toString());
+    
+    // Búsqueda y ordenamiento
     if (filtros?.search) params.append('search', filtros.search);
     if (filtros?.ordering) params.append('ordering', filtros.ordering);
+    
+    // Paginación
     if (filtros?.page) params.append('page', filtros.page.toString());
     if (filtros?.page_size) params.append('page_size', filtros.page_size.toString());
     
-    const url = params.toString() ? `${BASE_URL}/?${params}` : `${BASE_URL}/`;
+    const url = params.toString() 
+      ? `/proyectos-remediacion/?${params}` 
+      : '/proyectos-remediacion/';
+      
     const response = await axiosInstance.get<ProyectosListResponse>(url);
     return response.data;
   },
-  
+
+  /**
+   * ✅ MÉTODO ESPECÍFICO PARA OBTENER POR GAP
+   * Forma 1: Llamada interna directa
+   */
+  getPorGap: async (calculoNivelId: string): Promise<ProyectosListResponse> => {
+    const response = await axiosInstance.get<ProyectosListResponse>(
+      `/proyectos-remediacion/?calculo_nivel=${calculoNivelId}`
+    );
+    return response.data;
+  },
   /**
    * Obtener detalle de un proyecto
    * GET /api/proyectos-remediacion/{id}/
@@ -172,4 +192,15 @@ export const proyectosRemediacionApi = {
     );
     return response.data;
   },
+
+
+   /**
+   * ✅ NUEVO: Listar proyectos por dimensión
+   */
+  listarPorDimension: async (dimensionId: string): Promise<ProyectosListResponse> => {
+    const response = await axiosInstance.get<ProyectosListResponse>(
+      `/proyectos-remediacion/listar_por_dimension/?dimension_id=${dimensionId}`
+    );
+    return response.data;
+  }, 
 };
