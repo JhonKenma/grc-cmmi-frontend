@@ -42,8 +42,9 @@ import { PendientesRevision } from '@/pages/asignaciones/PendientesRevision';
 import { ResponderDimension } from '@/pages/respuestas/ResponderDimension';
 import { MisEvaluaciones } from '@/pages/asignaciones/MisEvaluaciones';
 import { ReporteEvaluacion } from '@/pages/reportes/ReporteEvaluacion';
-
-
+import { DetalleProyecto } from '@/pages/proyectos-remediacion/DetalleProyecto';
+import { ProyectosPorGAP } from '@/pages/proyectos-remediacion/ProyectosPorGAP';
+import { ProyectosPorDimension } from '@/pages/proyectos-remediacion/ProyectosPorDimension';
 
 function App() {
   return (
@@ -347,6 +348,41 @@ function App() {
                 <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
                   <MainLayout>
                     <ReporteEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* ========================================
+                RUTAS DE PROYECTOS DE REMEDIACIÓN
+                ======================================== */}
+            <Route
+              path="/proyectos-remediacion/gap/:gapId"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <ProyectosPorGAP />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/proyectos-remediacion/:id" // Detalle individual
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <DetalleProyecto />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* ⭐ CORREGIR ESTA RUTA */}
+            <Route 
+              path="/proyectos-remediacion/dimension/:dimensionId" 
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <ProyectosPorDimension />
                   </MainLayout>
                 </ProtectedRoute>
               }
