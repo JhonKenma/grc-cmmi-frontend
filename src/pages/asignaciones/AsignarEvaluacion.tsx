@@ -139,7 +139,7 @@ export const AsignarEvaluacion: React.FC = () => {
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => navigate('/asignaciones')}
+          onClick={() => navigate('/asignaciones/mis-evaluaciones')}
         >
           <ArrowLeft size={18} />
         </Button>
