@@ -15,7 +15,8 @@ import {
   User,
   Upload,
   Bell,
-  BarChart3  // ⭐ AGREGAR ICONO PARA REPORTES
+  BarChart3,  
+  Truck  
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -54,6 +55,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/usuarios',
       roles: ['superadmin', 'administrador', 'auditor'],
     },
+    {
+      name: 'Proveedores',
+      icon: Truck,
+      path: '/proveedores',
+      roles: ['superadmin', 'administrador'],
+    },
+
     {
       name: 'Evaluaciones',
       icon: FileText,

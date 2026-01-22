@@ -18,7 +18,7 @@ import { EmpresaEdit } from '@/pages/Empresas/EmpresaEdit';
 import { Usuarios } from '@/pages/Usuarios/Usuarios';
 import { UsuarioCreate } from '@/pages/Usuarios/UsuarioCreate';
 import { UsuarioEdit } from '@/pages/Usuarios/UsuarioEdit';
-
+import { ProveedoresPage } from '@/pages/proveedores/ProveedoresPage';
 // Encuestas
 import { CargarEncuesta } from '@/pages/encuestas/CargarEncuesta';
 import { ListaEncuestas } from '@/pages/encuestas/ListaEncuestas';
@@ -156,6 +156,20 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
                   <MainLayout>
                     <UsuarioEdit />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ========================================
+              ⭐ RUTAS DE PROVEEDORES - AGREGAR AQUÍ
+            ======================================== */}
+            <Route
+              path="/proveedores"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <ProveedoresPage />
                   </MainLayout>
                 </ProtectedRoute>
               }
