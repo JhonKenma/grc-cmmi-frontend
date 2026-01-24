@@ -20,6 +20,8 @@ import { ProyectoTimeline } from './components/ProyectoTimeline';
 import { ProyectoResponsables } from './components/ProyectoResponsables';
 import { ProyectoPresupuesto } from './components/ProyectoPresupuesto';
 import { ProyectoInfoGeneral } from './components/ProyectoInfoGeneral';
+// ⭐ NUEVO: Importar gestión de ítems
+import { GestionItems } from './components/proyectos-remediacion/GestionItems';
 
 type TabType = 'general' | 'gap' | 'responsables' | 'presupuesto' | 'timeline' | 'planificacion';
 
@@ -43,7 +45,7 @@ export const DetalleProyecto: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('general');
 
   // ⭐ Usar el hook de React Query
-  const { data: proyecto, isLoading, isError, error } = useProyecto(id!);
+  const { data: proyecto, isLoading, isError, error, refetch } = useProyecto(id!);
 
   // ═══════════════════════════════════════════════════════════
   // ESTADOS DE CARGA Y ERROR
@@ -152,10 +154,21 @@ export const DetalleProyecto: React.FC = () => {
           </div>
         )}
 
-        {/* TAB: Presupuesto */}
+        {/* ⭐ TAB: Presupuesto - ACTUALIZADO CON GESTIÓN DE ÍTEMS */}
         {activeTab === 'presupuesto' && (
           <div className="space-y-6">
+            {/* Componente original de presupuesto */}
             <ProyectoPresupuesto proyecto={proyecto} />
+            
+            {/* ⭐ GESTIÓN DE ÍTEMS - Solo si modo='por_items' */}
+            {proyecto.modo_presupuesto === 'por_items' && (
+              <Card>
+                <GestionItems 
+                  proyecto={proyecto} 
+                  onProyectoUpdate={refetch}
+                />
+              </Card>
+            )}
           </div>
         )}
 
@@ -167,23 +180,13 @@ export const DetalleProyecto: React.FC = () => {
                 Planificación y Estrategia
               </h3>
 
-              {/* Estrategia de Cierre */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Estrategia de Cierre
-                </h4>
-                <p className="text-sm text-gray-900 px-4 py-3 bg-blue-50 rounded-lg">
-                  {proyecto.estrategia_cierre_display}
-                </p>
-              </div>
-
               {/* Alcance */}
               <div className="mb-6">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">
                   Alcance del Proyecto
                 </h4>
                 <p className="text-sm text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                  {proyecto.alcance_proyecto}
+                  {proyecto.alcance_proyecto || 'No especificado'}
                 </p>
               </div>
 
@@ -193,7 +196,7 @@ export const DetalleProyecto: React.FC = () => {
                   Objetivos Específicos
                 </h4>
                 <p className="text-sm text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                  {proyecto.objetivos_especificos}
+                  {proyecto.objetivos_especificos || 'No especificado'}
                 </p>
               </div>
 
@@ -203,30 +206,18 @@ export const DetalleProyecto: React.FC = () => {
                   Criterios de Aceptación
                 </h4>
                 <p className="text-sm text-gray-900 whitespace-pre-wrap bg-green-50 p-4 rounded-lg">
-                  {proyecto.criterios_aceptacion}
+                  {proyecto.criterios_aceptacion || 'No especificado'}
                 </p>
               </div>
 
               {/* Riesgos */}
               {proyecto.riesgos_proyecto && (
-                <div className="mb-6">
+                <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">
                     Riesgos Identificados
                   </h4>
                   <p className="text-sm text-gray-900 whitespace-pre-wrap bg-orange-50 p-4 rounded-lg">
                     {proyecto.riesgos_proyecto}
-                  </p>
-                </div>
-              )}
-
-              {/* Restricciones */}
-              {proyecto.restricciones && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                    Restricciones
-                  </h4>
-                  <p className="text-sm text-gray-900 whitespace-pre-wrap bg-yellow-50 p-4 rounded-lg">
-                    {proyecto.restricciones}
                   </p>
                 </div>
               )}

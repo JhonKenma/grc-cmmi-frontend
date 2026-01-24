@@ -1,11 +1,22 @@
 // src/components/proyectos-remediacion/ModalCrearDesdeGAP.tsx
 
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle, Users, Calendar, DollarSign, Target, Save, Loader2 } from 'lucide-react';
+import { 
+  X, 
+  AlertCircle, 
+  Users, 
+  Calendar, 
+  DollarSign, 
+  Target, 
+  Save, 
+  Loader2,
+  FileText,
+  ListChecks 
+} from 'lucide-react';
 import { Button } from '@/components/common';
 import { useCrearProyectoDesdeGAP } from '@/hooks/useProyectosRemediacion';
 import { usuariosApi } from '@/api/endpoints';
-import { CrearDesdeGAPFormData } from '@/types/proyecto-remediacion.types';
+import { CrearDesdeGAPFormData, ModoPresupuesto } from '@/types/proyecto-remediacion.types';
 import { Usuario } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -35,7 +46,7 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
   // STATE
   // ═══════════════════════════════════════════════════════════
   
-  const [step, setStep] = useState<1 | 2>(1); // Paso del wizard
+  const [step, setStep] = useState<1 | 2>(1);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   
@@ -46,8 +57,9 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
     fecha_fin_estimada: '',
     dueno_proyecto_id: 0,
     responsable_implementacion_id: 0,
-    presupuesto_asignado: 0,
+    modo_presupuesto: 'global', // ⭐ NUEVO: Modo por defecto
     moneda: 'USD',
+    presupuesto_global: 0, // ⭐ NUEVO: Solo si modo='global'
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -80,22 +92,21 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
   };
   
   const calcularFechaEstimada = () => {
-    // Calcular fecha estimada según criticidad del GAP
     const hoy = new Date();
-    let diasEstimados = 90; // Default: 3 meses
+    let diasEstimados = 90;
     
     switch (gapInfo.clasificacion_gap) {
       case 'critico':
-        diasEstimados = 30; // 1 mes
+        diasEstimados = 30;
         break;
       case 'alto':
-        diasEstimados = 60; // 2 meses
+        diasEstimados = 60;
         break;
       case 'medio':
-        diasEstimados = 90; // 3 meses
+        diasEstimados = 90;
         break;
       case 'bajo':
-        diasEstimados = 120; // 4 meses
+        diasEstimados = 120;
         break;
     }
     
@@ -148,8 +159,11 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
       newErrors.responsable_implementacion_id = 'Debes seleccionar un responsable';
     }
     
-    if (formData.presupuesto_asignado < 0) {
-      newErrors.presupuesto_asignado = 'El presupuesto no puede ser negativo';
+    // ⭐ NUEVO: Validar presupuesto según modo
+    if (formData.modo_presupuesto === 'global') {
+      if (!formData.presupuesto_global || formData.presupuesto_global <= 0) {
+        newErrors.presupuesto_global = 'Debe especificar un presupuesto mayor a 0 en modo global';
+      }
     }
     
     setErrors(newErrors);
@@ -177,7 +191,11 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
     
     crearProyecto(formData, {
       onSuccess: () => {
-        toast.success('Proyecto creado exitosamente desde GAP');
+        toast.success(
+          formData.modo_presupuesto === 'por_items'
+            ? 'Proyecto creado. Ahora puedes agregar ítems individuales.'
+            : 'Proyecto creado exitosamente desde GAP'
+        );
         onClose();
         if (onSuccess) onSuccess();
       },
@@ -186,9 +204,23 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
   
   const handleChange = (field: keyof CrearDesdeGAPFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Limpiar error del campo
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+  
+  // ⭐ NUEVO: Handler para cambio de modo de presupuesto
+  const handleModoPresupuestoChange = (modo: ModoPresupuesto) => {
+    setFormData(prev => ({
+      ...prev,
+      modo_presupuesto: modo,
+      // Si cambia a por_items, resetear presupuesto_global
+      ...(modo === 'por_items' && { presupuesto_global: 0 }),
+    }));
+    
+    // Limpiar error de presupuesto al cambiar modo
+    if (errors.presupuesto_global) {
+      setErrors(prev => ({ ...prev, presupuesto_global: '' }));
     }
   };
   
@@ -276,7 +308,7 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
               }`}>
                 2
               </div>
-              <span className="font-medium text-sm">Responsables y Recursos</span>
+              <span className="font-medium text-sm">Responsables y Presupuesto</span>
             </div>
           </div>
         </div>
@@ -367,7 +399,7 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
             </div>
           )}
           
-          {/* STEP 2: Responsables y Recursos */}
+          {/* STEP 2: Responsables y Presupuesto */}
           {step === 2 && (
             <div className="space-y-6">
               {/* Dueño del Proyecto */}
@@ -428,63 +460,147 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
                 </p>
               </div>
               
-              {/* Presupuesto */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <DollarSign size={16} className="inline mr-1" />
-                    Presupuesto Asignado
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.presupuesto_asignado}
-                    onChange={(e) => handleChange('presupuesto_asignado', Number(e.target.value))}
-                    min="0"
-                    step="0.01"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.presupuesto_asignado ? 'border-red-500' : 'border-gray-300'
+              {/* ⭐ NUEVO: Modo de Presupuesto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Modo de Presupuesto <span className="text-red-500">*</span>
+                </label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Opción: Presupuesto Global */}
+                  <button
+                    type="button"
+                    onClick={() => handleModoPresupuestoChange('global')}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      formData.modo_presupuesto === 'global'
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="0.00"
-                  />
-                  {errors.presupuesto_asignado && (
-                    <p className="text-xs text-red-600 mt-1">{errors.presupuesto_asignado}</p>
-                  )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 ${formData.modo_presupuesto === 'global' ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <FileText size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900">Presupuesto Global</h4>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Un monto único para todo el proyecto
+                        </p>
+                      </div>
+                      {formData.modo_presupuesto === 'global' && (
+                        <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                  
+                  {/* Opción: Presupuesto por Ítems */}
+                  <button
+                    type="button"
+                    onClick={() => handleModoPresupuestoChange('por_items')}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      formData.modo_presupuesto === 'por_items'
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 ${formData.modo_presupuesto === 'por_items' ? 'text-blue-600' : 'text-gray-400'}`}>
+                        <ListChecks size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900">Presupuesto por Ítems</h4>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Desglosado en tareas individuales
+                        </p>
+                      </div>
+                      {formData.modo_presupuesto === 'por_items' && (
+                        <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        </div>
+                      )}
+                    </div>
+                  </button>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Moneda
-                  </label>
-                  <select
-                    value={formData.moneda}
-                    onChange={(e) => handleChange('moneda', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="PEN">PEN</option>
-                    <option value="COP">COP</option>
-                    <option value="MXN">MXN</option>
-                    <option value="CLP">CLP</option>
-                  </select>
-                </div>
+                {/* Info adicional según modo */}
+                {formData.modo_presupuesto === 'por_items' && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800">
+                      💡 Podrás agregar ítems individuales después de crear el proyecto
+                    </p>
+                  </div>
+                )}
               </div>
               
-              {/* Recursos Humanos (Opcional) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Recursos Humanos Asignados (Horas) <span className="text-gray-500 text-xs">(Opcional)</span>
-                </label>
-                <input
-                  type="number"
-                  value={formData.recursos_humanos_asignados || 0}
-                  onChange={(e) => handleChange('recursos_humanos_asignados', Number(e.target.value))}
-                  min="0"
-                  step="0.5"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Horas-persona estimadas"
-                />
-              </div>
+              {/* Presupuesto - Solo mostrar si modo='global' */}
+              {formData.modo_presupuesto === 'global' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <DollarSign size={16} className="inline mr-1" />
+                      Presupuesto Asignado <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.presupuesto_global}
+                      onChange={(e) => handleChange('presupuesto_global', Number(e.target.value))}
+                      min="0"
+                      step="0.01"
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.presupuesto_global ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                    />
+                    {errors.presupuesto_global && (
+                      <p className="text-xs text-red-600 mt-1">{errors.presupuesto_global}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Moneda
+                    </label>
+                    <select
+                      value={formData.moneda}
+                      onChange={(e) => handleChange('moneda', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="PEN">PEN</option>
+                      <option value="COP">COP</option>
+                      <option value="MXN">MXN</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              
+              {/* Moneda - Solo mostrar si modo='por_items' */}
+              {formData.modo_presupuesto === 'por_items' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Moneda <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.moneda}
+                      onChange={(e) => handleChange('moneda', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="PEN">PEN</option>
+                      <option value="COP">COP</option>
+                      <option value="MXN">MXN</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Moneda para los ítems del proyecto
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           
