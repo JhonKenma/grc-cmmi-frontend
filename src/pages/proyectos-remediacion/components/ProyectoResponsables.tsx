@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card } from '@/components/common';
-import { Users, UserCheck, Shield, Eye, CheckSquare } from 'lucide-react';
+import { Users, UserCheck, Shield, CheckSquare } from 'lucide-react';
 import { ProyectoRemediacionDetail } from '@/types/proyecto-remediacion.types';
 
 interface ProyectoResponsablesProps {
@@ -14,12 +14,12 @@ export const ProyectoResponsables: React.FC<ProyectoResponsablesProps> = ({ proy
     <Card>
       <div className="flex items-center gap-2 mb-4">
         <Users size={20} className="text-purple-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Responsables (Matriz RACI)</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Responsables del Proyecto</h3>
       </div>
 
       <div className="space-y-4">
         {/* Dueño del Proyecto */}
-        <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+        <div className="p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0">
               <Shield size={20} className="text-white" />
@@ -27,21 +27,31 @@ export const ProyectoResponsables: React.FC<ProyectoResponsablesProps> = ({ proy
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-sm font-semibold text-gray-900">Dueño del Proyecto</p>
-                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded">
+                <span className="px-2 py-0.5 bg-purple-600 text-white text-xs font-medium rounded">
                   Accountable
                 </span>
               </div>
-              <p className="text-sm text-gray-900">{proyecto.dueno_proyecto_info.nombre_completo}</p>
-              <p className="text-xs text-gray-600">{proyecto.dueno_proyecto_info.email}</p>
+              <p className="text-base font-medium text-gray-900">
+                {proyecto.dueno_proyecto_info.nombre_completo}
+              </p>
+              <p className="text-sm text-gray-600">
+                {proyecto.dueno_proyecto_info.email}
+              </p>
               {proyecto.dueno_proyecto_info.cargo && (
-                <p className="text-xs text-gray-500 mt-1">{proyecto.dueno_proyecto_info.cargo}</p>
+                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+                  <span className="font-medium">Cargo:</span>
+                  {proyecto.dueno_proyecto_info.cargo}
+                </p>
               )}
+              <p className="text-xs text-purple-700 mt-2 font-medium">
+                📋 Responsable final del éxito del proyecto
+              </p>
             </div>
           </div>
         </div>
 
         {/* Responsable de Implementación */}
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
               <UserCheck size={20} className="text-white" />
@@ -49,107 +59,122 @@ export const ProyectoResponsables: React.FC<ProyectoResponsablesProps> = ({ proy
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-sm font-semibold text-gray-900">Responsable de Implementación</p>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-medium rounded">
                   Responsible
                 </span>
               </div>
-              <p className="text-sm text-gray-900">{proyecto.responsable_implementacion_info.nombre_completo}</p>
-              <p className="text-xs text-gray-600">{proyecto.responsable_implementacion_info.email}</p>
+              <p className="text-base font-medium text-gray-900">
+                {proyecto.responsable_implementacion_info.nombre_completo}
+              </p>
+              <p className="text-sm text-gray-600">
+                {proyecto.responsable_implementacion_info.email}
+              </p>
               {proyecto.responsable_implementacion_info.cargo && (
-                <p className="text-xs text-gray-500 mt-1">{proyecto.responsable_implementacion_info.cargo}</p>
+                <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+                  <span className="font-medium">Cargo:</span>
+                  {proyecto.responsable_implementacion_info.cargo}
+                </p>
               )}
+              <p className="text-xs text-blue-700 mt-2 font-medium">
+                ⚙️ Ejecuta y coordina las actividades del proyecto
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Equipo de Implementación */}
-        {proyecto.equipo_implementacion_info.length > 0 && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <Users size={18} className="text-green-600" />
-              <p className="text-sm font-semibold text-gray-900">Equipo de Implementación</p>
-              <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
-                {proyecto.equipo_implementacion_info.length} miembro(s)
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {proyecto.equipo_implementacion_info.map((miembro) => (
-                <div key={miembro.id} className="p-3 bg-white rounded-lg border border-green-200">
-                  <p className="text-sm font-medium text-gray-900">{miembro.nombre_completo}</p>
-                  <p className="text-xs text-gray-600">{miembro.email}</p>
-                  {miembro.cargo && (
-                    <p className="text-xs text-gray-500 mt-1">{miembro.cargo}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Validador Interno */}
+        {/* Validador Interno (opcional) */}
         {proyecto.validador_interno_info && (
-          <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
                 <CheckSquare size={20} className="text-white" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm font-semibold text-gray-900">Validador/Aprobador Interno</p>
-                  <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded">
+                  <p className="text-sm font-semibold text-gray-900">Validador Interno</p>
+                  <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-medium rounded">
                     Consulted
                   </span>
                 </div>
-                <p className="text-sm text-gray-900">{proyecto.validador_interno_info.nombre_completo}</p>
-                <p className="text-xs text-gray-600">{proyecto.validador_interno_info.email}</p>
+                <p className="text-base font-medium text-gray-900">
+                  {proyecto.validador_interno_info.nombre_completo}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {proyecto.validador_interno_info.email}
+                </p>
                 {proyecto.validador_interno_info.cargo && (
-                  <p className="text-xs text-gray-500 mt-1">{proyecto.validador_interno_info.cargo}</p>
+                  <p className="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+                    <span className="font-medium">Cargo:</span>
+                    {proyecto.validador_interno_info.cargo}
+                  </p>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Auditor de Verificación */}
-        {proyecto.auditor_verificacion_info && (
-          <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
-                <Eye size={20} className="text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm font-semibold text-gray-900">Auditor de Verificación</p>
-                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded">
-                    Informed
-                  </span>
-                </div>
-                <p className="text-sm text-gray-900">{proyecto.auditor_verificacion_info.nombre_completo}</p>
-                <p className="text-xs text-gray-600">{proyecto.auditor_verificacion_info.email}</p>
-                {proyecto.auditor_verificacion_info.cargo && (
-                  <p className="text-xs text-gray-500 mt-1">{proyecto.auditor_verificacion_info.cargo}</p>
-                )}
+                <p className="text-xs text-green-700 mt-2 font-medium">
+                  ✓ Valida y aprueba entregables del proyecto
+                </p>
               </div>
             </div>
           </div>
         )}
       </div>
 
+      {/* Información adicional del creador */}
+      {proyecto.creado_por_info && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <Users size={16} className="text-gray-500" />
+            <p className="text-xs font-semibold text-gray-700">Información de Creación</p>
+          </div>
+          <div className="text-xs text-gray-600">
+            <p>
+              <span className="font-medium">Creado por:</span>{' '}
+              {proyecto.creado_por_info.nombre_completo}
+            </p>
+            <p className="mt-1">
+              <span className="font-medium">Fecha:</span>{' '}
+              {new Date(proyecto.fecha_creacion).toLocaleDateString('es-PE', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Leyenda RACI */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-xs font-semibold text-gray-700 mb-2">Matriz RACI:</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
-          <div>
-            <span className="font-semibold text-purple-600">R</span> - Responsible (Ejecuta)
+      <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+        <p className="text-xs font-bold text-gray-800 mb-3">📊 Matriz RACI:</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-purple-600 flex items-center justify-center text-white font-bold text-xs">
+              A
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Accountable</p>
+              <p className="text-gray-600">Responsable final</p>
+            </div>
           </div>
-          <div>
-            <span className="font-semibold text-blue-600">A</span> - Accountable (Aprueba)
+          
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs">
+              R
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Responsible</p>
+              <p className="text-gray-600">Ejecuta tareas</p>
+            </div>
           </div>
-          <div>
-            <span className="font-semibold text-orange-600">C</span> - Consulted (Consulta)
-          </div>
-          <div>
-            <span className="font-semibold text-indigo-600">I</span> - Informed (Informado)
+          
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-green-600 flex items-center justify-center text-white font-bold text-xs">
+              C
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Consulted</p>
+              <p className="text-gray-600">Consulta y valida</p>
+            </div>
           </div>
         </div>
       </div>

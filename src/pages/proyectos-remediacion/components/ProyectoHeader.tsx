@@ -55,7 +55,9 @@ export const ProyectoHeader: React.FC<ProyectoHeaderProps> = ({ proyecto }) => {
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">{proyecto.nombre_proyecto}</h1>
-            <p className="text-gray-600 mt-1">{proyecto.descripcion}</p>
+            {proyecto.descripcion && (
+              <p className="text-gray-600 mt-1">{proyecto.descripcion}</p>
+            )}
           </div>
         </div>
 
@@ -84,7 +86,8 @@ export const ProyectoHeader: React.FC<ProyectoHeaderProps> = ({ proyecto }) => {
             <div>
               <p className="text-xs text-gray-500 uppercase font-semibold">Progreso Tiempo</p>
               <p className="text-sm font-bold text-green-600">
-                {proyecto.porcentaje_tiempo_transcurrido.toFixed(0)}%
+                {/* ✅ FIX: Agregar validación para undefined */}
+                {proyecto.porcentaje_tiempo_transcurrido?.toFixed(0) ?? '0'}%
               </p>
             </div>
           </div>
@@ -94,7 +97,8 @@ export const ProyectoHeader: React.FC<ProyectoHeaderProps> = ({ proyecto }) => {
             <div>
               <p className="text-xs text-gray-500 uppercase font-semibold">Días Restantes</p>
               <p className={`text-sm font-bold ${proyecto.esta_vencido ? 'text-red-600' : 'text-purple-600'}`}>
-                {proyecto.esta_vencido ? 'Vencido' : `${proyecto.dias_restantes}d`}
+                {/* ✅ FIX: Agregar validación para undefined */}
+                {proyecto.esta_vencido ? 'Vencido' : `${proyecto.dias_restantes ?? 0}d`}
               </p>
             </div>
           </div>
