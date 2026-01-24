@@ -1,19 +1,21 @@
 // src/pages/proveedores/ProveedoresPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, CheckCircle, XCircle, Edit, Power, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, CheckCircle, XCircle, Edit, Power, Trash2, Globe } from 'lucide-react';
 import { proveedoresApi } from '@/api/endpoints';
 import { Proveedor } from '@/types';
 import { Button, Card } from '@/components/common';
+import { usePermissions } from '@/hooks/usePermissions'; // ⭐ CORRECTO
 import toast from 'react-hot-toast';
 import { ModalCrearProveedor } from './ModalCrearProveedor';
 import { ModalEditarProveedor } from './ModalEditarProveedor';
 
 export const ProveedoresPage: React.FC = () => {
+  const { isSuperuser } = usePermissions(); // ⭐ CORRECTO
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'inactivos'>('todos');
+  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'inactivos' | 'globales'>('todos');
   const [showModalCrear, setShowModalCrear] = useState(false);
   const [showModalEditar, setShowModalEditar] = useState(false);
   const [proveedorEditar, setProveedorEditar] = useState<Proveedor | null>(null);
@@ -31,6 +33,8 @@ export const ProveedoresPage: React.FC = () => {
         data = await proveedoresApi.getActivos();
       } else if (filtroEstado === 'inactivos') {
         data = await proveedoresApi.getInactivos();
+      } else if (filtroEstado === 'globales') {
+        data = await proveedoresApi.getGlobales();
       } else {
         data = await proveedoresApi.getAll();
       }
@@ -80,7 +84,8 @@ export const ProveedoresPage: React.FC = () => {
   const proveedoresFiltrados = (proveedores || []).filter((p) =>
     p.razon_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.ruc?.includes(searchTerm) ||
-    p.tipo_proveedor_display?.toLowerCase().includes(searchTerm.toLowerCase())
+    p.tipo_proveedor_display?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.empresa_nombre?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -90,7 +95,10 @@ export const ProveedoresPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Proveedores</h1>
           <p className="text-gray-600 mt-1">
-            Gestión de proveedores de servicios
+            {isSuperuser 
+              ? 'Gestión de proveedores globales y de empresas'
+              : 'Gestión de proveedores de tu empresa'
+            }
           </p>
         </div>
 
@@ -112,7 +120,7 @@ export const ProveedoresPage: React.FC = () => {
               />
               <input
                 type="text"
-                placeholder="Buscar por razón social, RUC o tipo..."
+                placeholder="Buscar por razón social, RUC, tipo o empresa..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -131,13 +139,14 @@ export const ProveedoresPage: React.FC = () => {
               <option value="todos">Todos</option>
               <option value="activos">Activos</option>
               <option value="inactivos">Inactivos</option>
+              {isSuperuser && <option value="globales">Globales</option>}
             </select>
           </div>
         </div>
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <div className="flex items-center justify-between">
             <div>
@@ -177,6 +186,22 @@ export const ProveedoresPage: React.FC = () => {
             </div>
           </div>
         </Card>
+
+        {isSuperuser && (
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Globales</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {proveedores.filter((p) => p.es_global).length}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Globe className="text-purple-600" size={24} />
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Tabla de Proveedores */}
@@ -199,6 +224,11 @@ export const ProveedoresPage: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
                   </th>
+                  {isSuperuser && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Empresa
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Razón Social
                   </th>
@@ -236,6 +266,22 @@ export const ProveedoresPage: React.FC = () => {
                         {proveedor.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
+
+                    {/* Columna Empresa (solo para superadmin) */}
+                    {isSuperuser && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {proveedor.es_global ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <Globe size={12} className="mr-1" />
+                            Global
+                          </span>
+                        ) : (
+                          <div className="text-sm text-gray-900">
+                            {proveedor.empresa_nombre}
+                          </div>
+                        )}
+                      </td>
+                    )}
 
                     {/* Razón Social */}
                     <td className="px-6 py-4 whitespace-nowrap">

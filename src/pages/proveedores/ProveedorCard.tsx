@@ -1,9 +1,10 @@
 // src/pages/proveedores/ProveedorCard.tsx
 
 import React from 'react';
-import { MoreVertical, Mail, Phone, Edit, Trash2, Power } from 'lucide-react';
+import { Mail, Phone, Edit, Power, Globe, Building2 } from 'lucide-react';
 import { Proveedor } from '@/types';
 import { Card } from '@/components/common';
+import { usePermissions } from '@/hooks/usePermissions'; // ⭐ CORRECTO
 
 interface ProveedorCardProps {
   proveedor: Proveedor;
@@ -20,7 +21,7 @@ export const ProveedorCard: React.FC<ProveedorCardProps> = ({
   onEditar,
   onEliminar,
 }) => {
-  const [showMenu, setShowMenu] = React.useState(false);
+  const { isSuperuser } = usePermissions(); // ⭐ CORRECTO
 
   return (
     <Card className="relative hover:shadow-lg transition-shadow">
@@ -47,21 +48,37 @@ export const ProveedorCard: React.FC<ProveedorCardProps> = ({
           <p className="text-sm text-gray-600">RUC: {proveedor.ruc}</p>
         </div>
 
-        {/* Tipo */}
-        <div>
+        {/* Badges */}
+        <div className="flex flex-wrap gap-2">
+          {/* Tipo */}
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
             {proveedor.tipo_proveedor_display}
           </span>
+
+          {/* Empresa o Global (solo visible para superadmin) */}
+          {isSuperuser && (
+            proveedor.es_global ? (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
+                <Globe size={14} className="mr-1" />
+                Global
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                <Building2 size={14} className="mr-1" />
+                {proveedor.empresa_nombre}
+              </span>
+            )
+          )}
         </div>
 
         {/* Contacto */}
         <div className="space-y-2">
           <div className="flex items-center text-sm text-gray-600">
-            <Mail size={16} className="mr-2" />
-            {proveedor.contacto_email}
+            <Mail size={16} className="mr-2 flex-shrink-0" />
+            <span className="truncate">{proveedor.contacto_email}</span>
           </div>
           <div className="flex items-center text-sm text-gray-600">
-            <Phone size={16} className="mr-2" />
+            <Phone size={16} className="mr-2 flex-shrink-0" />
             {proveedor.contacto_telefono}
           </div>
         </div>
@@ -72,7 +89,11 @@ export const ProveedorCard: React.FC<ProveedorCardProps> = ({
             Creado por: {proveedor.creado_por_nombre}
           </p>
           <p className="text-xs text-gray-400">
-            {new Date(proveedor.fecha_creacion).toLocaleDateString()}
+            {new Date(proveedor.fecha_creacion).toLocaleDateString('es-PE', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
           </p>
         </div>
 

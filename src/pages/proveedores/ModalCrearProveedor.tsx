@@ -1,10 +1,12 @@
-// src/pages/dashboard/proveedores/ModalCrearProveedor.tsx (CREAR ARCHIVO)
+// src/pages/proveedores/ModalCrearProveedor.tsx
 
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Globe, Building2 } from 'lucide-react';
+import axiosInstance from '@/api/axios'; // ⭐ SOLO NECESITAS ESTO
 import { proveedoresApi } from '@/api/endpoints';
-import { ProveedorCreate, TipoProveedor } from '@/types';
+import { ProveedorCreate, TipoProveedor, Empresa } from '@/types';
 import { Button, Card } from '@/components/common';
+import { usePermissions } from '@/hooks/usePermissions';
 import toast from 'react-hot-toast';
 
 interface ModalCrearProveedorProps {
@@ -25,14 +27,52 @@ export const ModalCrearProveedor: React.FC<ModalCrearProveedorProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { isSuperuser } = usePermissions();
   const [loading, setLoading] = useState(false);
+  const [loadingEmpresas, setLoadingEmpresas] = useState(false);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [esGlobal, setEsGlobal] = useState(false);
+  
   const [formData, setFormData] = useState<ProveedorCreate>({
+    empresa: undefined,
     razon_social: '',
     ruc: '',
     tipo_proveedor: 'consultoria',
     contacto_email: '',
     contacto_telefono: '',
   });
+
+  // ⭐ Cargar empresas si es superadmin
+  useEffect(() => {
+    if (isSuperuser) {
+      cargarEmpresas();
+    }
+  }, [isSuperuser]);
+
+  const cargarEmpresas = async () => {
+    try {
+      setLoadingEmpresas(true);
+      
+      // ⭐ Usar axiosInstance directamente
+      const response = await axiosInstance.get('/empresas/');
+      const data = response.data;
+      
+      // Manejar diferentes formatos de respuesta
+      if (data.results) {
+        setEmpresas(data.results);
+      } else if (Array.isArray(data)) {
+        setEmpresas(data);
+      } else {
+        setEmpresas([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar empresas:', error);
+      toast.error('Error al cargar empresas');
+      setEmpresas([]);
+    } finally {
+      setLoadingEmpresas(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,10 +92,28 @@ export const ModalCrearProveedor: React.FC<ModalCrearProveedorProps> = ({
       return;
     }
 
+    // ⭐ Validación para superadmin
+    if (isSuperuser && !esGlobal && !formData.empresa) {
+      toast.error('Debes seleccionar una empresa o marcar como global');
+      return;
+    }
+
     try {
       setLoading(true);
-      await proveedoresApi.create(formData);
-      toast.success('Proveedor creado exitosamente (desactivado por defecto)');
+      
+      // ⭐ Preparar payload según si es global o no
+      const payload: ProveedorCreate = {
+        ...formData,
+        empresa: esGlobal ? null : formData.empresa,
+      };
+      
+      await proveedoresApi.create(payload);
+      
+      const mensaje = esGlobal 
+        ? 'Proveedor global creado exitosamente'
+        : 'Proveedor creado exitosamente';
+      
+      toast.success(mensaje);
       onSuccess();
     } catch (error: any) {
       console.error('Error al crear proveedor:', error);
@@ -77,6 +135,100 @@ export const ModalCrearProveedor: React.FC<ModalCrearProveedorProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ⭐ Selector Global/Empresa (solo superadmin) */}
+          {isSuperuser && (
+            <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Tipo de Proveedor
+              </label>
+              
+              <div className="flex gap-4">
+                {/* Opción: Proveedor de Empresa */}
+                <label className="flex-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoProveedor"
+                    checked={!esGlobal}
+                    onChange={() => setEsGlobal(false)}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      !esGlobal
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Building2 size={24} className={!esGlobal ? 'text-primary-600' : 'text-gray-400'} />
+                      <div>
+                        <p className="font-medium text-gray-900">Proveedor de Empresa</p>
+                        <p className="text-sm text-gray-600">Asignar a una empresa específica</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+
+                {/* Opción: Proveedor Global */}
+                <label className="flex-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoProveedor"
+                    checked={esGlobal}
+                    onChange={() => setEsGlobal(true)}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      esGlobal
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-300 bg-white hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Globe size={24} className={esGlobal ? 'text-purple-600' : 'text-gray-400'} />
+                      <div>
+                        <p className="font-medium text-gray-900">Proveedor Global</p>
+                        <p className="text-sm text-gray-600">Sin empresa asignada</p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ⭐ Selector de Empresa (solo si no es global y es superadmin) */}
+          {isSuperuser && !esGlobal && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Empresa <span className="text-red-500">*</span>
+              </label>
+              {loadingEmpresas ? (
+                <div className="text-sm text-gray-500">Cargando empresas...</div>
+              ) : (
+                <select
+                  value={formData.empresa || ''}
+                  onChange={(e) =>
+                    setFormData({ 
+                      ...formData, 
+                      empresa: e.target.value ? Number(e.target.value) : undefined 
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Seleccionar empresa...</option>
+                  {empresas.map((empresa) => (
+                    <option key={empresa.id} value={empresa.id}>
+                      {empresa.nombre}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
           {/* Razón Social */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -165,10 +317,23 @@ export const ModalCrearProveedor: React.FC<ModalCrearProveedorProps> = ({
           </div>
 
           {/* Alerta */}
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-            <p className="text-sm text-blue-700">
-              ℹ️ El proveedor se creará <strong>desactivado</strong> por defecto.
-              Deberás activarlo manualmente después de crearlo.
+          <div className={`border-l-4 p-4 rounded ${
+            esGlobal 
+              ? 'bg-purple-50 border-purple-400'
+              : 'bg-blue-50 border-blue-400'
+          }`}>
+            <p className={`text-sm ${esGlobal ? 'text-purple-700' : 'text-blue-700'}`}>
+              {esGlobal ? (
+                <>
+                  🌐 Este será un <strong>proveedor global</strong> sin empresa asignada.
+                  Se creará desactivado por defecto.
+                </>
+              ) : (
+                <>
+                  ℹ️ El proveedor se creará <strong>desactivado</strong> por defecto.
+                  Deberás activarlo manualmente después de crearlo.
+                </>
+              )}
             </p>
           </div>
 
