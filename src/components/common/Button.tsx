@@ -6,7 +6,7 @@ const cn = (...classes: (string | undefined | null | false)[]): string =>
   classes.filter(Boolean).join(' ');
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   fullWidth?: boolean;
@@ -37,6 +37,10 @@ export const Button: React.FC<ButtonProps> = ({
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
     ghost:
       'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500',
+    
+  success:
+    'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
+    
   };
 
   const sizes = {
