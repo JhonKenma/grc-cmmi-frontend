@@ -1,4 +1,4 @@
-// src/types/proveedor.ts (CREAR ARCHIVO)
+// src/types/proveedor.ts
 
 export type TipoProveedor = 
   | 'consultoria'
@@ -10,6 +10,9 @@ export type TipoProveedor =
 
 export interface Proveedor {
   id: string;
+  empresa: number | null;  // ⭐ NUEVO: ID de empresa (null si es global)
+  empresa_nombre: string | null;  // ⭐ NUEVO: Nombre de empresa
+  es_global: boolean;  // ⭐ NUEVO: true si no tiene empresa
   razon_social: string;
   ruc: string;
   tipo_proveedor: TipoProveedor;
@@ -25,6 +28,7 @@ export interface Proveedor {
 }
 
 export interface ProveedorCreate {
+  empresa?: number | null;  // ⭐ NUEVO: Opcional, solo superadmin puede enviarlo
   razon_social: string;
   ruc: string;
   tipo_proveedor: TipoProveedor;
@@ -33,6 +37,7 @@ export interface ProveedorCreate {
 }
 
 export interface ProveedorUpdate {
+  // empresa NO se puede actualizar (readonly en backend)
   razon_social?: string;
   ruc?: string;
   tipo_proveedor?: TipoProveedor;
@@ -51,6 +56,7 @@ export interface ProveedorDetailResponse {
   message: string;
   data: Proveedor;
 }
+
 export interface ProveedorPaginatedResponse {
   count: number;
   next: string | null;

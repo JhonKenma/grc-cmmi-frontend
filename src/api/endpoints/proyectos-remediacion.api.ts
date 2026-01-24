@@ -1,6 +1,6 @@
 // src/api/endpoints/proyectos-remediacion.api.ts
 
-import axiosInstance from '../axios'; // ⭐ Importar correctamente
+import axiosInstance from '../axios';
 import {
   ProyectoRemediacionList,
   ProyectoRemediacionDetail,
@@ -11,10 +11,17 @@ import {
   ProyectosFiltros,
   EstadisticasProyectos,
   MisProyectosParams,
-  ProyectosPorEstadoResponse,
   ProyectosVencidosResponse,
   ProyectosProximosVencerParams,
   ProyectosProximosVencerResponse,
+  // ⭐ NUEVO: Importar types de ítems
+  ItemProyecto,
+  ItemProyectoDetail,
+  CrearItemFormData,
+  ActualizarItemFormData,
+  ListarItemsResponse,
+  ItemActionResponse,
+  ItemsFiltros,
 } from '@/types/proyecto-remediacion.types';
 
 const BASE_URL = '/proyectos-remediacion';
@@ -22,25 +29,27 @@ const BASE_URL = '/proyectos-remediacion';
 /**
  * API CLIENT PARA PROYECTOS DE REMEDIACIÓN
  * 
- * Maneja todas las interacciones con el backend para:
- * - CRUD de proyectos
+ * Actualizado con soporte completo para:
+ * - CRUD de proyectos con modo de presupuesto dual
+ * - Gestión de ítems de proyecto ⭐
+ * - Dependencias entre ítems
  * - Creación desde GAP
- * - Consultas especiales (mis proyectos, estadísticas, etc.)
- * - Filtros y búsquedas
+ * - Consultas especiales y estadísticas
  */
 export const proyectosRemediacionApi = {
   
   // ═══════════════════════════════════════════════════════════════
-  // CRUD BÁSICO
+  // CRUD BÁSICO DE PROYECTOS
   // ═══════════════════════════════════════════════════════════════
   
   /**
    * Listar proyectos con filtros y paginación
+   * GET /api/proyectos-remediacion/
    */
   listar: async (filtros?: ProyectosFiltros): Promise<ProyectosListResponse> => {
     const params = new URLSearchParams();
     
-    // ✅ Filtros de relaciones
+    // Filtros de relaciones
     if (filtros?.calculo_nivel) params.append('calculo_nivel', filtros.calculo_nivel);
     if (filtros?.empresa) params.append('empresa', filtros.empresa);
     
@@ -48,6 +57,9 @@ export const proyectosRemediacionApi = {
     if (filtros?.estado) params.append('estado', filtros.estado);
     if (filtros?.prioridad) params.append('prioridad', filtros.prioridad);
     if (filtros?.categoria) params.append('categoria', filtros.categoria);
+    
+    // ⭐ NUEVO: Filtro por modo de presupuesto
+    if (filtros?.modo_presupuesto) params.append('modo_presupuesto', filtros.modo_presupuesto);
     
     // Búsqueda y ordenamiento
     if (filtros?.search) params.append('search', filtros.search);
@@ -58,23 +70,24 @@ export const proyectosRemediacionApi = {
     if (filtros?.page_size) params.append('page_size', filtros.page_size.toString());
     
     const url = params.toString() 
-      ? `/proyectos-remediacion/?${params}` 
-      : '/proyectos-remediacion/';
+      ? `${BASE_URL}/?${params}` 
+      : `${BASE_URL}/`;
       
     const response = await axiosInstance.get<ProyectosListResponse>(url);
     return response.data;
   },
 
   /**
-   * ✅ MÉTODO ESPECÍFICO PARA OBTENER POR GAP
-   * Forma 1: Llamada interna directa
+   * Obtener proyectos de un GAP específico
+   * GET /api/proyectos-remediacion/?calculo_nivel={id}
    */
   getPorGap: async (calculoNivelId: string): Promise<ProyectosListResponse> => {
     const response = await axiosInstance.get<ProyectosListResponse>(
-      `/proyectos-remediacion/?calculo_nivel=${calculoNivelId}`
+      `${BASE_URL}/?calculo_nivel=${calculoNivelId}`
     );
     return response.data;
   },
+  
   /**
    * Obtener detalle de un proyecto
    * GET /api/proyectos-remediacion/{id}/
@@ -117,7 +130,85 @@ export const proyectosRemediacionApi = {
   },
   
   // ═══════════════════════════════════════════════════════════════
-  // ACCIONES ESPECIALES
+  // GESTIÓN DE ÍTEMS (NUEVO) ⭐
+  // ═══════════════════════════════════════════════════════════════
+  
+  /**
+   * Listar ítems de un proyecto
+   * GET /api/proyectos-remediacion/{id}/items/
+   */
+  listarItems: async (
+    proyectoId: string, 
+    filtros?: ItemsFiltros
+  ): Promise<ListarItemsResponse> => {
+    const params = new URLSearchParams();
+    
+    if (filtros?.estado) params.append('estado', filtros.estado);
+    if (filtros?.requiere_proveedor !== undefined) {
+      params.append('requiere_proveedor', filtros.requiere_proveedor.toString());
+    }
+    
+    const url = params.toString()
+      ? `${BASE_URL}/${proyectoId}/items/?${params}`
+      : `${BASE_URL}/${proyectoId}/items/`;
+    
+    const response = await axiosInstance.get<ListarItemsResponse>(url);
+    return response.data;
+  },
+  
+  /**
+   * Agregar un ítem al proyecto
+   * POST /api/proyectos-remediacion/{id}/agregar-item/
+   */
+  agregarItem: async (
+    proyectoId: string, 
+    data: CrearItemFormData
+  ): Promise<ItemActionResponse> => {
+    const response = await axiosInstance.post<ItemActionResponse>(
+      `${BASE_URL}/${proyectoId}/agregar-item/`,
+      data
+    );
+    return response.data;
+  },
+  
+  /**
+   * Actualizar un ítem existente
+   * PATCH /api/proyectos-remediacion/{id}/actualizar-item/
+   */
+  actualizarItem: async (
+    proyectoId: string, 
+    data: ActualizarItemFormData
+  ): Promise<ItemActionResponse> => {
+    const response = await axiosInstance.patch<ItemActionResponse>(
+      `${BASE_URL}/${proyectoId}/actualizar-item/`,
+      data
+    );
+    return response.data;
+  },
+  
+  /**
+   * Eliminar un ítem del proyecto
+   * DELETE /api/proyectos-remediacion/{id}/eliminar-item/?item_id={itemId}
+   */
+  eliminarItem: async (proyectoId: string, itemId: string): Promise<void> => {
+    await axiosInstance.delete(
+      `${BASE_URL}/${proyectoId}/eliminar-item/?item_id=${itemId}`
+    );
+  },
+  
+  /**
+   * Reordenar ítems del proyecto
+   * POST /api/proyectos-remediacion/{id}/reordenar-items/
+   */
+  reordenarItems: async (proyectoId: string, orden: string[]): Promise<void> => {
+    await axiosInstance.post(
+      `${BASE_URL}/${proyectoId}/reordenar-items/`,
+      { orden }
+    );
+  },
+  
+  // ═══════════════════════════════════════════════════════════════
+  // ACCIONES ESPECIALES DE PROYECTOS
   // ═══════════════════════════════════════════════════════════════
   
   /**
@@ -139,7 +230,6 @@ export const proyectosRemediacionApi = {
   misProyectos: async (params?: MisProyectosParams): Promise<ProyectoRemediacionList[]> => {
     const queryParams = new URLSearchParams();
     
-    if (params?.rol) queryParams.append('rol', params.rol);
     if (params?.estado) queryParams.append('estado', params.estado);
     
     const url = queryParams.toString() 
@@ -151,22 +241,11 @@ export const proyectosRemediacionApi = {
   },
   
   /**
-   * Obtener estadísticas generales
+   * Obtener estadísticas generales de proyectos
    * GET /api/proyectos-remediacion/estadisticas/
    */
   estadisticas: async (): Promise<EstadisticasProyectos> => {
     const response = await axiosInstance.get<EstadisticasProyectos>(`${BASE_URL}/estadisticas/`);
-    return response.data;
-  },
-  
-  /**
-   * Obtener proyectos por estado
-   * GET /api/proyectos-remediacion/por_estado/?estado=X
-   */
-  porEstado: async (estado: string): Promise<ProyectosPorEstadoResponse> => {
-    const response = await axiosInstance.get<ProyectosPorEstadoResponse>(
-      `${BASE_URL}/por_estado/?estado=${estado}`
-    );
     return response.data;
   },
   
@@ -193,14 +272,76 @@ export const proyectosRemediacionApi = {
     return response.data;
   },
 
-
-   /**
-   * ✅ NUEVO: Listar proyectos por dimensión
+  /**
+   * Listar proyectos por dimensión
+   * GET /api/proyectos-remediacion/listar_por_dimension/?dimension_id={id}
    */
   listarPorDimension: async (dimensionId: string): Promise<ProyectosListResponse> => {
     const response = await axiosInstance.get<ProyectosListResponse>(
-      `/proyectos-remediacion/listar_por_dimension/?dimension_id=${dimensionId}`
+      `${BASE_URL}/listar_por_dimension/?dimension_id=${dimensionId}`
     );
     return response.data;
-  }, 
+  },
 };
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS Y UTILIDADES ⭐
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Validar si un proyecto está en modo por_items
+ */
+export const esModoItems = (proyecto: ProyectoRemediacionDetail | ProyectoRemediacionList): boolean => {
+  return proyecto.modo_presupuesto === 'por_items';
+};
+
+/**
+ * Calcular total de presupuesto de ítems
+ */
+export const calcularTotalPresupuestoItems = (items: ItemProyecto[]): {
+  planificado: number;
+  ejecutado: number;
+  diferencia: number;
+} => {
+  const planificado = items.reduce((sum, item) => sum + item.presupuesto_planificado, 0);
+  const ejecutado = items.reduce((sum, item) => sum + item.presupuesto_ejecutado, 0);
+  
+  return {
+    planificado,
+    ejecutado,
+    diferencia: ejecutado - planificado,
+  };
+};
+
+/**
+ * Obtener ítems bloqueados
+ */
+export const getItemsBloqueados = (items: ItemProyecto[]): ItemProyecto[] => {
+  return items.filter(item => item.estado === 'bloqueado');
+};
+
+/**
+ * Calcular porcentaje de avance general
+ */
+export const calcularAvanceGeneral = (items: ItemProyecto[]): number => {
+  if (items.length === 0) return 0;
+  
+  const completados = items.filter(item => item.estado === 'completado').length;
+  return Math.round((completados / items.length) * 100);
+};
+
+/**
+ * Query keys para React Query
+ */
+export const queryKeys = {
+  all: ['proyectos-remediacion'] as const,
+  lists: () => [...queryKeys.all, 'list'] as const,
+  list: (filtros?: ProyectosFiltros) => [...queryKeys.lists(), filtros] as const,
+  details: () => [...queryKeys.all, 'detail'] as const,
+  detail: (id: string) => [...queryKeys.details(), id] as const,
+  items: (proyectoId: string) => [...queryKeys.detail(proyectoId), 'items'] as const,
+  misProyectos: (params?: MisProyectosParams) => [...queryKeys.all, 'mis-proyectos', params] as const,
+  estadisticas: () => [...queryKeys.all, 'estadisticas'] as const,
+};
+
+export default proyectosRemediacionApi;

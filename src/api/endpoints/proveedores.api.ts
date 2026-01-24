@@ -9,19 +9,21 @@ import {
   ProveedorDetailResponse,
   ProveedorPaginatedResponse,
 } from '@/types/proveedor';
-
+import axios from 'axios';
 const BASE_URL = '/proveedores';
 
 export const proveedoresApi = {
   /**
-   * Listar todos los proveedores
+   * Listar todos los proveedores (según rol del usuario)
+   * - Superadmin: Ve todos (globales + empresas)
+   * - Admin: Solo de su empresa
    */
   getAll: async (): Promise<Proveedor[]> => {
     try {
       const response = await axiosInstance.get(`${BASE_URL}/`);
       const data = response.data;
       
-      // ⭐ MANEJAR DIFERENTES FORMATOS
+      // Manejar diferentes formatos de respuesta
       if (data.results) return data.results;
       if (Array.isArray(data)) return data;
       
@@ -29,19 +31,19 @@ export const proveedoresApi = {
       return [];
     } catch (error) {
       console.error('❌ Error en getAll:', error);
-      return [];  // ⭐ Retornar array vacío en caso de error
+      return [];
     }
   },
 
   /**
-   * Obtener proveedores activos
+   * Obtener proveedores activos (filtrado por rol)
+   * GET /api/proveedores/activos/
    */
   getActivos: async (): Promise<Proveedor[]> => {
     try {
       const response = await axiosInstance.get(`${BASE_URL}/activos/`);
       const data = response.data;
       
-      // ⭐ MANEJAR DIFERENTES FORMATOS
       if (data.results) return data.results;
       if (data.data) return data.data;
       if (Array.isArray(data)) return data;
@@ -55,14 +57,14 @@ export const proveedoresApi = {
   },
 
   /**
-   * Obtener proveedores inactivos
+   * Obtener proveedores inactivos (filtrado por rol)
+   * GET /api/proveedores/inactivos/
    */
   getInactivos: async (): Promise<Proveedor[]> => {
     try {
       const response = await axiosInstance.get(`${BASE_URL}/inactivos/`);
       const data = response.data;
       
-      // ⭐ MANEJAR DIFERENTES FORMATOS
       if (data.results) return data.results;
       if (data.data) return data.data;
       if (Array.isArray(data)) return data;
@@ -71,6 +73,37 @@ export const proveedoresApi = {
       return [];
     } catch (error) {
       console.error('❌ Error en getInactivos:', error);
+      return [];
+    }
+  },
+
+  /**
+   * ⭐ NUEVO: Obtener proveedores globales (sin empresa)
+   * Solo accesible para SUPERADMIN
+   * GET /api/proveedores/globales/
+   */
+  getGlobales: async (): Promise<Proveedor[]> => {
+    try {
+      const response = await axiosInstance.get(`${BASE_URL}/globales/`);
+      const data = response.data;
+      
+      if (data.results) return data.results;
+      if (data.data) return data.data;
+      if (Array.isArray(data)) return data;
+      
+      console.warn('⚠️ Formato inesperado en getGlobales:', data);
+      return [];
+    } catch (error) {
+      console.error('❌ Error en getGlobales:', error);
+      
+      // ⭐ CORRECCIÓN: Tipar el error correctamente
+      if (axios.isAxiosError(error)) {
+        // Si es 403, el usuario no es superadmin
+        if (error.response?.status === 403) {
+          console.warn('⚠️ Solo superadmin puede ver proveedores globales');
+        }
+      }
+      
       return [];
     }
   },
@@ -87,6 +120,8 @@ export const proveedoresApi = {
   /**
    * Crear nuevo proveedor
    * POST /api/proveedores/
+   * - Superadmin: Puede enviar empresa=null (global) o empresa=id
+   * - Admin: No envía empresa (se asigna automáticamente)
    */
   create: async (data: ProveedorCreate): Promise<ProveedorDetailResponse> => {
     const response = await axiosInstance.post<ProveedorDetailResponse>(
@@ -99,6 +134,7 @@ export const proveedoresApi = {
   /**
    * Actualizar proveedor
    * PATCH /api/proveedores/{id}/
+   * Nota: El campo 'empresa' es readonly y no se puede cambiar
    */
   update: async (
     id: string,

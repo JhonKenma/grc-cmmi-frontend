@@ -3,8 +3,11 @@
 /**
  * TIPOS PARA MÓDULO DE PROYECTOS DE REMEDIACIÓN
  * 
- * Estructura completa de tipos que mapean exactamente
- * con los modelos del backend Django
+ * Actualizado con soporte para:
+ * - Sistema de presupuesto dual (global / por ítems)
+ * - Gestión de ítems de proyecto
+ * - Dependencias entre ítems
+ * - Proveedores
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -32,49 +35,24 @@ export type CategoriaProyecto =
   | 'organizacional' 
   | 'capacitacion';
 
-export type NormativaProyecto = 
-  | 'iso_27001' 
-  | 'iso_9001' 
-  | 'nist_csf' 
-  | 'gdpr' 
-  | 'pci_dss' 
-  | 'sox' 
-  | 'hipaa' 
-  | 'cmmi' 
-  | 'otro';
+// ⭐ NUEVO: Modo de presupuesto
+export type ModoPresupuesto = 
+  | 'global'      // Un solo monto para todo el proyecto
+  | 'por_items';  // Desglosado en ítems/tareas individuales
 
-export type TipoBrechaProyecto = 
-  | 'ausencia_total' 
-  | 'parcial' 
-  | 'no_efectiva' 
-  | 'no_documentada';
+// ⭐ NUEVO: Estados de ítem
+export type EstadoItem = 
+  | 'pendiente' 
+  | 'en_proceso' 
+  | 'completado' 
+  | 'bloqueado';  // Bloqueado por dependencia
 
-export type EstrategiaCierre = 
-  | 'implementacion_nueva' 
-  | 'fortalecimiento' 
-  | 'optimizacion' 
-  | 'documentacion';
-
-export type FrecuenciaReporte = 
-  | 'diaria' 
-  | 'semanal' 
-  | 'quincenal' 
-  | 'mensual';
-
-export type CanalComunicacion = 
-  | 'email' 
-  | 'teams' 
-  | 'slack' 
-  | 'whatsapp' 
-  | 'otro';
-
-export type MetodoVerificacion = 
-  | 'muestreo' 
-  | 'prueba_completa' 
-  | 'observacion' 
-  | 'revision_documental' 
-  | 'entrevista' 
-  | 'inspeccion';
+export type MonedaProyecto = 
+  | 'USD' 
+  | 'EUR' 
+  | 'PEN' 
+  | 'COP' 
+  | 'MXN';
 
 export type ResultadoFinal = 
   | 'exitoso' 
@@ -82,27 +60,18 @@ export type ResultadoFinal =
   | 'no_exitoso' 
   | 'cancelado';
 
-export type MonedaProyecto = 
-  | 'USD' 
-  | 'EUR' 
-  | 'GBP' 
-  | 'PEN' 
-  | 'COP' 
-  | 'MXN' 
-  | 'CLP' 
-  | 'ARS';
-
 // ═══════════════════════════════════════════════════════════════
-// INTERFACES DE DATOS
+// INTERFACES DE DATOS BÁSICOS
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Información del GAP original que dio origen al proyecto
+ * Información del GAP original
  */
 export interface CalculoNivelInfo {
   id: string;
   dimension: string;
   dimension_codigo: string;
+  dimension_nombre: string;
   nivel_deseado: number;
   nivel_actual: number;
   gap: number;
@@ -141,11 +110,92 @@ export interface PreguntaAbordadaInfo {
   codigo: string;
   titulo: string;
   texto: string;
-  dimension: string;
+}
+
+// ⭐ NUEVO: Información de proveedor
+export interface ProveedorInfo {
+  id: string;
+  razon_social: string;
+  ruc: string;
+  categoria?: string;
+  email?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PROYECTO - LISTA (Vista simplificada)
+// ÍTEM DE PROYECTO (NUEVO) ⭐
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Ítem/Tarea individual de un proyecto (para modo por_items)
+ */
+export interface ItemProyecto {
+  id: string;
+  numero_item: number;
+  nombre_item: string;
+  descripcion: string;
+  
+  // Proveedor (opcional)
+  requiere_proveedor: boolean;
+  proveedor: string | null;
+  proveedor_nombre: string | null;
+  nombre_responsable_proveedor: string;
+  
+  // Responsable interno (obligatorio)
+  responsable_ejecucion: number;
+  responsable_nombre: string;
+  
+  // Presupuesto
+  presupuesto_planificado: number;
+  presupuesto_ejecutado: number;
+  diferencia_presupuesto: number;
+  
+  // Cronograma
+  fecha_inicio: string;
+  duracion_dias: number;
+  fecha_fin: string; // Calculada automáticamente
+  
+  // Dependencias
+  tiene_dependencia: boolean;
+  item_dependencia: string | null;
+  
+  // Estado y seguimiento
+  estado: EstadoItem;
+  estado_display: string;
+  porcentaje_avance: number;
+  
+  // Propiedades calculadas
+  puede_iniciar: boolean;
+  dias_restantes: number;
+  esta_vencido: boolean;
+  
+  // Auditoría
+  fecha_creacion: string;
+}
+
+/**
+ * Ítem detallado con relaciones expandidas
+ */
+export interface ItemProyectoDetail extends ItemProyecto {
+  responsable_info: UsuarioInfo;
+  proveedor_info: ProveedorInfo | null;
+  item_dependencia_info: {
+    id: string;
+    numero_item: number;
+    nombre_item: string;
+    estado: EstadoItem;
+    estado_display: string;
+    porcentaje_avance: number;
+  } | null;
+  items_que_dependen: Array<{
+    id: string;
+    numero_item: number;
+    nombre_item: string;
+    estado: EstadoItem;
+  }>;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROYECTO - LISTA (Vista simplificada) - ACTUALIZADO
 // ═══════════════════════════════════════════════════════════════
 
 export interface ProyectoRemediacionList {
@@ -162,22 +212,44 @@ export interface ProyectoRemediacionList {
   prioridad_display: string;
   categoria: CategoriaProyecto;
   categoria_display: string;
-  dueno_nombre: string;
-  responsable_nombre: string;
+  
+  // ⭐ NUEVO: Modo de presupuesto
+  modo_presupuesto: ModoPresupuesto;
+  modo_presupuesto_display: string;
+  
+  // Responsables
+  dueno_proyecto_nombre: string;
+  responsable_implementacion_nombre: string;
+  dueno_nombre: string;  // Mantener por compatibilidad
+  responsable_nombre: string;  // Mantener por compatibilidad
+  
+  // Fechas y tiempo
   fecha_inicio: string;
   fecha_fin_estimada: string;
   dias_restantes: number;
   dias_transcurridos: number;
+  porcentaje_tiempo_transcurrido: number;  // ⭐ AGREGADO
   esta_vencido: boolean;
-  presupuesto_asignado: number;
-  presupuesto_gastado: number;
+  
+  // ⭐ ACTUALIZADO: Presupuesto inteligente
+  presupuesto_total_planificado: number;  // Suma según modo
+  presupuesto_total_ejecutado: number;    // Suma según modo
   porcentaje_presupuesto_gastado: number;
   moneda: MonedaProyecto;
+  
+  // ⭐ NUEVO: Información de ítems (si modo='por_items')
+  total_items: number;
+  items_completados: number;
+  porcentaje_avance_items: number;
+  
+  // Info del cálculo de nivel (GAP)
+  calculo_nivel_info: CalculoNivelInfo;
+  
   fecha_creacion: string;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PROYECTO - DETALLE (Vista completa)
+// PROYECTO - DETALLE (Vista completa) - ACTUALIZADO
 // ═══════════════════════════════════════════════════════════════
 
 export interface ProyectoRemediacionDetail {
@@ -190,7 +262,7 @@ export interface ProyectoRemediacionDetail {
   descripcion: string;
   fecha_inicio: string;
   fecha_fin_estimada: string;
-  fecha_fin_real?: string | null;
+  fecha_fin_real: string | null;
   estado: EstadoProyecto;
   estado_display: string;
   prioridad: PrioridadProyecto;
@@ -202,80 +274,54 @@ export interface ProyectoRemediacionDetail {
   calculo_nivel: string;
   calculo_nivel_info: CalculoNivelInfo;
   
-  // ═══ DATOS DE LA BRECHA ═══
-  normativa: NormativaProyecto;
-  normativa_display: string;
-  control_no_conforme: string;
-  tipo_brecha: TipoBrechaProyecto;
-  tipo_brecha_display: string;
-  nivel_criticidad_original: number;
-  impacto_riesgo: string;
-  evidencia_no_conformidad: string;
-  fecha_identificacion_gap: string;
-  
-  // ═══ PLANIFICACIÓN ═══
-  estrategia_cierre: EstrategiaCierre;
-  estrategia_cierre_display: string;
+  // ═══ PLANIFICACIÓN (SIMPLIFICADO) ═══
   alcance_proyecto: string;
   objetivos_especificos: string;
   criterios_aceptacion: string;
-  supuestos: string;
-  restricciones: string;
   riesgos_proyecto: string;
   preguntas_abordadas: string[];
   preguntas_abordadas_info: PreguntaAbordadaInfo[];
   
-  // ═══ RESPONSABLES ═══
+  // ═══ RESPONSABLES (SIMPLIFICADO) ═══
   dueno_proyecto: number;
   dueno_proyecto_info: UsuarioInfo;
   responsable_implementacion: number;
   responsable_implementacion_info: UsuarioInfo;
-  equipo_implementacion: number[];
-  equipo_implementacion_info: UsuarioInfo[];
-  validador_interno?: number | null;
-  validador_interno_info?: UsuarioInfo | null;
-  auditor_verificacion?: number | null;
-  auditor_verificacion_info?: UsuarioInfo | null;
-  responsable_validacion?: number | null;
-  responsable_validacion_info?: UsuarioInfo | null;
+  validador_interno: number | null;
+  validador_interno_info: UsuarioInfo | null;
   
-  // ═══ RECURSOS ═══
-  presupuesto_asignado: number;
-  presupuesto_gastado: number;
-  presupuesto_disponible: number;
-  porcentaje_presupuesto_gastado: number;
+  // ═══ PRESUPUESTO ⭐ NUEVO SISTEMA ═══
+  modo_presupuesto: ModoPresupuesto;
+  modo_presupuesto_display: string;
   moneda: MonedaProyecto;
   moneda_display: string;
-  recursos_humanos_asignados: number;
-  recursos_tecnicos: string;
   
-  // ═══ SEGUIMIENTO ═══
-  frecuencia_reporte: FrecuenciaReporte;
-  frecuencia_reporte_display: string;
-  metricas_desempeno: string;
-  umbrales_alerta: string;
-  canal_comunicacion: CanalComunicacion;
-  canal_comunicacion_display: string;
+  // Presupuesto global (solo si modo='global')
+  presupuesto_global: number;
+  presupuesto_global_gastado: number;
   
-  // ═══ VALIDACIÓN ═══
-  criterios_validacion: string;
-  metodo_verificacion: MetodoVerificacion;
-  metodo_verificacion_display: string;
+  // Presupuesto calculado (según modo)
+  presupuesto_total_planificado: number;
+  presupuesto_total_ejecutado: number;
+  presupuesto_disponible: number;
+  porcentaje_presupuesto_gastado: number;
+  
+  // ⭐ NUEVO: Ítems del proyecto (si modo='por_items')
+  items: ItemProyecto[];
+  total_items: number;
+  items_completados: number;
+  porcentaje_avance_items: number;
   
   // ═══ CIERRE ═══
-  fecha_cierre_tecnico?: string | null;
-  fecha_cierre_formal?: string | null;
-  resultado_final?: ResultadoFinal;
-  resultado_final_display?: string;
+  resultado_final: ResultadoFinal | null;
+  resultado_final_display: string;
   lecciones_aprendidas: string;
-  acciones_mejora_continua: string;
-  recomendaciones_futuros_gap: string;
   
   // ═══ EMPRESA Y AUDITORÍA ═══
   empresa: number;
   empresa_info: EmpresaInfo;
-  creado_por?: number | null;
-  creado_por_info?: UsuarioInfo | null;
+  creado_por: number | null;
+  creado_por_info: UsuarioInfo | null;
   version: number;
   activo: boolean;
   fecha_creacion: string;
@@ -285,20 +331,18 @@ export interface ProyectoRemediacionDetail {
   dias_restantes: number;
   dias_transcurridos: number;
   duracion_estimada_dias: number;
-  porcentaje_tiempo_transcurrido: number;
+  porcentaje_tiempo_transcurrido: number;  // ⭐ AGREGADO
   esta_vencido: boolean;
   gap_original: number;
   dimension_nombre: string;
-  nivel_deseado_original: number;
-  nivel_actual_original: number;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FORMULARIOS - CREAR PROYECTO
+// FORMULARIOS - CREAR PROYECTO (SIMPLIFICADO)
 // ═══════════════════════════════════════════════════════════════
 
 export interface CrearProyectoFormData {
-  // ═══ SECCIÓN 1: BÁSICO ═══
+  // ═══ BÁSICO ═══
   nombre_proyecto: string;
   descripcion: string;
   calculo_nivel: string;
@@ -307,52 +351,26 @@ export interface CrearProyectoFormData {
   prioridad: PrioridadProyecto;
   categoria: CategoriaProyecto;
   
-  // ═══ SECCIÓN 2: BRECHA ═══
-  normativa: NormativaProyecto;
-  control_no_conforme: string;
-  tipo_brecha: TipoBrechaProyecto;
-  nivel_criticidad_original: number;
-  impacto_riesgo: string;
-  evidencia_no_conformidad?: string;
-  fecha_identificacion_gap: string;
+  // ═══ RESPONSABLES ═══
+  dueno_proyecto: number;
+  responsable_implementacion: number;
+  validador_interno?: number;
   
-  // ═══ SECCIÓN 3: PLANIFICACIÓN ═══
-  estrategia_cierre: EstrategiaCierre;
+  // ⭐ NUEVO: PRESUPUESTO ═══
+  modo_presupuesto: ModoPresupuesto;
+  moneda: MonedaProyecto;
+  presupuesto_global?: number;  // Solo si modo='global'
+  
+  // ═══ PLANIFICACIÓN ═══
   alcance_proyecto: string;
   objetivos_especificos: string;
   criterios_aceptacion: string;
-  supuestos?: string;
-  restricciones?: string;
   riesgos_proyecto?: string;
   preguntas_abordadas_ids?: string[];
-  
-  // ═══ SECCIÓN 4: RESPONSABLES ═══
-  dueno_proyecto: number;
-  responsable_implementacion: number;
-  equipo_implementacion?: number[];
-  validador_interno?: number;
-  auditor_verificacion?: number;
-  
-  // ═══ SECCIÓN 5: RECURSOS ═══
-  presupuesto_asignado: number;
-  moneda: MonedaProyecto;
-  recursos_humanos_asignados?: number;
-  recursos_tecnicos?: string;
-  
-  // ═══ SECCIÓN 6: SEGUIMIENTO ═══
-  frecuencia_reporte: FrecuenciaReporte;
-  metricas_desempeno?: string;
-  umbrales_alerta?: string;
-  canal_comunicacion: CanalComunicacion;
-  
-  // ═══ SECCIÓN 7: VALIDACIÓN ═══
-  criterios_validacion: string;
-  metodo_verificacion: MetodoVerificacion;
-  responsable_validacion?: number;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FORMULARIO - CREAR DESDE GAP (Simplificado)
+// FORMULARIO - CREAR DESDE GAP (ACTUALIZADO)
 // ═══════════════════════════════════════════════════════════════
 
 export interface CrearDesdeGAPFormData {
@@ -363,23 +381,18 @@ export interface CrearDesdeGAPFormData {
   fecha_fin_estimada: string;
   dueno_proyecto_id: number;
   responsable_implementacion_id: number;
-  equipo_implementacion_ids?: number[];
   validador_interno_id?: number;
-  auditor_verificacion_id?: number;
-  presupuesto_asignado: number;
+  
+  // ⭐ NUEVO: Sistema de presupuesto
+  modo_presupuesto: ModoPresupuesto;
   moneda: MonedaProyecto;
-  recursos_humanos_asignados?: number;
+  presupuesto_global?: number;  // Solo si modo='global'
+  
   categoria?: CategoriaProyecto;
-  normativa?: NormativaProyecto;
-  estrategia_cierre?: EstrategiaCierre;
-  frecuencia_reporte?: FrecuenciaReporte;
-  canal_comunicacion?: CanalComunicacion;
-  metodo_verificacion?: MetodoVerificacion;
-  criterios_validacion?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FORMULARIO - ACTUALIZAR PROYECTO
+// FORMULARIO - ACTUALIZAR PROYECTO (SIMPLIFICADO)
 // ═══════════════════════════════════════════════════════════════
 
 export interface ActualizarProyectoFormData {
@@ -389,39 +402,93 @@ export interface ActualizarProyectoFormData {
   prioridad?: PrioridadProyecto;
   categoria?: CategoriaProyecto;
   estado?: EstadoProyecto;
-  control_no_conforme?: string;
-  impacto_riesgo?: string;
-  estrategia_cierre?: EstrategiaCierre;
   alcance_proyecto?: string;
   objetivos_especificos?: string;
   criterios_aceptacion?: string;
-  supuestos?: string;
-  restricciones?: string;
   riesgos_proyecto?: string;
-  preguntas_abordadas_ids?: string[];
   dueno_proyecto?: number;
   responsable_implementacion?: number;
-  equipo_implementacion?: number[];
   validador_interno?: number;
-  auditor_verificacion?: number;
-  presupuesto_asignado?: number;
-  presupuesto_gastado?: number;
-  recursos_humanos_asignados?: number;
-  recursos_tecnicos?: string;
-  frecuencia_reporte?: FrecuenciaReporte;
-  metricas_desempeno?: string;
-  umbrales_alerta?: string;
-  canal_comunicacion?: CanalComunicacion;
-  criterios_validacion?: string;
-  metodo_verificacion?: MetodoVerificacion;
-  responsable_validacion?: number;
+  presupuesto_global?: number;  // Solo en modo global
+  presupuesto_global_gastado?: number;
   lecciones_aprendidas?: string;
-  acciones_mejora_continua?: string;
-  recomendaciones_futuros_gap?: string;
+  preguntas_abordadas_ids?: string[];
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ESTADÍSTICAS
+// FORMULARIOS DE ÍTEMS (NUEVO) ⭐
+// ═══════════════════════════════════════════════════════════════
+
+export interface CrearItemFormData {
+  nombre_item: string;
+  descripcion?: string;
+  
+  // Proveedor (opcional)
+  requiere_proveedor: boolean;
+  proveedor_id?: string;
+  nombre_responsable_proveedor?: string;
+  
+  // Responsable (obligatorio)
+  responsable_ejecucion_id: number;
+  
+  // Presupuesto
+  presupuesto_planificado: number;
+  
+  // Cronograma
+  fecha_inicio: string;
+  duracion_dias: number;
+  
+  // Dependencias
+  tiene_dependencia: boolean;
+  item_dependencia_id?: string;
+}
+
+export interface ActualizarItemFormData {
+  item_id: string;
+  nombre_item?: string;
+  descripcion?: string;
+  requiere_proveedor?: boolean;
+  proveedor_id?: string;
+  nombre_responsable_proveedor?: string;
+  responsable_ejecucion_id?: number;
+  presupuesto_planificado?: number;
+  presupuesto_ejecutado?: number;
+  fecha_inicio?: string;
+  duracion_dias?: number;
+  tiene_dependencia?: boolean;
+  item_dependencia_id?: string;
+  estado?: EstadoItem;
+  porcentaje_avance?: number;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESPUESTAS DE API - ÍTEMS (NUEVO) ⭐
+// ═══════════════════════════════════════════════════════════════
+
+export interface ListarItemsResponse {
+  success: boolean;
+  data: {
+    proyecto_id: string;
+    codigo_proyecto: string;
+    total_items: number;
+    items: ItemProyecto[];
+    resumen: {
+      total_presupuesto_planificado: number;
+      total_presupuesto_ejecutado: number;
+      items_completados: number;
+      items_bloqueados: number;
+    };
+  };
+}
+
+export interface ItemActionResponse {
+  success: boolean;
+  data: ItemProyectoDetail;
+  message: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ESTADÍSTICAS (ACTUALIZADO)
 // ═══════════════════════════════════════════════════════════════
 
 export interface EstadisticasProyectos {
@@ -440,20 +507,19 @@ export interface EstadisticasProyectos {
     media: number;
     baja: number;
   };
-  por_categoria: {
-    tecnico: number;
-    documental: number;
-    procesal: number;
-    organizacional: number;
-    capacitacion: number;
+  // ⭐ NUEVO: Por modo de presupuesto
+  por_modo_presupuesto: {
+    global: number;
+    por_items: number;
   };
   alertas: {
     vencidos: number;
     proximos_a_vencer: number;
   };
+  // ⭐ ACTUALIZADO: Presupuesto inteligente
   presupuesto: {
-    total_asignado: number;
-    total_gastado: number;
+    total_planificado: number;
+    total_ejecutado: number;
     disponible: number;
     porcentaje_gastado: number;
   };
@@ -471,14 +537,7 @@ export interface ProyectosListResponse {
 }
 
 export interface MisProyectosParams {
-  rol?: 'dueno' | 'responsable' | 'equipo' | 'validador' | 'auditor';
   estado?: EstadoProyecto;
-}
-
-export interface ProyectosPorEstadoResponse {
-  estado: EstadoProyecto;
-  count: number;
-  proyectos: ProyectoRemediacionList[];
 }
 
 export interface ProyectosVencidosResponse {
@@ -497,13 +556,14 @@ export interface ProyectosProximosVencerResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FILTROS
+// FILTROS (ACTUALIZADO)
 // ═══════════════════════════════════════════════════════════════
 
 export interface ProyectosFiltros {
   estado?: EstadoProyecto;
   prioridad?: PrioridadProyecto;
   categoria?: CategoriaProyecto;
+  modo_presupuesto?: ModoPresupuesto;  // ⭐ NUEVO
   empresa?: string;
   calculo_nivel?: string;
   search?: string;
@@ -512,8 +572,13 @@ export interface ProyectosFiltros {
   page_size?: number;
 }
 
+export interface ItemsFiltros {
+  estado?: EstadoItem;
+  requiere_proveedor?: boolean;
+}
+
 // ═══════════════════════════════════════════════════════════════
-// CONSTANTES PARA UI
+// CONSTANTES PARA UI (ACTUALIZADO)
 // ═══════════════════════════════════════════════════════════════
 
 export const ESTADOS_PROYECTO_OPTIONS = [
@@ -540,66 +605,31 @@ export const CATEGORIAS_PROYECTO_OPTIONS = [
   { value: 'capacitacion', label: 'Capacitación' },
 ] as const;
 
-export const NORMATIVAS_OPTIONS = [
-  { value: 'iso_27001', label: 'ISO 27001' },
-  { value: 'iso_9001', label: 'ISO 9001' },
-  { value: 'nist_csf', label: 'NIST CSF' },
-  { value: 'gdpr', label: 'GDPR' },
-  { value: 'pci_dss', label: 'PCI-DSS' },
-  { value: 'sox', label: 'SOX' },
-  { value: 'hipaa', label: 'HIPAA' },
-  { value: 'cmmi', label: 'CMMI' },
-  { value: 'otro', label: 'Otro' },
+// ⭐ NUEVO: Modos de presupuesto
+export const MODOS_PRESUPUESTO_OPTIONS = [
+  { value: 'global', label: 'Presupuesto Global', description: 'Un monto único para todo el proyecto' },
+  { value: 'por_items', label: 'Presupuesto por Ítems', description: 'Desglosado en tareas individuales' },
 ] as const;
 
-export const TIPOS_BRECHA_OPTIONS = [
-  { value: 'ausencia_total', label: 'Ausencia Total' },
-  { value: 'parcial', label: 'Parcial' },
-  { value: 'no_efectiva', label: 'No Efectiva' },
-  { value: 'no_documentada', label: 'No Documentada' },
-] as const;
-
-export const ESTRATEGIAS_CIERRE_OPTIONS = [
-  { value: 'implementacion_nueva', label: 'Implementación Nueva' },
-  { value: 'fortalecimiento', label: 'Fortalecimiento' },
-  { value: 'optimizacion', label: 'Optimización' },
-  { value: 'documentacion', label: 'Documentación' },
-] as const;
-
-export const FRECUENCIAS_REPORTE_OPTIONS = [
-  { value: 'diaria', label: 'Diaria' },
-  { value: 'semanal', label: 'Semanal' },
-  { value: 'quincenal', label: 'Quincenal' },
-  { value: 'mensual', label: 'Mensual' },
-] as const;
-
-export const CANALES_COMUNICACION_OPTIONS = [
-  { value: 'email', label: 'Email' },
-  { value: 'teams', label: 'Microsoft Teams' },
-  { value: 'slack', label: 'Slack' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'otro', label: 'Otro' },
-] as const;
-
-export const METODOS_VERIFICACION_OPTIONS = [
-  { value: 'muestreo', label: 'Muestreo' },
-  { value: 'prueba_completa', label: 'Prueba Completa' },
-  { value: 'observacion', label: 'Observación' },
-  { value: 'revision_documental', label: 'Revisión Documental' },
-  { value: 'entrevista', label: 'Entrevista' },
-  { value: 'inspeccion', label: 'Inspección Física' },
+// ⭐ NUEVO: Estados de ítem
+export const ESTADOS_ITEM_OPTIONS = [
+  { value: 'pendiente', label: 'Pendiente', color: 'gray' },
+  { value: 'en_proceso', label: 'En Proceso', color: 'blue' },
+  { value: 'completado', label: 'Completado', color: 'green' },
+  { value: 'bloqueado', label: 'Bloqueado', color: 'red' },
 ] as const;
 
 export const MONEDAS_OPTIONS = [
-  { value: 'USD', label: 'USD - Dólar Estadounidense' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'GBP', label: 'GBP - Libra Esterlina' },
-  { value: 'PEN', label: 'PEN - Sol Peruano' },
-  { value: 'COP', label: 'COP - Peso Colombiano' },
-  { value: 'MXN', label: 'MXN - Peso Mexicano' },
-  { value: 'CLP', label: 'CLP - Peso Chileno' },
-  { value: 'ARS', label: 'ARS - Peso Argentino' },
+  { value: 'USD', label: 'USD - Dólar Estadounidense', symbol: '$' },
+  { value: 'EUR', label: 'EUR - Euro', symbol: '€' },
+  { value: 'PEN', label: 'PEN - Sol Peruano', symbol: 'S/' },
+  { value: 'COP', label: 'COP - Peso Colombiano', symbol: '$' },
+  { value: 'MXN', label: 'MXN - Peso Mexicano', symbol: '$' },
 ] as const;
+
+// ═══════════════════════════════════════════════════════════════
+// UTILIDADES
+// ═══════════════════════════════════════════════════════════════
 
 export interface GAPInfo {
   dimension_nombre: string;
@@ -609,3 +639,49 @@ export interface GAPInfo {
   nivel_actual: number;
   nivel_deseado: number;
 }
+
+/**
+ * Helper para obtener el símbolo de moneda
+ */
+export const getMonedaSymbol = (moneda: MonedaProyecto): string => {
+  const found = MONEDAS_OPTIONS.find(m => m.value === moneda);
+  return found?.symbol || '$';
+};
+
+/**
+ * Helper para obtener el color de un estado de proyecto
+ */
+export const getEstadoColor = (estado: EstadoProyecto): string => {
+  const colores: Record<EstadoProyecto, string> = {
+    planificado: 'bg-blue-100 text-blue-800 border-blue-300',
+    en_ejecucion: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    en_validacion: 'bg-purple-100 text-purple-800 border-purple-300',
+    cerrado: 'bg-green-100 text-green-800 border-green-300',
+    suspendido: 'bg-orange-100 text-orange-800 border-orange-300',
+    cancelado: 'bg-red-100 text-red-800 border-red-300',
+  };
+  return colores[estado] || 'bg-gray-100 text-gray-800 border-gray-300';
+};
+
+/**
+ * Helper para obtener el color de un estado de ítem
+ */
+export const getEstadoItemColor = (estado: EstadoItem): string => {
+  const found = ESTADOS_ITEM_OPTIONS.find(e => e.value === estado);
+  return found?.color || 'gray';
+};
+
+export const formatCurrency = (amount: number, moneda: MonedaProyecto): string => {
+  const symbol = getMonedaSymbol(moneda);
+  
+  // Convertir a número y validar
+  const numAmount = Number(amount) || 0;
+  
+  // Formatear con locale que soporta separadores de miles
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numAmount);
+  
+  return `${symbol}${formatted}`;
+};
