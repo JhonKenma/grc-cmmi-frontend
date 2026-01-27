@@ -22,6 +22,10 @@ import {
   ListarItemsResponse,
   ItemActionResponse,
   ItemsFiltros,
+  SolicitarAprobacionData,
+  AprobacionGAPDetail,
+  ResponderAprobacionData,
+  AprobacionGAP,
 } from '@/types/proyecto-remediacion.types';
 
 const BASE_URL = '/proyectos-remediacion';
@@ -171,16 +175,22 @@ export const proyectosRemediacionApi = {
     return response.data;
   },
   
-  /**
-   * Actualizar un ítem existente
-   * PATCH /api/proyectos-remediacion/{id}/actualizar-item/
+/**
+   * Actualizar un ítem directamente
+   * PATCH /api/items-proyecto/{id}/
    */
   actualizarItem: async (
-    proyectoId: string, 
-    data: ActualizarItemFormData
-  ): Promise<ItemActionResponse> => {
-    const response = await axiosInstance.patch<ItemActionResponse>(
-      `${BASE_URL}/${proyectoId}/actualizar-item/`,
+    itemId: string | number, // Usamos el ID del ítem directamente
+    data: {
+      estado?: string;
+      porcentaje_avance?: number;
+      presupuesto_ejecutado?: number;
+      observaciones?: string;
+    }
+  ): Promise<any> => {
+    // Apuntamos al nuevo endpoint de ítems
+    const response = await axiosInstance.patch(
+      `/items-proyecto/${itemId}/`, 
       data
     );
     return response.data;
@@ -227,6 +237,33 @@ export const proyectosRemediacionApi = {
    * Obtener mis proyectos asignados
    * GET /api/proyectos-remediacion/mis_proyectos/
    */
+  getMisProyectos: async (params?: MisProyectosParams): Promise<ProyectoRemediacionList[]> => {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.estado) queryParams.append('estado', params.estado);
+    
+    const url = queryParams.toString() 
+      ? `${BASE_URL}/mis_proyectos/?${queryParams}` 
+      : `${BASE_URL}/mis_proyectos/`;
+    
+    const response = await axiosInstance.get(url);
+    
+    // ⭐ NORMALIZAR RESPUESTA
+    // El backend puede retornar array directamente o paginado
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    
+    // Si está paginado
+    if (response.data?.results) {
+      return response.data.results;
+    }
+    
+    // Fallback
+    return [];
+  },
+    
+  // Mantener el método existente para compatibilidad
   misProyectos: async (params?: MisProyectosParams): Promise<ProyectoRemediacionList[]> => {
     const queryParams = new URLSearchParams();
     
@@ -237,6 +274,23 @@ export const proyectosRemediacionApi = {
       : `${BASE_URL}/mis_proyectos/`;
     
     const response = await axiosInstance.get<ProyectoRemediacionList[]>(url);
+    return response.data;
+  },
+
+    /**
+   * Listar proyectos por dimensión y evaluación
+   * GET /api/proyectos-remediacion/por_dimension_y_evaluacion/?dimension_id=X&evaluacion_id=Y
+   */
+  porDimensionYEvaluacion: async (dimensionId: string, evaluacionId: string) => {
+    const response = await axiosInstance.get(
+      `${BASE_URL}/por_dimension_y_evaluacion/`,
+      {
+        params: {
+          dimension_id: dimensionId,
+          evaluacion_id: evaluacionId,
+        }
+      }
+    );
     return response.data;
   },
   
@@ -282,6 +336,86 @@ export const proyectosRemediacionApi = {
     );
     return response.data;
   },
+
+  /**
+   * Solicitar aprobación para cerrar GAP*****************************************************************
+   * POST /api/proyectos-remediacion/{id}/solicitar_aprobacion/
+   */
+  solicitarAprobacion: async (
+    proyectoId: string,
+    data: SolicitarAprobacionData
+  ): Promise<AprobacionGAPDetail> => {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/${proyectoId}/solicitar_aprobacion/`,
+      data
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Aprobar cierre de GAP
+   * POST /api/proyectos-remediacion/{id}/aprobar_cierre_gap/
+   */
+  aprobarCierreGAP: async (
+    proyectoId: string,
+    data: ResponderAprobacionData
+  ): Promise<AprobacionGAPDetail> => {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/${proyectoId}/aprobar_cierre_gap/`,
+      data
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Rechazar cierre de GAP
+   * POST /api/proyectos-remediacion/{id}/rechazar_cierre_gap/
+   */
+  rechazarCierreGAP: async (
+    proyectoId: string,
+    data: ResponderAprobacionData
+  ): Promise<AprobacionGAPDetail> => {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/${proyectoId}/rechazar_cierre_gap/`,
+      data
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Obtener aprobaciones pendientes del usuario actual
+   * GET /api/proyectos-remediacion/aprobaciones_pendientes/
+   */
+  getAprobacionesPendientes: async (): Promise<{
+    count: number;
+    aprobaciones: AprobacionGAP[];
+  }> => {
+    const response = await axiosInstance.get(
+      `${BASE_URL}/aprobaciones_pendientes/`
+    );
+    return response.data;
+  },  
+
+
+  /**
+   * Marcar ítem como completado
+   * POST /api/proyectos-remediacion/{id}/completar_item/
+   */
+  completarItem: async (
+    proyectoId: string,
+    itemId: string,
+    observaciones?: string
+  ): Promise<ItemProyecto> => {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/${proyectoId}/completar_item/`,
+      {
+        item_id: itemId,
+        observaciones,
+      }
+    );
+    return response.data.data;
+  },
+
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -343,5 +477,7 @@ export const queryKeys = {
   misProyectos: (params?: MisProyectosParams) => [...queryKeys.all, 'mis-proyectos', params] as const,
   estadisticas: () => [...queryKeys.all, 'estadisticas'] as const,
 };
+
+
 
 export default proyectosRemediacionApi;

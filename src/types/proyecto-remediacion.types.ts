@@ -129,47 +129,153 @@ export interface ProveedorInfo {
  * Ítem/Tarea individual de un proyecto (para modo por_items)
  */
 export interface ItemProyecto {
+  // Identificación
   id: string;
   numero_item: number;
   nombre_item: string;
   descripcion: string;
-  
-  // Proveedor (opcional)
+
+  // =========================
+  // PROVEEDOR (opCIONAL)
+  // =========================
   requiere_proveedor: boolean;
   proveedor: string | null;
   proveedor_nombre: string | null;
   nombre_responsable_proveedor: string;
-  
-  // Responsable interno (obligatorio)
-  responsable_ejecucion: number;
-  responsable_nombre: string;
-  
-  // Presupuesto
+
+  // =========================
+  // RESPONSABLE INTERNO
+  // =========================
+  responsable_ejecucion: number; // ID usuario
+  responsable_nombre: string | null;
+
+  // =========================
+  // PRESUPUESTO
+  // =========================
   presupuesto_planificado: number;
   presupuesto_ejecutado: number;
   diferencia_presupuesto: number;
-  
-  // Cronograma
+
+  // ⭐ ELASTICIDAD DE PRESUPUESTO
+  presupuesto_elasticidad: number;
+  presupuesto_limite: number;
+  porcentaje_presupuesto_usado: number;
+  esta_en_elasticidad: boolean;
+  excede_presupuesto_limite: boolean;
+  monto_excedido: number;
+  estado_presupuesto: 'ok' | 'elasticidad' | 'excedido';
+
+  // =========================
+  // CRONOGRAMA
+  // =========================
   fecha_inicio: string;
   duracion_dias: number;
-  fecha_fin: string; // Calculada automáticamente
-  
-  // Dependencias
+
+  // Calculadas
+  fecha_fin: string;
+  fecha_fin_estimada: string;
+  dias_laborables_restantes: number;
+  dias_restantes: number;
+  esta_retrasado: boolean;
+  esta_vencido: boolean;
+
+  // =========================
+  // DEPENDENCIAS
+  // =========================
   tiene_dependencia: boolean;
   item_dependencia: string | null;
-  
-  // Estado y seguimiento
+  item_dependencia_numero: number | null;
+  estado_dependencia: string;
+
+  // =========================
+  // ESTADO Y SEGUIMIENTO
+  // =========================
   estado: EstadoItem;
   estado_display: string;
   porcentaje_avance: number;
-  
-  // Propiedades calculadas
   puede_iniciar: boolean;
-  dias_restantes: number;
-  esta_vencido: boolean;
-  
-  // Auditoría
+  fecha_completado: string | null;
+  observaciones: string;
+
+  // =========================
+  // AUDITORÍA
+  // =========================
   fecha_creacion: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TIPOS PARA APROBACIÓN DE GAP
+// ═══════════════════════════════════════════════════════════════
+
+export type EstadoAprobacion = 'pendiente' | 'aprobado' | 'rechazado';
+
+export interface AprobacionGAP {
+  id: string;
+  proyecto: string;
+  proyecto_codigo: string;
+  proyecto_nombre: string;
+  solicitado_por: string;
+  solicitado_por_nombre: string;
+  validador: string;
+  validador_nombre: string;
+  fecha_solicitud: string;
+  estado: EstadoAprobacion;
+  fecha_revision: string | null;
+  esta_pendiente: boolean;
+  dias_pendiente: number;
+  items_completados: number;
+  items_totales: number;
+  porcentaje_completitud: number;
+  presupuesto_ejecutado: number;
+  presupuesto_planificado: number;
+  porcentaje_presupuesto_usado: number;
+  gap_original: number;
+  fecha_creacion: string;
+}
+
+export interface AprobacionGAPDetail {
+  id: string;
+  proyecto: string;
+  proyecto_info: ProyectoRemediacionDetail;
+  solicitado_por: string;
+  solicitado_por_info: {
+    id: string;
+    nombre_completo: string;
+    email: string;
+  };
+  validador: string;
+  validador_info: {
+    id: string;
+    nombre_completo: string;
+    email: string;
+  };
+  fecha_solicitud: string;
+  comentarios_solicitud: string;
+  estado: EstadoAprobacion;
+  fecha_revision: string | null;
+  observaciones: string;
+  documentos_adjuntos: string[];
+  items_completados: number;
+  items_totales: number;
+  presupuesto_ejecutado: number;
+  presupuesto_planificado: number;
+  gap_original: number;
+  esta_pendiente: boolean;
+  fue_aprobado: boolean;
+  fue_rechazado: boolean;
+  dias_pendiente: number;
+  porcentaje_completitud: number;
+  porcentaje_presupuesto_usado: number;
+  fecha_creacion: string;
+}
+
+export interface SolicitarAprobacionData {
+  comentarios?: string;
+  documentos_adjuntos?: string[];
+}
+
+export interface ResponderAprobacionData {
+  observaciones?: string;
 }
 
 /**
@@ -230,7 +336,7 @@ export interface ProyectoRemediacionList {
   dias_transcurridos: number;
   porcentaje_tiempo_transcurrido: number;  // ⭐ AGREGADO
   esta_vencido: boolean;
-  
+  evaluacion_id?: string;
   // ⭐ ACTUALIZADO: Presupuesto inteligente
   presupuesto_total_planificado: number;  // Suma según modo
   presupuesto_total_ejecutado: number;    // Suma según modo
@@ -279,6 +385,7 @@ export interface ProyectoRemediacionDetail {
   objetivos_especificos: string;
   criterios_aceptacion: string;
   riesgos_proyecto: string;
+  restricciones: string;
   preguntas_abordadas: string[];
   preguntas_abordadas_info: PreguntaAbordadaInfo[];
   
@@ -684,4 +791,98 @@ export const formatCurrency = (amount: number, moneda: MonedaProyecto): string =
   }).format(numAmount);
   
   return `${symbol}${formatted}`;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS ACTUALIZADOS
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Obtiene el color según el estado del presupuesto
+ */
+export const getEstadoPresupuestoColor = (estado: 'ok' | 'elasticidad' | 'excedido'): string => {
+  const colores = {
+    'ok': 'bg-green-100 text-green-700 border-green-200',
+    'elasticidad': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    'excedido': 'bg-red-100 text-red-700 border-red-200',
+  };
+  return colores[estado] || colores.ok;
+};
+
+/**
+ * Obtiene el icono según el estado del presupuesto
+ */
+export const getEstadoPresupuestoIcono = (estado: 'ok' | 'elasticidad' | 'excedido'): string => {
+  const iconos = {
+    'ok': '✓',
+    'elasticidad': '⚠️',
+    'excedido': '❌',
+  };
+  return iconos[estado] || iconos.ok;
+};
+
+/**
+ * Obtiene el label según el estado del presupuesto
+ */
+export const getEstadoPresupuestoLabel = (estado: 'ok' | 'elasticidad' | 'excedido'): string => {
+  const labels = {
+    'ok': 'Dentro del Presupuesto',
+    'elasticidad': 'En Margen de Elasticidad',
+    'excedido': 'Presupuesto Excedido',
+  };
+  return labels[estado] || labels.ok;
+};
+
+/**
+ * Obtiene el color según el estado de aprobación
+ */
+export const getEstadoAprobacionColor = (estado: EstadoAprobacion): string => {
+  const colores = {
+    'pendiente': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    'aprobado': 'bg-green-100 text-green-700 border-green-200',
+    'rechazado': 'bg-red-100 text-red-700 border-red-200',
+  };
+  return colores[estado] || colores.pendiente;
+};
+
+/**
+ * Obtiene el label según el estado de aprobación
+ */
+export const getEstadoAprobacionLabel = (estado: EstadoAprobacion): string => {
+  const labels = {
+    'pendiente': 'Pendiente',
+    'aprobado': 'Aprobado',
+    'rechazado': 'Rechazado',
+  };
+  return labels[estado] || estado;
+};
+
+/**
+ * Calcula el porcentaje de un valor respecto a otro
+ */
+export const calcularPorcentaje = (valor: number, total: number): number => {
+  if (total === 0) return 0;
+  return Math.round((valor / total) * 100);
+};
+
+/**
+ * Formatea una fecha ISO a formato legible
+ */
+export const formatearFecha = (fecha: string): string => {
+  return new Date(fecha).toLocaleDateString('es-PE', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+/**
+ * Formatea una fecha ISO a formato corto
+ */
+export const formatearFechaCorta = (fecha: string): string => {
+  return new Date(fecha).toLocaleDateString('es-PE', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 };
