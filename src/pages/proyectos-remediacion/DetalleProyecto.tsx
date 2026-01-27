@@ -10,7 +10,8 @@ import {
   DollarSign, 
   Calendar, 
   AlertTriangle,
-  ClipboardList 
+  ClipboardList, 
+  CheckCircle
 } from 'lucide-react';
 
 // ⭐ Importar componentes modulares
@@ -22,6 +23,7 @@ import { ProyectoPresupuesto } from './components/ProyectoPresupuesto';
 import { ProyectoInfoGeneral } from './components/ProyectoInfoGeneral';
 // ⭐ NUEVO: Importar gestión de ítems
 import { GestionItems } from './components/proyectos-remediacion/GestionItems';
+import { ModalSolicitarAprobacion } from './components/proyectos-remediacion/ModalSolicitarAprobacion';
 
 type TabType = 'general' | 'gap' | 'responsables' | 'presupuesto' | 'timeline' | 'planificacion';
 
@@ -43,8 +45,7 @@ const TABS: Tab[] = [
 export const DetalleProyecto: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<TabType>('general');
-
-  // ⭐ Usar el hook de React Query
+  const [showModalAprobacion, setShowModalAprobacion] = useState(false);
   const { data: proyecto, isLoading, isError, error, refetch } = useProyecto(id!);
 
   // ═══════════════════════════════════════════════════════════
@@ -95,6 +96,18 @@ export const DetalleProyecto: React.FC = () => {
   // RENDER PRINCIPAL
   // ═══════════════════════════════════════════════════════════
 
+  // ⭐ LÓGICA DE VISIBILIDAD DEL BANNER
+  // Se muestra solo si:
+  // 1. Hay ítems (total > 0)
+  // 2. Están todos terminados
+  // 3. NO se ha cerrado aún (fecha_fin_real es null)
+  // 4. NO está ya en proceso de validación (estado !== 'en_validacion')
+  const mostrarBannerCierre = 
+    proyecto.total_items > 0 && 
+    proyecto.items_completados === proyecto.total_items && 
+    !proyecto.fecha_fin_real && 
+    proyecto.estado !== 'en_validacion';
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ═══ HEADER ═══ */}
@@ -123,6 +136,41 @@ export const DetalleProyecto: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ⭐ Banner de Acción de Cierre - CORREGIDO PARA DESAPARECER TRAS SOLICITAR */}
+      {mostrarBannerCierre && (
+        <div className="max-w-7xl mx-auto px-6 mt-4">
+          <div className="bg-blue-600 rounded-xl p-4 flex items-center justify-between text-white shadow-lg shadow-blue-200">
+            <div className="flex items-center gap-3">
+              <CheckCircle size={24} />
+              <div>
+                <p className="font-bold">¡Proyecto Completado!</p>
+                <p className="text-blue-100 text-sm">Ya puedes solicitar la validación del cierre de este GAP.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowModalAprobacion(true)}
+              className="bg-white text-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-50 transition-colors"
+            >
+              Solicitar Aprobación
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ⭐ Banner Informativo de Estado Pendiente de Validación */}
+      {proyecto.estado === 'en_validacion' && (
+        <div className="max-w-7xl mx-auto px-6 mt-4">
+          <div className="bg-amber-500 rounded-xl p-4 flex items-center gap-3 text-white shadow-lg shadow-amber-100">
+            <ClipboardList size={24} />
+            <div>
+              <p className="font-bold">Solicitud en revisión</p>
+              <p className="text-amber-50 text-sm">El validador interno está revisando el cumplimiento de este proyecto.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* ═══ CONTENIDO PRINCIPAL ═══ */}
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -154,13 +202,10 @@ export const DetalleProyecto: React.FC = () => {
           </div>
         )}
 
-        {/* ⭐ TAB: Presupuesto - ACTUALIZADO CON GESTIÓN DE ÍTEMS */}
+        {/* TAB: Presupuesto */}
         {activeTab === 'presupuesto' && (
           <div className="space-y-6">
-            {/* Componente original de presupuesto */}
             <ProyectoPresupuesto proyecto={proyecto} />
-            
-            {/* ⭐ GESTIÓN DE ÍTEMS - Solo si modo='por_items' */}
             {proyecto.modo_presupuesto === 'por_items' && (
               <Card>
                 <GestionItems 
@@ -176,46 +221,28 @@ export const DetalleProyecto: React.FC = () => {
         {activeTab === 'planificacion' && (
           <div className="space-y-6">
             <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Planificación y Estrategia
-              </h3>
-
-              {/* Alcance */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Planificación y Estrategia</h3>
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Alcance del Proyecto
-                </h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Alcance del Proyecto</h4>
                 <p className="text-sm text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
                   {proyecto.alcance_proyecto || 'No especificado'}
                 </p>
               </div>
-
-              {/* Objetivos Específicos */}
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Objetivos Específicos
-                </h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Objetivos Específicos</h4>
                 <p className="text-sm text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
                   {proyecto.objetivos_especificos || 'No especificado'}
                 </p>
               </div>
-
-              {/* Criterios de Aceptación */}
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Criterios de Aceptación
-                </h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Criterios de Aceptación</h4>
                 <p className="text-sm text-gray-900 whitespace-pre-wrap bg-green-50 p-4 rounded-lg">
                   {proyecto.criterios_aceptacion || 'No especificado'}
                 </p>
               </div>
-
-              {/* Riesgos */}
               {proyecto.riesgos_proyecto && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                    Riesgos Identificados
-                  </h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Riesgos Identificados</h4>
                   <p className="text-sm text-gray-900 whitespace-pre-wrap bg-orange-50 p-4 rounded-lg">
                     {proyecto.riesgos_proyecto}
                   </p>
@@ -225,6 +252,17 @@ export const DetalleProyecto: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ⭐ MODAL DE SOLICITUD */}
+      {showModalAprobacion && proyecto && (
+        <ModalSolicitarAprobacion
+          proyecto={proyecto}
+          onClose={() => setShowModalAprobacion(false)}
+          onSuccess={() => {
+            refetch(); // Esto actualizará el estado a 'en_validacion' y ocultará el banner azul
+          }}
+        />
+      )}
     </div>
   );
 };
