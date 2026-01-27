@@ -2,11 +2,12 @@
 import React from 'react';
 import { cn } from '../../utils/helpers';
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
+
 
 /**
  * Componente Card reutilizable
@@ -15,6 +16,7 @@ export const Card: React.FC<CardProps> = ({
   children,
   className,
   padding = 'md',
+  ...props
 }) => {
   const paddings = {
     none: '',
@@ -25,6 +27,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
+      {...props}
       className={cn(
         'bg-white rounded-lg shadow-sm border border-gray-200',
         paddings[padding],
@@ -35,6 +38,7 @@ export const Card: React.FC<CardProps> = ({
     </div>
   );
 };
+
 
 interface CardHeaderProps {
   children: React.ReactNode;

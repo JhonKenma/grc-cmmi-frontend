@@ -16,10 +16,13 @@ import {
   Upload,
   Bell,
   BarChart3,  
-  Truck  
+  Truck,
+  CheckSquare
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { FolderKanban } from 'lucide-react'; 
+
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -93,6 +96,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: BarChart3,
       path: '/reportes/evaluacion',
       roles: ['superadmin', 'administrador'],
+    },
+    {
+      name: 'Mis Proyectos',
+      icon: FolderKanban, // ⚠️ Importar este icono
+      path: '/mis-proyectos',
+      roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
+    },
+    {
+    name: 'Aprobaciones',
+    icon: CheckSquare, // Importar: import { CheckSquare } from 'lucide-react';
+    path: '/aprobaciones-pendientes',
+    roles: ['superadmin', 'administrador'],
     },
   ];
 
