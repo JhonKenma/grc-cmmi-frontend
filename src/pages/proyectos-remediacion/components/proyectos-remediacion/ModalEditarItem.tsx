@@ -84,16 +84,20 @@ export const ModalEditarItem: React.FC<ModalEditarItemProps> = ({
     try {
       setLoading(true);
       
-      await proyectosRemediacionApi.actualizarItem(proyecto.id, formData);
+      // ❌ Antes: await proyectosRemediacionApi.actualizarItem(proyecto.id, formData);
+      // ✅ Ahora: Enviamos el ID del ÍTEM como primer argumento
+      await proyectosRemediacionApi.actualizarItem(item.id, {
+        estado: formData.estado,
+        porcentaje_avance: formData.porcentaje_avance,
+        presupuesto_ejecutado: formData.presupuesto_ejecutado,
+        // observaciones: formData.observaciones, // Agrégalo si lo tienes en el form
+      });
       
       toast.success('Ítem actualizado exitosamente');
       onClose();
       if (onSuccess) onSuccess();
     } catch (error: any) {
-      console.error('Error al actualizar ítem:', error);
-      toast.error(error.response?.data?.message || 'Error al actualizar el ítem');
-    } finally {
-      setLoading(false);
+      // ... resto del catch
     }
   };
   
