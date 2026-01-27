@@ -97,12 +97,11 @@ export const GestionItems: React.FC<GestionItemsProps> = ({
     }
     
     try {
-      await proyectosRemediacionApi.actualizarItem(proyecto.id, {
-        item_id: item.id,
-        estado: 'completado',
-        porcentaje_avance: 100,
-        presupuesto_ejecutado: item.presupuesto_planificado,
-      });
+      await proyectosRemediacionApi.actualizarItem(item.id, {
+            estado: 'completado',
+            porcentaje_avance: 100,
+            presupuesto_ejecutado: item.presupuesto_planificado,
+          });
       toast.success('Ítem completado exitosamente');
       handleReloadItems();
     } catch (error) {
@@ -125,8 +124,7 @@ export const GestionItems: React.FC<GestionItemsProps> = ({
         porcentaje_avance: 0,
       });
 
-      await proyectosRemediacionApi.actualizarItem(proyecto.id, {
-        item_id: item.id,
+      await proyectosRemediacionApi.actualizarItem(item.id, {
         estado: 'en_proceso',
         porcentaje_avance: 0,
       });
