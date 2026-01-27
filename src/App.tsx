@@ -45,6 +45,10 @@ import { ReporteEvaluacion } from '@/pages/reportes/ReporteEvaluacion';
 import { DetalleProyecto } from '@/pages/proyectos-remediacion/DetalleProyecto';
 import { ProyectosPorGAP } from '@/pages/proyectos-remediacion/ProyectosPorGAP';
 import { ProyectosPorDimension } from '@/pages/proyectos-remediacion/ProyectosPorDimension';
+import { MisProyectos } from '@/pages/proyectos-remediacion/MisProyectos';
+import { AprobacionesPendientes } from '@/pages/proyectos-remediacion/AprobacionesPendientes';
+
+
 
 function App() {
   return (
@@ -397,6 +401,26 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
                   <MainLayout>
                     <ProyectosPorDimension />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/mis-proyectos" 
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'usuario', 'auditor']}>
+                  <MainLayout>
+                    <MisProyectos />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/aprobaciones-pendientes" 
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <AprobacionesPendientes />
                   </MainLayout>
                 </ProtectedRoute>
               }
