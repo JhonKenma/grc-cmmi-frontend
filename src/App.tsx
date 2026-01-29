@@ -47,8 +47,8 @@ import { ProyectosPorGAP } from '@/pages/proyectos-remediacion/ProyectosPorGAP';
 import { ProyectosPorDimension } from '@/pages/proyectos-remediacion/ProyectosPorDimension';
 import { MisProyectos } from '@/pages/proyectos-remediacion/MisProyectos';
 import { AprobacionesPendientes } from '@/pages/proyectos-remediacion/AprobacionesPendientes';
-
-
+import { HistorialNotificaciones } from '@/pages/notificaciones/HistorialNotificaciones';
+import { EnviarNotificacion } from '@/pages/notificaciones/EnviarNotificacion';
 
 function App() {
   return (
@@ -421,6 +421,26 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
                   <MainLayout>
                     <AprobacionesPendientes />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notificaciones"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <HistorialNotificaciones />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notificaciones/enviar"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <EnviarNotificacion />
                   </MainLayout>
                 </ProtectedRoute>
               }
