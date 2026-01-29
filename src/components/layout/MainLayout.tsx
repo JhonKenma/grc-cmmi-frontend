@@ -98,6 +98,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['superadmin', 'administrador'],
     },
     {
+      name: 'Notificaciones',
+      icon: Bell,
+      path: '/notificaciones',
+      roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
+    },
+    {
       name: 'Mis Proyectos',
       icon: FolderKanban, // ⚠️ Importar este icono
       path: '/mis-proyectos',
