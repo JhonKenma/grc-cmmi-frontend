@@ -154,21 +154,43 @@ export const MisProyectos: React.FC = () => {
         </Card>
       </div>
       
-      {/* FILTROS */}
+      {/* FILTROS - ⭐ ACTUALIZADO CON FILTRO POR EVALUACIÓN */}
       <Card className="p-4 border-none shadow-sm">
         <div className="flex flex-col lg:flex-row gap-4">
+          {/* Buscador */}
           <div className="flex-[2] relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              type="text" placeholder="Buscar proyecto..." value={searchTerm}
+              type="text" 
+              placeholder="Buscar proyecto..." 
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           
+          {/* ⭐ NUEVO: Filtro por Evaluación */}
           <div className="flex-1 relative">
             <select
-              value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)}
+              value={evaluacionSeleccionada} 
+              onChange={(e) => setEvaluacionSeleccionada(e.target.value)}
+              className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg text-sm appearance-none bg-white cursor-pointer"
+            >
+              <option value="todas">Todas las evaluaciones</option>
+              {evaluaciones.map((evaluacion) => (
+                <option key={evaluacion.id} value={evaluacion.id}>
+                  {evaluacion.nombre}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Filtro por Estado */}
+          <div className="flex-1 relative">
+            <select
+              value={filtroEstado} 
+              onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)}
               className="w-full pl-4 pr-10 py-2 border border-gray-200 rounded-lg text-sm appearance-none bg-white cursor-pointer"
             >
               <option value="todos">Todos los estados</option>
@@ -176,6 +198,8 @@ export const MisProyectos: React.FC = () => {
               <option value="en_ejecucion">En Ejecución</option>
               <option value="en_validacion">En Validación</option>
               <option value="cerrado">Cerrado</option>
+              <option value="suspendido">Suspendido</option>
+              <option value="cancelado">Cancelado</option>
             </select>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
@@ -189,7 +213,8 @@ export const MisProyectos: React.FC = () => {
             const progreso = getProgresoReal(p);
             return (
               <Card 
-                key={p.id} onClick={() => navigate(`/proyectos-remediacion/${p.id}`)}
+                key={p.id} 
+                onClick={() => navigate(`/proyectos-remediacion/${p.id}`)}
                 className="group p-3.5 border-none shadow-sm hover:shadow-md transition-all cursor-pointer bg-white"
               >
                 <div className="flex items-center gap-4">
