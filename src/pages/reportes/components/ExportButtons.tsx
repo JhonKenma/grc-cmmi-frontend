@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { FileText, FileSpreadsheet } from 'lucide-react';
-import { Button } from '@/components/common';
-import axiosInstance from '@/api/axios'; // ⭐ IMPORTAR DESDE axiosConfig
+import axiosInstance from '@/api/axios';
 import toast from 'react-hot-toast';
 
 interface ExportButtonsProps {
@@ -49,10 +48,14 @@ export const ExportButtons: React.FC<ExportButtonsProps> = ({ evaluacionId }) =>
     try {
       setLoadingPDF(true);
       
-      const response = await axiosInstance.get('/reportes/export_pdf_completo/', {
+      console.log('🔍 Descargando PDF para evaluación:', evaluacionId);  // ⭐ DEBUG
+      
+      const response = await axiosInstance.get('/reportes/export_pdf_evaluacion/', {
         params: { evaluacion_empresa_id: evaluacionId },
         responseType: 'blob',
       });
+      
+      console.log('✅ Respuesta recibida:', response);  // ⭐ DEBUG
       
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
@@ -66,12 +69,20 @@ export const ExportButtons: React.FC<ExportButtonsProps> = ({ evaluacionId }) =>
       
       toast.success('PDF descargado exitosamente');
     } catch (error: any) {
-      console.error('Error al exportar PDF:', error);
+      console.error('❌ Error completo:', error);  // ⭐ DEBUG
+      console.error('❌ Error response:', error.response);  // ⭐ DEBUG
+      console.error('❌ Error status:', error.response?.status);  // ⭐ DEBUG
       
-      if (error.response?.status === 404) {
-        toast.success('Exportación PDF próximamente disponible');
+      // Mostrar el error real
+      if (error.response?.status === 500) {
+        toast.error('Error al generar PDF. Revisa la consola del backend.');
+      } else if (error.response?.status === 404) {
+        toast.error('Endpoint no encontrado. Verifica la URL.');
       } else {
-        toast.error(error.response?.data?.message || 'Error al generar PDF');
+        const errorMessage = error.response?.data?.message || 
+                            error.message || 
+                            'Error al generar PDF';
+        toast.error(errorMessage);
       }
     } finally {
       setLoadingPDF(false);
