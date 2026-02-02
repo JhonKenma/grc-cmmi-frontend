@@ -99,10 +99,73 @@ export interface ReporteEvaluacion {
 }
 
 export const reportesApi = {
+  /**
+   * Obtener reporte de evaluación (JSON)
+   */
   getReporteEvaluacion: async (evaluacionEmpresaId: string): Promise<ReporteEvaluacion> => {
     const response = await axiosInstance.get('/reportes/gap_evaluacion/', {
       params: { evaluacion_empresa_id: evaluacionEmpresaId },
     });
     return response.data.data;
+  },
+
+  /**
+   * Descargar reporte en Excel
+   * GET /api/reportes/export_excel_completo/?evaluacion_empresa_id=xxx
+   */
+  downloadExcel: async (evaluacionEmpresaId: string): Promise<void> => {
+    try {
+      const response = await axiosInstance.get('/reportes/export_excel_completo/', {
+        params: { evaluacion_empresa_id: evaluacionEmpresaId },
+        responseType: 'blob', // ⭐ IMPORTANTE: Para recibir archivos binarios
+      });
+
+      // Crear URL temporal del blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      // Crear link temporal y simular click
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Reporte_Evaluacion_${evaluacionEmpresaId}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al descargar Excel:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Descargar reporte en PDF
+   * GET /api/reportes/export_pdf_evaluacion/?evaluacion_empresa_id=xxx
+   */
+  downloadPDF: async (evaluacionEmpresaId: string): Promise<void> => {
+    try {
+      const response = await axiosInstance.get('/reportes/export_pdf_evaluacion/', {
+        params: { evaluacion_empresa_id: evaluacionEmpresaId },
+        responseType: 'blob', // ⭐ IMPORTANTE: Para recibir archivos binarios
+      });
+
+      // Crear URL temporal del blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      // Crear link temporal y simular click
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Reporte_Evaluacion_${evaluacionEmpresaId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpiar
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al descargar PDF:', error);
+      throw error;
+    }
   },
 };
