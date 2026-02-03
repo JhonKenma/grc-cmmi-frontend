@@ -109,7 +109,7 @@ export const AsignarEvaluacion: React.FC = () => {
 
       console.log('✅ Respuesta:', response);
       toast.success(response.message || 'Evaluación asignada exitosamente');
-      navigate('/asignaciones');
+      navigate('/asignaciones/mis-evaluaciones');
       
     } catch (error: any) {
       console.error('❌ Error completo:', error);
