@@ -146,7 +146,7 @@ export interface ItemProyecto {
   // =========================
   // RESPONSABLE INTERNO
   // =========================
-  responsable_ejecucion: number; // ID usuario
+  responsable_ejecucion: string; // ID usuario
   responsable_nombre: string | null;
 
   // =========================
@@ -536,7 +536,7 @@ export interface CrearItemFormData {
   nombre_responsable_proveedor?: string;
   
   // Responsable (obligatorio)
-  responsable_ejecucion_id: number;
+  responsable_ejecucion_id: string; 
   
   // Presupuesto
   presupuesto_planificado: number;
@@ -557,7 +557,7 @@ export interface ActualizarItemFormData {
   requiere_proveedor?: boolean;
   proveedor_id?: string;
   nombre_responsable_proveedor?: string;
-  responsable_ejecucion_id?: number;
+  responsable_ejecucion_id?: string;
   presupuesto_planificado?: number;
   presupuesto_ejecutado?: number;
   fecha_inicio?: string;

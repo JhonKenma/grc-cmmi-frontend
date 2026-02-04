@@ -52,7 +52,7 @@ export const ModalAgregarItem: React.FC<ModalAgregarItemProps> = ({
     nombre_item: '',
     descripcion: '',
     requiere_proveedor: false,
-    responsable_ejecucion_id: 0,
+    responsable_ejecucion_id: '',
     presupuesto_planificado: 0,
     fecha_inicio: proyecto.fecha_inicio,
     duracion_dias: 5,
@@ -349,12 +349,12 @@ export const ModalAgregarItem: React.FC<ModalAgregarItemProps> = ({
             </label>
             <select
               value={formData.responsable_ejecucion_id}
-              onChange={(e) => handleChange('responsable_ejecucion_id', Number(e.target.value))}
+              onChange={(e) => handleChange('responsable_ejecucion_id', e.target.value)}
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                 errors.responsable_ejecucion_id ? 'border-red-500' : 'border-gray-300'
               }`}
             >
-              <option value="">Seleccionar usuario...</option>
+              <option value="">Seleccionar responsable</option>
               {usuarios.map((usuario) => (
                 <option key={usuario.id} value={usuario.id}>
                   {usuario.nombre_completo}
