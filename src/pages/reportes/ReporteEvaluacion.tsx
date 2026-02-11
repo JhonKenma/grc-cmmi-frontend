@@ -274,7 +274,7 @@ export const ReporteEvaluacion: React.FC = () => {
                   <ResumenGeneral resumen={reporte.resumen} />
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <GraficoRadar dimensiones={reporte.por_dimension} />
-                    <GraficoPastelClasificacion clasificaciones={reporte.clasificaciones_gap} />
+                    <GraficoPastelClasificacion clasificaciones={reporte.clasificaciones_gap} dimensiones={reporte.por_dimension} />
                   </div>
                 </div>
               )}
@@ -301,7 +301,7 @@ export const ReporteEvaluacion: React.FC = () => {
               {activeTab === 'analisis' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <GraficoPastelClasificacion clasificaciones={reporte.clasificaciones_gap} />
+                    <GraficoPastelClasificacion clasificaciones={reporte.clasificaciones_gap} dimensiones={reporte.por_dimension} />
                     <GraficoBarrasGap dimensiones={reporte.por_dimension} />
                   </div>
 
