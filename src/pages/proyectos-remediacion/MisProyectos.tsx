@@ -164,9 +164,17 @@ export const MisProyectos: React.FC = () => {
 
   // Función helper (stable con useCallback)
   const getProgresoReal = useCallback((p: ProyectoRemediacionList) => {
+    // Proyectos cerrados o en validación = 100%
     if (p.estado === 'cerrado' || p.estado === 'en_validacion') return 100;
-    const valorBackend = p.porcentaje_tiempo_transcurrido || 0;
-    return Math.min(Math.max(valorBackend, 0), 100);
+    
+    // Si tiene ítems, usar el avance de ítems
+    if (p.modo_presupuesto === 'por_items' && p.total_items > 0) {
+      return p.porcentaje_avance_items || 0; // ✅ Usar avance de ítems
+    }
+    
+    // Si es modo global, podrías usar tiempo o presupuesto
+    // Por ahora usemos el tiempo transcurrido como fallback
+    return Math.min(p.porcentaje_tiempo_transcurrido || 0, 100);
   }, []);
   
   // 2. FILTRADO MEMOIZADO (Solo se recalcula si cambian las dependencias)
