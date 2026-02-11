@@ -8,3 +8,4 @@ export { GraficoPastelRespuestas } from './GraficoPastelRespuestas';
 export { TablaDetalleDimensiones } from './TablaDetalleDimensiones';
 export { ProgresoUsuarios } from './ProgresoUsuarios';
 export { ExportButtons } from './ExportButtons';
+export { ModalDetalleDimensiones } from './ModalDetalleDimensiones';
