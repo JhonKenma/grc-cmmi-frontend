@@ -17,7 +17,7 @@ export const ProyectoTimeline: React.FC<ProyectoTimelineProps> = ({ proyecto }) 
   
   // Si el proyecto ya inició, mostramos al menos 1% para indicar actividad
   let porcentajeTranscurrido = proyecto.porcentaje_tiempo_transcurrido ?? 0;
-  if (porcentajeTranscurrido === 0 && diasTranscurridos >= 0 && !proyecto.fecha_fin_real) {
+  if (porcentajeTranscurrido === 0 && diasTranscurridos > 0 && !proyecto.fecha_fin_real) {
     porcentajeTranscurrido = 1; 
   }
 
