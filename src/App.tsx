@@ -50,6 +50,27 @@ import { AprobacionesPendientes } from '@/pages/proyectos-remediacion/Aprobacion
 import { HistorialNotificaciones } from '@/pages/notificaciones/HistorialNotificaciones';
 import { EnviarNotificacion } from '@/pages/notificaciones/EnviarNotificacion';
 
+
+import { DashboardEvaluaciones } from '@/pages/EvaluacionesInteligentes/Dashboard/DashboardEvaluaciones';
+import { ListaFrameworks } from '@/pages/EvaluacionesInteligentes/Frameworks/ListaFrameworks';
+import { ImportarFrameworks } from '@/pages/EvaluacionesInteligentes/Frameworks/ImportarFrameworks';
+import { ListaEvaluaciones } from '@/pages/EvaluacionesInteligentes/Evaluaciones/ListaEvaluaciones';
+import { CrearEvaluacion } from '@/pages/EvaluacionesInteligentes/Evaluaciones/CrearEvaluacion';
+import { DetalleEvaluacion } from '@/pages/EvaluacionesInteligentes/Evaluaciones/DetalleEvaluacion';
+import { SeleccionarPreguntas } from '@/pages/EvaluacionesInteligentes/Evaluaciones/SeleccionarPreguntas';
+import { DetalleFramework } from '@/pages/EvaluacionesInteligentes/Frameworks/DetalleFramework';
+import { MisFrameworks } from './pages/EvaluacionesInteligentes/MisFrameworks/MisFrameworks';
+import { AsignarFrameworks } from './pages/EvaluacionesInteligentes/AsignarFrameworks/AsignarFrameworks';
+
+import { AsignarEvaluaciones } from "./pages/EvaluacionesInteligentes/Asignaciones/AsignarEvaluaciones";
+import { GestionarAsignaciones } from "./pages/EvaluacionesInteligentes/Asignaciones/GestionarAsignaciones";
+import { MisAsignacionesIQ } from "./pages/EvaluacionesInteligentes/Asignaciones/MisAsignacionesIQ";
+import { DetalleAsignacion } from "./pages/EvaluacionesInteligentes/Asignaciones/DetalleAsignacion";
+import { DetalleAsignacionAdmin } from "./pages/EvaluacionesInteligentes/Asignaciones/DetalleAsignacionAdmin";
+import { ResponderEvaluacionIQ } from './pages/EvaluacionesInteligentes/ResponderEvaluacion/ResponderEvaluacionIQ';
+import { AuditorRevisiones } from './pages/auditor/AuditorRevisiones';
+import { AuditorRevisionDetalle } from './pages/auditor/AuditorRevisionDetalle';
+
 function App() {
   return (
     <BrowserRouter>
@@ -441,6 +462,240 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
                   <MainLayout>
                     <EnviarNotificacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ========================================
+                EVALUACIONES INTELIGENTES
+                ======================================== */}
+                
+            {/* Dashboard */}
+            <Route
+              path="/evaluaciones-inteligentes"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <DashboardEvaluaciones />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Frameworks */}
+            <Route
+              path="/evaluaciones-inteligentes/frameworks"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <ListaFrameworks />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/evaluaciones-inteligentes/frameworks/importar"
+              element={
+                <ProtectedRoute requireSuperAdmin>
+                  <MainLayout>
+                    <ImportarFrameworks />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Evaluaciones */}
+            <Route
+              path="/evaluaciones-inteligentes/evaluaciones"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <ListaEvaluaciones />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/evaluaciones-inteligentes/evaluaciones/crear"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <CrearEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/evaluaciones-inteligentes/evaluaciones/:id"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <DetalleEvaluacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/evaluaciones-inteligentes/evaluaciones/:id/seleccionar-preguntas"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <SeleccionarPreguntas />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />            
+
+            <Route
+              path="/evaluaciones-inteligentes/frameworks/:codigo"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <DetalleFramework />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluaciones-inteligentes/asignar-frameworks"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <MainLayout>
+                    <AsignarFrameworks />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/evaluaciones-inteligentes/mis-frameworks"
+              element={
+                <ProtectedRoute allowedRoles={['administrador']}>
+                  <MainLayout>
+                    <MisFrameworks />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ====================================================================== */}
+            {/* EVALUACIONES INTELIGENTES - ASIGNACIONES */}
+            {/* ====================================================================== */}
+
+            <Route 
+              path="/evaluaciones-inteligentes/asignar" 
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <AsignarEvaluaciones />
+                  </MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/evaluaciones-inteligentes/gestionar-asignaciones" 
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <GestionarAsignaciones />
+                  </MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/evaluaciones-iq/mis-asignaciones" 
+              element={
+                <ProtectedRoute allowedRoles={['usuario', 'administrador', 'superadmin']}>
+                  <MainLayout>
+                    <MisAsignacionesIQ />
+                  </MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/evaluaciones-iq/asignacion/:id" 
+              element={
+                <ProtectedRoute allowedRoles={['usuario', 'administrador', 'superadmin']}>
+                  <MainLayout>
+                    <DetalleAsignacion />
+                  </MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/evaluaciones-iq/asignacion/:id/admin" 
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <DetalleAsignacionAdmin />
+                  </MainLayout>
+                </ProtectedRoute>
+              } 
+            />
+
+
+          <Route 
+            path="/evaluaciones-iq/asignacion/:id" 
+            element={
+              <ProtectedRoute allowedRoles={['usuario', 'administrador', 'superadmin']}>
+                <MainLayout>
+                  <DetalleAsignacion />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/evaluaciones-iq/asignacion/:id/admin" 
+            element={
+              <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                <MainLayout>
+                  <DetalleAsignacionAdmin />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/evaluaciones-iq/responder/:id" 
+            element={
+              <ProtectedRoute allowedRoles={['usuario', 'administrador', 'superadmin']}>
+                <MainLayout>
+                  <ResponderEvaluacionIQ />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+            {/* ========================================
+                RUTAS DEL AUDITOR
+                ======================================== */}
+            <Route
+              path="/auditor/revisiones"
+              element={
+                <ProtectedRoute allowedRoles={['auditor']}>
+                  <MainLayout>
+                    <AuditorRevisiones />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/auditor/revisiones/:asignacionId"
+              element={
+                <ProtectedRoute allowedRoles={['auditor']}>
+                  <MainLayout>
+                    <AuditorRevisionDetalle />
                   </MainLayout>
                 </ProtectedRoute>
               }
