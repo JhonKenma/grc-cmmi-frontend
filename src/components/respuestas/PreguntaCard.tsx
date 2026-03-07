@@ -1,15 +1,14 @@
-// src/components/respuestas/PreguntaCard.tsx - CÓDIGO COMPLETO CORREGIDO
+// src/components/respuestas/PreguntaCard.tsx
 
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Save, Send } from 'lucide-react';
+import {
+  CheckCircle, Save, Send, FileText, AlertCircle, Ban, XCircle,
+} from 'lucide-react';
 import { Button, Card } from '@/components/common';
 import { respuestasApi } from '@/api/endpoints';
 import { Pregunta, RespuestaListItem, Evidencia } from '@/types';
 import { ModalEvidencia } from './ModalEvidencia';
-import { SelectorCumplimiento } from './SelectorCumplimiento';
-import { SelectorNivelMadurez } from './SelectorNivelMadurez';
 import { SeccionEvidencias } from './SeccionEvidencias';
-import { RespuestaTipo } from './types';
 import toast from 'react-hot-toast';
 
 interface PreguntaCardProps {
@@ -20,224 +19,159 @@ interface PreguntaCardProps {
   onRespuestaChange: (respuesta: RespuestaListItem) => void;
 }
 
+// ── Opciones que puede elegir el usuario ────────────────────────────────────
+// SI        → cumple, sube evidencias, auditor califica
+// NO        → no cumple, nivel 0, sin evidencias
+// NO_APLICA → excluida del cálculo GAP completamente
+type ModoUsuario = 'SI' | 'NO' | 'NO_APLICA' | '';
+
 export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   pregunta,
   numero,
   asignacionId,
   respuestaExistente,
-  onRespuestaChange
+  onRespuestaChange,
 }) => {
-  const [respuesta, setRespuesta] = useState<RespuestaTipo>('');
-  const [justificacion, setJustificacion] = useState('');
-  const [comentarios, setComentarios] = useState('');
-  const [nivelMadurez, setNivelMadurez] = useState<number>(0);
-  const [justificacionMadurez, setJustificacionMadurez] = useState('');
-  const [evidencias, setEvidencias] = useState<Evidencia[]>([]);
-  const [respuestaId, setRespuestaId] = useState<string | null>(null);
-  const [estado, setEstado] = useState<'borrador' | 'enviado' | 'modificado_admin'>('borrador');
-  const [saving, setSaving] = useState(false);
+  const [modoSeleccionado, setModoSeleccionado] = useState<ModoUsuario>('');
+  const [justificacion, setJustificacion]       = useState('');
+  const [comentarios, setComentarios]           = useState('');
+  const [evidencias, setEvidencias]             = useState<Evidencia[]>([]);
+  const [respuestaId, setRespuestaId]           = useState<string | null>(null);
+  const [estado, setEstado]                     = useState<RespuestaListItem['estado']>('borrador');
+  const [saving, setSaving]                     = useState(false);
   const [mostrarModalEvidencia, setMostrarModalEvidencia] = useState(false);
 
-  // Lógica
-  const puedeSubirEvidencias = respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
-  const requiereNivelMadurez = respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
-  const esNoImplementado = respuesta === 'NO_CUMPLE' || respuesta === 'NO_APLICA';
   const puedeEditar = estado === 'borrador';
+  const yaEnviada   = estado !== 'borrador';
 
-  // ⭐ FIX 4: Mejorar carga inicial de datos
+  // ── Cargar datos existentes ───────────────────────────────────────────────
   useEffect(() => {
     if (respuestaExistente) {
-      console.log('📥 Cargando respuesta existente:', respuestaExistente);
-      
-      setRespuesta(respuestaExistente.respuesta);
-      setJustificacion(respuestaExistente.justificacion || '');
-      setComentarios(respuestaExistente.comentarios_adicionales || '');
       setRespuestaId(respuestaExistente.id);
       setEstado(respuestaExistente.estado);
-      
-      // ⭐ FIX: Asegurar que nivel_madurez sea número válido
-      const nivelCargado = Number(respuestaExistente.nivel_madurez);
-      setNivelMadurez(isNaN(nivelCargado) ? 0 : nivelCargado);
-      
-      setJustificacionMadurez(respuestaExistente.justificacion_madurez || '');
-      
-      // Cargar evidencias
+      setJustificacion(respuestaExistente.justificacion || '');
+      setComentarios(respuestaExistente.comentarios_adicionales || '');
+
+      // Determinar modo según respuesta guardada
+      if (respuestaExistente.respuesta === 'NO_APLICA') {
+        setModoSeleccionado('NO_APLICA');
+      } else if (respuestaExistente.respuesta === 'NO_CUMPLE') {
+        setModoSeleccionado('NO');
+      } else if (respuestaExistente.respuesta === null) {
+        setModoSeleccionado('SI');
+      }
+
       if (respuestaExistente.id) {
         loadEvidencias(respuestaExistente.id);
       }
     }
   }, [respuestaExistente]);
 
-  // Auto-reset nivel de madurez
-  useEffect(() => {
-    if (esNoImplementado) {
-      setNivelMadurez(0);
-      setJustificacionMadurez('');
-    }
-  }, [respuesta, esNoImplementado]);
-
-  const loadEvidencias = async (respuestaId: string) => {
+  const loadEvidencias = async (id: string) => {
     try {
-      const respuestaDetalle = await respuestasApi.get(respuestaId);
-      console.log("🔍 Revisando detalle para evidencias:", respuestaDetalle);
-      
-      // IMPORTANTE: Algunos backends devuelven el objeto directo, otros en .data
-      const data = (respuestaDetalle as any).data || respuestaDetalle;
-      
-      if (data && data.evidencias) {
-        setEvidencias(data.evidencias); // Esto es lo que pinta la lista
-      }
+      const detalle = await respuestasApi.get(id);
+      const data = (detalle as any).data || detalle;
+      if (data?.evidencias) setEvidencias(data.evidencias);
     } catch (error) {
       console.error('Error al cargar evidencias:', error);
     }
   };
 
+  // ── Cambiar modo ──────────────────────────────────────────────────────────
+  const handleCambiarModo = (modo: ModoUsuario) => {
+    setModoSeleccionado(modo);
+    if (modo === 'NO' || modo === 'NO_APLICA') {
+      setEvidencias([]);
+    }
+  };
+
+  // ── Guardar borrador ──────────────────────────────────────────────────────
   const handleGuardarBorrador = async () => {
-    // Validaciones
-    if (!respuesta || justificacion.trim().length < 10) {
-      toast.error('Completa la respuesta y justificación (mín 10 caracteres)');
+    if (!modoSeleccionado) {
+      toast.error('Selecciona una opción primero');
       return;
     }
-
-    if (requiereNivelMadurez && nivelMadurez === 0) {
-      toast.error('Debes indicar un nivel de madurez mayor a 0');
+    if (justificacion.trim().length < 10) {
+      toast.error('La justificación debe tener al menos 10 caracteres');
       return;
     }
 
     try {
       setSaving(true);
-      const data = {
-        respuesta,
+
+      // Mapear modo → valor para el backend
+      // SI        → null  (auditor calificará con evidencias)
+      // NO        → 'NO_CUMPLE' (pre-marcado, nivel 0)
+      // NO_APLICA → 'NO_APLICA'
+      const respuestaValor =
+        modoSeleccionado === 'NO_APLICA' ? ('NO_APLICA' as const)
+        : modoSeleccionado === 'NO'      ? ('NO_CUMPLE' as const)
+        : null;
+
+      const payload = {
+        respuesta: respuestaValor,
         justificacion,
         comentarios_adicionales: comentarios,
-        nivel_madurez: nivelMadurez,
-        justificacion_madurez: justificacionMadurez.trim(),
       };
 
       if (respuestaId) {
-        // ════════════════════════════════════════════════════
-        // UPDATE EXISTENTE
-        // ════════════════════════════════════════════════════
-        console.log('📝 Actualizando respuesta existente:', respuestaId);
-        await respuestasApi.update(respuestaId, data);
-        
-        // Recargar la respuesta completa desde el servidor
-        const respuestaCompleta = await respuestasApi.get(respuestaId);
-        console.log('✅ Respuesta actualizada y recargada:', respuestaCompleta);
-        
-        // Actualizar estados locales
-        setRespuesta(respuestaCompleta.respuesta);
-        setJustificacion(respuestaCompleta.justificacion);
-        setNivelMadurez(Number(respuestaCompleta.nivel_madurez) || 0);
-        setJustificacionMadurez(respuestaCompleta.justificacion_madurez || '');
-        setComentarios(respuestaCompleta.comentarios_adicionales || '');
-        setEstado(respuestaCompleta.estado);
-        
-        // Recargar evidencias
-        if (respuestaCompleta.evidencias) {
-          setEvidencias(respuestaCompleta.evidencias);
-        }
-        
-        // Notificar al padre
-        onRespuestaChange(mapToListItem(respuestaCompleta));
-        
-        toast.success('Respuesta guardada como borrador');
-        
+        await respuestasApi.update(respuestaId, payload);
+        const actualizada = await respuestasApi.get(respuestaId);
+        sincronizarEstado(actualizada);
+        onRespuestaChange(mapToListItem(actualizada));
+        toast.success('Borrador guardado');
       } else {
-        // ════════════════════════════════════════════════════
-        // CREATE NUEVA
-        // ════════════════════════════════════════════════════
-        console.log('🆕 Creando nueva respuesta para pregunta:', pregunta.id);
-        console.log('📤 Datos a enviar:', { asignacion: asignacionId, pregunta: pregunta.id, ...data });
-        
-        const createResponse = await respuestasApi.create({
+        const res = await respuestasApi.create({
           asignacion: asignacionId,
           pregunta: pregunta.id,
-          ...data,
+          ...payload,
         });
-        
-        console.log('📥 createResponse COMPLETO:', createResponse); // ⭐ DEBUG
-        console.log('📥 createResponse.data:', createResponse.data); // ⭐ DEBUG
-        console.log('📥 Tipo de createResponse.data:', typeof createResponse.data); // ⭐ DEBUG
-        console.log('📥 createResponse.data tiene id?:', createResponse.data?.id); // ⭐ DEBUG
-        
-        // ⭐ Intentar diferentes formas de extraer el data
-        let createdData = createResponse.data;
-        
-        // Si viene envuelto en { success, data, message }
-        if (createdData && typeof createdData === 'object' && 'data' in createdData) {
-          console.log('⚠️ Respuesta envuelta, extrayendo data...');
-          createdData = (createdData as any).data;
-        }
-        
-        console.log('📦 createdData final:', createdData); // ⭐ DEBUG
-        
-        if (!createdData || !createdData.id) {
-          console.error('❌ createdData inválido:', createdData);
-          console.error('❌ createResponse completo:', JSON.stringify(createResponse, null, 2));
-          throw new Error('No se recibió respuesta válida del servidor');
-        }
-        
-        console.log('✅ ID de respuesta creada:', createdData.id);
-        setRespuestaId(createdData.id);
-        
-        // Recargar la respuesta completa desde el servidor
-        const respuestaCompleta = await respuestasApi.get(createdData.id);
-        console.log('✅ Respuesta creada y recargada:', respuestaCompleta);
-        
-        // Actualizar estados locales
-        setRespuesta(respuestaCompleta.respuesta);
-        setJustificacion(respuestaCompleta.justificacion);
-        setNivelMadurez(Number(respuestaCompleta.nivel_madurez) || 0);
-        setJustificacionMadurez(respuestaCompleta.justificacion_madurez || '');
-        setComentarios(respuestaCompleta.comentarios_adicionales || '');
-        setEstado(respuestaCompleta.estado);
-        
-        // Recargar evidencias
-        if (respuestaCompleta.evidencias) {
-          setEvidencias(respuestaCompleta.evidencias);
-        }
-        
-        // Notificar al padre
-        onRespuestaChange(mapToListItem(respuestaCompleta));
-        
+
+        let creada = (res as any).data || res;
+        if (creada && 'data' in creada) creada = creada.data;
+        if (!creada?.id) throw new Error('El servidor no devolvió una respuesta válida');
+
+        setRespuestaId(creada.id);
+        const completa = await respuestasApi.get(creada.id);
+        sincronizarEstado(completa);
+        onRespuestaChange(mapToListItem(completa));
         toast.success('Respuesta creada como borrador');
       }
-
     } catch (error: any) {
-      console.error('❌ Error al guardar:', error);
-      console.error('❌ Error.response:', error.response);
-      console.error('❌ Error.response.data:', error.response?.data);
-      toast.error(error.response?.data?.message || error.message || 'Error al guardar la respuesta');
+      console.error('Error al guardar:', error);
+      toast.error(error.response?.data?.message || 'Error al guardar la respuesta');
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Enviar respuesta ──────────────────────────────────────────────────────
   const handleEnviar = async () => {
     if (!respuestaId) {
-      toast.error('Primero debes guardar la respuesta como borrador');
+      toast.error('Primero guarda la respuesta como borrador');
       return;
     }
-
-    if (puedeSubirEvidencias && evidencias.length === 0) {
-      toast.error(`Las respuestas "Sí Cumple" o "Cumple Parcial" requieren al menos una evidencia`);
-      return;
-    }
-
-    if (requiereNivelMadurez && nivelMadurez === 0) {
-      toast.error('Debes indicar un nivel de madurez mayor a 0 antes de enviar');
+    if (modoSeleccionado === 'SI' && evidencias.filter(e => e.activo).length === 0) {
+      toast.error('Debes subir al menos una evidencia antes de enviar');
       return;
     }
 
     try {
       setSaving(true);
-      await respuestasApi.enviar(respuestaId);
+      const res = await respuestasApi.enviar(respuestaId);
+      const data = (res as any).data || res;
+      const asignacionCompleta = data?.asignacion_completa || false;
+
       setEstado('enviado');
-      toast.success('✅ Respuesta enviada exitosamente');
-      
-      const respuestaActualizada = await respuestasApi.get(respuestaId);
-      onRespuestaChange(mapToListItem(respuestaActualizada));
+
+      if (asignacionCompleta) {
+        toast.success('¡Evaluación completada! Se notificó al auditor para revisión.', { duration: 5000 });
+      } else {
+        toast.success('Respuesta enviada exitosamente');
+      }
+
+      const actualizada = await respuestasApi.get(respuestaId);
+      onRespuestaChange(mapToListItem(actualizada));
     } catch (error: any) {
       console.error('Error al enviar:', error);
       toast.error(error.response?.data?.message || 'Error al enviar la respuesta');
@@ -247,119 +181,231 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   };
 
   const handleEliminarEvidencia = async (evidenciaId: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta evidencia?')) return;
-
+    if (!confirm('¿Eliminar esta evidencia?')) return;
     try {
       await respuestasApi.eliminarEvidencia(evidenciaId);
       setEvidencias(prev => prev.filter(e => e.id !== evidenciaId));
       toast.success('Evidencia eliminada');
-    } catch (error) {
+    } catch {
       toast.error('Error al eliminar la evidencia');
     }
   };
 
-  // ⭐ FIX 3: Mejorar mapToListItem para manejar valores null/undefined
-  const mapToListItem = (data: any): RespuestaListItem => {
-    console.log('📋 mapToListItem input:', data);
+  const sincronizarEstado = (data: any) => {
+    setJustificacion(data.justificacion || '');
+    setComentarios(data.comentarios_adicionales || '');
+    setEstado(data.estado || 'borrador');
+    if (data.evidencias) setEvidencias(data.evidencias);
 
-    return {
-      id: data?.id || '',
-      asignacion: data?.asignacion || '',
-      pregunta: data?.pregunta || '',
-      pregunta_codigo: data?.pregunta_codigo || '',
-      pregunta_texto: data?.pregunta_texto || '',
-      respuesta: data?.respuesta || 'NO_APLICA',
-      respuesta_display: data?.respuesta_display || '',
-      justificacion: data?.justificacion || '',
-      nivel_madurez: Number(data?.nivel_madurez) || 0,  // ⭐ Convertir a número
-      nivel_madurez_display: data?.nivel_madurez_display || '',
-      justificacion_madurez: data?.justificacion_madurez || '',
-      comentarios_adicionales: data?.comentarios_adicionales || '',  // ⭐ AGREGAR
-      estado: data?.estado || 'borrador',
-      estado_display: data?.estado_display || '',
-      respondido_por: Number(data?.respondido_por) || 0,
-      respondido_por_nombre: data?.respondido_por_nombre || '',
-      respondido_at: data?.respondido_at || '',
-      total_evidencias: data?.evidencias?.length || data?.total_evidencias || 0,
-      version: data?.version || 0,
-    };
+    // ⭐ Sincronizar modo según respuesta guardada en BD
+    if (data.respuesta === 'NO_APLICA') {
+      setModoSeleccionado('NO_APLICA');
+    } else if (data.respuesta === 'NO_CUMPLE') {
+      setModoSeleccionado('NO');
+    } else if (data.respuesta === null || data.respuesta === undefined) {
+      setModoSeleccionado('SI');
+    }
   };
+
+  const mapToListItem = (data: any): RespuestaListItem => ({
+    id: data?.id || '',
+    asignacion: data?.asignacion || '',
+    pregunta: data?.pregunta || '',
+    pregunta_codigo: data?.pregunta_codigo || '',
+    pregunta_texto: data?.pregunta_texto || '',
+    respuesta: data?.respuesta ?? null,
+    justificacion: data?.justificacion || '',
+    comentarios_adicionales: data?.comentarios_adicionales || '',
+    calificacion_auditor: data?.calificacion_auditor || null,
+    calificacion_display: data?.calificacion_display || '',
+    nivel_madurez: Number(data?.nivel_madurez) || 0,
+    estado: data?.estado || 'borrador',
+    estado_display: data?.estado_display || '',
+    respondido_por: Number(data?.respondido_por) || 0,
+    respondido_por_nombre: data?.respondido_por_nombre || '',
+    respondido_at: data?.respondido_at || '',
+    total_evidencias: data?.evidencias?.length ?? data?.total_evidencias ?? 0,
+    version: data?.version || 0,
+  });
+
+  // ── Helpers de UI ─────────────────────────────────────────────────────────
+  const getEstadoBadge = () => {
+    switch (estado) {
+      case 'enviado':
+      case 'pendiente_auditoria':
+        return (
+          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1">
+            <CheckCircle size={11} /> Enviada — Esperando auditor
+          </span>
+        );
+      case 'auditado':
+        return (
+          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
+            <CheckCircle size={11} /> Auditada
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+            Borrador
+          </span>
+        );
+    }
+  };
+
+  const getModoLecturaInfo = () => {
+    const r = respuestaExistente?.respuesta;
+    if (r === 'NO_APLICA')  return { icon: <Ban size={15} className="text-gray-500" />,       texto: 'Marcada como No Aplica — excluida del cálculo GAP',        color: 'bg-gray-100 border-gray-200 text-gray-700' };
+    if (r === 'NO_CUMPLE')  return { icon: <XCircle size={15} className="text-red-500" />,    texto: 'Respondida como No — registrada con nivel 0 en el GAP',   color: 'bg-red-50 border-red-200 text-red-700' };
+    return                         { icon: <FileText size={15} className="text-primary-500" />, texto: 'Enviada con evidencias — En espera de calificación del auditor', color: 'bg-blue-50 border-blue-200 text-blue-700' };
+  };
+
+  const cardBorder =
+    estado === 'auditado' ? 'border-green-300 bg-green-50/40'
+    : yaEnviada           ? 'border-blue-200 bg-blue-50/30'
+    : '';
 
   return (
     <>
-      <Card className={estado === 'enviado' ? 'border-green-300 bg-green-50' : ''}>
+      <Card className={cardBorder}>
         <div className="space-y-5">
-          {/* Header */}
-          <div className="flex items-start justify-between">
+
+          {/* ── Header ── */}
+          <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="px-2.5 py-1 bg-primary-100 text-primary-700 rounded text-xs font-semibold">
                   {numero}
                 </span>
-                <span className="text-xs text-gray-500 font-medium">
-                  {pregunta.codigo}
-                </span>
-                {estado === 'enviado' && (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium flex items-center gap-1">
-                    <CheckCircle size={12} />
-                    Enviada
-                  </span>
-                )}
+                <span className="text-xs text-gray-500 font-medium">{pregunta.codigo}</span>
+                {getEstadoBadge()}
               </div>
-              
-              <h3 className="text-base font-semibold text-gray-900">
-                {pregunta.titulo}
-              </h3>
-              
+              <h3 className="text-base font-semibold text-gray-900">{pregunta.titulo}</h3>
               {pregunta.texto && (
-                <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">
-                  {pregunta.texto}
-                </p>
+                <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">{pregunta.texto}</p>
               )}
             </div>
           </div>
 
-          {/* Selector de cumplimiento */}
-          <SelectorCumplimiento
-            valor={respuesta}
-            onChange={setRespuesta}
-            disabled={!puedeEditar}
-          />
+          {/* ── Selector de modo (solo en borrador) ── */}
+          {puedeEditar && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">
+                ¿Tu organización cumple con esto?
+                <span className="text-red-500 ml-1">*</span>
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
-          {/* Selector de nivel de madurez */}
-          {requiereNivelMadurez && (
-            <SelectorNivelMadurez
-              nivelMadurez={nivelMadurez}
-              onNivelChange={setNivelMadurez}
-              justificacion={justificacionMadurez}
-              onJustificacionChange={setJustificacionMadurez}
-              modoLectura={!puedeEditar}
-            />
+                {/* Sí */}
+                <button
+                  type="button"
+                  onClick={() => handleCambiarModo('SI')}
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                    modoSeleccionado === 'SI'
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${modoSeleccionado === 'SI' ? 'bg-primary-100' : 'bg-gray-100'}`}>
+                    <FileText size={18} className={modoSeleccionado === 'SI' ? 'text-primary-600' : 'text-gray-500'} />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-bold ${modoSeleccionado === 'SI' ? 'text-primary-700' : 'text-gray-800'}`}>Sí</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+                      Adjunta documentos de respaldo. El auditor revisará y asignará la calificación.
+                    </p>
+                  </div>
+                  {modoSeleccionado === 'SI' && <CheckCircle size={16} className="text-primary-500 shrink-0 mt-0.5" />}
+                </button>
+
+                {/* No */}
+                <button
+                  type="button"
+                  onClick={() => handleCambiarModo('NO')}
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                    modoSeleccionado === 'NO'
+                      ? 'border-red-400 bg-red-50'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${modoSeleccionado === 'NO' ? 'bg-red-100' : 'bg-gray-100'}`}>
+                    <XCircle size={18} className={modoSeleccionado === 'NO' ? 'text-red-500' : 'text-gray-400'} />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-bold ${modoSeleccionado === 'NO' ? 'text-red-700' : 'text-gray-800'}`}>No</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+                      Reconoce que no cumples. El auditor podrá confirmarlo o reconsiderarlo.
+                    </p>
+                  </div>
+                  {modoSeleccionado === 'NO' && <CheckCircle size={16} className="text-red-400 shrink-0 mt-0.5" />}
+                </button>
+
+                {/* No Aplica */}
+                <button
+                  type="button"
+                  onClick={() => handleCambiarModo('NO_APLICA')}
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                    modoSeleccionado === 'NO_APLICA'
+                      ? 'border-gray-500 bg-gray-50'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${modoSeleccionado === 'NO_APLICA' ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                    <Ban size={18} className={modoSeleccionado === 'NO_APLICA' ? 'text-gray-600' : 'text-gray-400'} />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-bold ${modoSeleccionado === 'NO_APLICA' ? 'text-gray-700' : 'text-gray-800'}`}>No Aplica</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+                      Este criterio no aplica a tu organización. No se incluirá en el cálculo.
+                    </p>
+                  </div>
+                  {modoSeleccionado === 'NO_APLICA' && <CheckCircle size={16} className="text-gray-500 shrink-0 mt-0.5" />}
+                </button>
+
+              </div>
+            </div>
           )}
 
-          {/* Justificación */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Justificación <span className="text-red-500">*</span>
-              <span className="text-gray-500 font-normal ml-2 text-xs">
-                (mínimo 10 caracteres)
-              </span>
-            </label>
-            <textarea
-              value={justificacion}
-              onChange={(e) => setJustificacion(e.target.value)}
-              disabled={!puedeEditar}
-              rows={4}
-              placeholder="Proporcione una justificación detallada de su respuesta..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {justificacion.length} caracteres
-            </p>
-          </div>
+          {/* ── Vista solo lectura ── */}
+          {yaEnviada && (() => {
+            const { icon, texto, color } = getModoLecturaInfo();
+            return (
+              <div className={`flex items-center gap-2 p-3 rounded-lg border ${color}`}>
+                {icon}
+                <span className="text-sm font-medium">{texto}</span>
+              </div>
+            );
+          })()}
 
-          {/* Evidencias */}
-          {puedeSubirEvidencias && (
+          {/* ── Justificación ── */}
+          {(modoSeleccionado || yaEnviada) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Justificación <span className="text-red-500">*</span>
+                {modoSeleccionado === 'NO_APLICA' && <span className="text-gray-500 font-normal ml-2 text-xs">— Explica por qué no aplica</span>}
+                {modoSeleccionado === 'NO'        && <span className="text-gray-500 font-normal ml-2 text-xs">— Explica por qué no cumple</span>}
+                <span className="text-gray-400 font-normal ml-2 text-xs">(mín. 10 caracteres)</span>
+              </label>
+              <textarea
+                value={justificacion}
+                onChange={e => setJustificacion(e.target.value)}
+                disabled={!puedeEditar}
+                rows={4}
+                placeholder={
+                  modoSeleccionado === 'NO_APLICA' ? 'Explica por qué esta pregunta no aplica a tu organización...'
+                  : modoSeleccionado === 'NO'      ? 'Explica por qué tu organización no cumple con este requisito...'
+                  : 'Describe brevemente el contexto de las evidencias adjuntas...'
+                }
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
+              />
+              <p className={`text-xs mt-1 ${justificacion.length < 10 ? 'text-red-400' : 'text-gray-400'}`}>
+                {justificacion.length} caracteres
+              </p>
+            </div>
+          )}
+
+          {/* ── Evidencias (solo si eligió SI) ── */}
+          {(modoSeleccionado === 'SI' || (yaEnviada && respuestaExistente?.respuesta === null)) && (
             <SeccionEvidencias
               evidencias={evidencias}
               puedeEditar={puedeEditar}
@@ -369,40 +415,69 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             />
           )}
 
-          {/* Comentarios */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Comentarios Adicionales <span className="text-gray-500 font-normal text-xs">(Opcional)</span>
-            </label>
-            <textarea
-              value={comentarios}
-              onChange={(e) => setComentarios(e.target.value)}
-              disabled={!puedeEditar}
-              rows={3}
-              placeholder="Observaciones o notas adicionales..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-          </div>
+          {/* ── Aviso sin evidencias ── */}
+          {modoSeleccionado === 'SI' && puedeEditar && evidencias.filter(e => e.activo).length === 0 && (
+            <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertCircle size={16} className="text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-700">
+                Debes subir al menos una evidencia antes de poder enviar esta respuesta.
+              </p>
+            </div>
+          )}
 
-          {/* Botones */}
-          {puedeEditar && (
-            <div className="flex items-center gap-3 pt-4 border-t">
+          {/* ── Comentarios adicionales ── */}
+          {(modoSeleccionado || yaEnviada) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Comentarios Adicionales <span className="text-gray-500 font-normal ml-2 text-xs">(Opcional)</span>
+              </label>
+              <textarea
+                value={comentarios}
+                onChange={e => setComentarios(e.target.value)}
+                disabled={!puedeEditar}
+                rows={2}
+                placeholder="Observaciones o notas adicionales..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
+              />
+            </div>
+          )}
+
+          {/* ── Calificación del auditor ── */}
+          {estado === 'auditado' && respuestaExistente?.calificacion_auditor && (
+            <div className="p-4 rounded-xl border border-green-200 bg-green-50 space-y-2">
+              <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Calificación del Auditor</p>
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                  respuestaExistente.calificacion_auditor === 'SI_CUMPLE'
+                    ? 'bg-green-100 text-green-800 border-green-300'
+                    : respuestaExistente.calificacion_auditor === 'CUMPLE_PARCIAL'
+                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                    : 'bg-red-100 text-red-800 border-red-300'
+                }`}>
+                  {respuestaExistente.calificacion_display || respuestaExistente.calificacion_auditor}
+                </span>
+                {respuestaExistente.nivel_madurez > 0 && (
+                  <span className="text-xs text-gray-600">
+                    Nivel de madurez: <strong>{respuestaExistente.nivel_madurez}</strong>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Botones ── */}
+          {puedeEditar && modoSeleccionado && (
+            <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={handleGuardarBorrador}
-                disabled={
-                  saving || 
-                  !respuesta || 
-                  justificacion.trim().length < 10 ||
-                  (requiereNivelMadurez && nivelMadurez === 0)
-                }
+                disabled={saving || justificacion.trim().length < 10}
                 type="button"
               >
-                <Save size={16} className="mr-2" />
+                <Save size={15} className="mr-1.5" />
                 {saving ? 'Guardando...' : 'Guardar Borrador'}
               </Button>
-
               <Button
                 variant="primary"
                 size="sm"
@@ -410,20 +485,19 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                 disabled={
                   saving ||
                   !respuestaId ||
-                  (puedeSubirEvidencias && evidencias.length === 0) ||
-                  (requiereNivelMadurez && nivelMadurez === 0)
+                  (modoSeleccionado === 'SI' && evidencias.filter(e => e.activo).length === 0)
                 }
                 type="button"
               >
-                <Send size={16} className="mr-2" />
+                <Send size={15} className="mr-1.5" />
                 {saving ? 'Enviando...' : 'Enviar Respuesta'}
               </Button>
             </div>
           )}
+
         </div>
       </Card>
 
-      {/* Modal */}
       {mostrarModalEvidencia && respuestaId && (
         <ModalEvidencia
           respuestaId={respuestaId}
