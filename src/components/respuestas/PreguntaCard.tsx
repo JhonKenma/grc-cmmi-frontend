@@ -255,9 +255,9 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
 
   const getModoLecturaInfo = () => {
     const r = respuestaExistente?.respuesta;
-    if (r === 'NO_APLICA')  return { icon: <Ban size={15} className="text-gray-500" />,       texto: 'Marcada como No Aplica — excluida del cálculo GAP',        color: 'bg-gray-100 border-gray-200 text-gray-700' };
-    if (r === 'NO_CUMPLE')  return { icon: <XCircle size={15} className="text-red-500" />,    texto: 'Respondida como No — registrada con nivel 0 en el GAP',   color: 'bg-red-50 border-red-200 text-red-700' };
-    return                         { icon: <FileText size={15} className="text-primary-500" />, texto: 'Enviada con evidencias — En espera de calificación del auditor', color: 'bg-blue-50 border-blue-200 text-blue-700' };
+    if (r === 'NO_APLICA')  return { icon: <Ban size={15} className="text-gray-500" />,       texto: 'Marcada como No Aplica',        color: 'bg-gray-100 border-gray-200 text-gray-700' };
+    if (r === 'NO_CUMPLE')  return { icon: <XCircle size={15} className="text-red-500" />,    texto: 'Respondida como No',   color: 'bg-red-50 border-red-200 text-red-700' };
+    return                         { icon: <FileText size={15} className="text-primary-500" />, texto: 'Enviada con evidencias', color: 'bg-blue-50 border-blue-200 text-blue-700' };
   };
 
   const cardBorder =
@@ -312,7 +312,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   <div className="flex-1">
                     <p className={`text-sm font-bold ${modoSeleccionado === 'SI' ? 'text-primary-700' : 'text-gray-800'}`}>Sí</p>
                     <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-                      Adjunta documentos de respaldo. El auditor revisará y asignará la calificación.
+                      Adjunta documentos de respaldo para su revisión.
                     </p>
                   </div>
                   {modoSeleccionado === 'SI' && <CheckCircle size={16} className="text-primary-500 shrink-0 mt-0.5" />}
@@ -334,7 +334,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   <div className="flex-1">
                     <p className={`text-sm font-bold ${modoSeleccionado === 'NO' ? 'text-red-700' : 'text-gray-800'}`}>No</p>
                     <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-                      Reconoce que no cumples. El auditor podrá confirmarlo o reconsiderarlo.
+                      Reconoce que no cumples.
                     </p>
                   </div>
                   {modoSeleccionado === 'NO' && <CheckCircle size={16} className="text-red-400 shrink-0 mt-0.5" />}
@@ -356,7 +356,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   <div className="flex-1">
                     <p className={`text-sm font-bold ${modoSeleccionado === 'NO_APLICA' ? 'text-gray-700' : 'text-gray-800'}`}>No Aplica</p>
                     <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-                      Este criterio no aplica a tu organización. No se incluirá en el cálculo.
+                      Este criterio no aplica a tu organización.
                     </p>
                   </div>
                   {modoSeleccionado === 'NO_APLICA' && <CheckCircle size={16} className="text-gray-500 shrink-0 mt-0.5" />}
