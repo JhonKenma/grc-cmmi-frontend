@@ -17,7 +17,10 @@ import {
   Bell,
   BarChart3,  
   Truck,
-  CheckSquare
+  CheckSquare,
+  Brain,
+  Package,
+  ShieldCheck
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -30,13 +33,13 @@ interface MainLayoutProps {
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout, isSuperAdmin, isAdmin } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   // ==========================================
-  // MENÚ DE NAVEGACIÓN
+  // MENÚ DE NAVEGACIÓN ⭐ ACTUALIZADO
   // ==========================================
   const menuItems = [
     {
@@ -45,6 +48,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/dashboard',
       roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
     },
+   {
+      name: 'Mis Revisiones',
+      icon: ShieldCheck,
+      path: '/auditor/revisiones',
+      roles: ['auditor'],
+    },
+
     {
       name: 'Empresas',
       icon: Building2,
@@ -72,13 +82,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
     },
     {
-      name: 'Cargar Evaluación',
-      icon: Upload,
-      path: '/encuestas/cargar',
-      roles: ['superadmin'],
-      requireSuperAdmin: true,
-    },
-    {
       name: 'Asignaciones',
       icon: ClipboardList,
       path: '/asignaciones/mis-evaluaciones',
@@ -90,7 +93,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/mis-tareas',
       roles: ['usuario'],
     },
-    // ⭐ AGREGAR ITEM DE REPORTES
+    
+    // ⭐ NUEVO: Mis Evaluaciones IQ (Usuario)
+    {
+      name: 'Mis Evaluaciones IQ',
+      icon: CheckSquare,
+      path: '/evaluaciones-iq/mis-asignaciones',
+      roles: ['usuario'],
+    },
+    
     {
       name: 'Análisis GAP',
       icon: BarChart3,
@@ -98,23 +109,44 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['superadmin', 'administrador'],
     },
     {
-      name: 'Notificaciones',
-      icon: Bell,
-      path: '/notificaciones',
-      roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
-    },
-    {
       name: 'Mis Proyectos',
-      icon: FolderKanban, // ⚠️ Importar este icono
+      icon: FolderKanban,
       path: '/mis-proyectos',
       roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
     },
+    
+    // ⭐ ACTUALIZADO: Evaluaciones IQ (Admin/SuperAdmin)
     {
-    name: 'Aprobaciones',
-    icon: CheckSquare, // Importar: import { CheckSquare } from 'lucide-react';
-    path: '/aprobaciones-pendientes',
-    roles: ['superadmin', 'administrador'],
+      name: 'Evaluaciones IQ',
+      icon: Brain,
+      path: '/evaluaciones-inteligentes',
+      roles: ['superadmin', 'administrador'],
     },
+
+    // ⭐ NUEVO: Asignar Frameworks (SuperAdmin)
+    {
+      name: 'Asignar Frameworks',
+      icon: Package,
+      path: '/evaluaciones-inteligentes/asignar-frameworks',
+      roles: ['superadmin'],
+    },
+    
+    // ⭐ NUEVO: Asignar Evaluaciones (Admin)
+    {
+      name: 'Asignar Evaluaciones',
+      icon: Users,
+      path: '/evaluaciones-inteligentes/asignar',
+      roles: ['administrador'],
+    },
+    
+    // ⭐ NUEVO: Gestionar Asignaciones (Admin)
+    {
+      name: 'Gestionar Asignaciones',
+      icon: CheckSquare,
+      path: '/evaluaciones-inteligentes/gestionar-asignaciones',
+      roles: ['administrador'],
+    },
+
   ];
 
   // Filtrar menú según permisos
@@ -146,22 +178,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {sidebarOpen && (
             <div className="flex items-center gap-3">
               <img 
-                src="/logo-grc.jpeg"
-                alt="SHIELDGrid" 
-                className="h-12 w-12 rounded-lg object-cover shadow-sm"
+                src="/logo_min.png"
+                alt="ShieldGrid" 
+                className="h-10 w-10 object-contain"
               />
-              <div>
+              <div className="flex items-baseline gap-1">
                 <h1 className="text-xl font-bold text-gray-900 tracking-tight">
                   ShieldGrid
                 </h1>
-                <p className="text-xs text-gray-500 font-medium">Sistema GRC</p>
+                <span className="text-xl font-bold text-blue-500">
+                  365
+                </span>
               </div>
             </div>
           )}
           
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors ml-auto"
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -205,9 +239,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
 
           {/* Área de Notificaciones y User Menu */}
-          <div className="flex items-center gap-4">
-            {/* Campanita de notificaciones */}
-            <NotificationBell />
+          <div className="flex items-center gap-6">
+            {/* Campanita de notificaciones con enlace */}
+            <Link
+              to="/notificaciones"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <NotificationBell />
+              <span className="text-sm font-medium text-gray-700">
+                Notificaciones
+              </span>
+            </Link>
+
+            {/* Separador visual */}
+            <div className="h-8 w-px bg-gray-200"></div>
 
             {/* User Menu */}
             <div className="relative">
