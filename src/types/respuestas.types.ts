@@ -66,6 +66,22 @@ export interface VerificacionCodigoResponse {
   mensaje: string;
 }
 
+/** Lo único que puede marcar el usuario */
+export type RespuestaUsuario = 'NO_APLICA';
+
+/** Calificaciones exclusivas del auditor */
+export type CalificacionAuditor = 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE';
+
+/** Todos los valores posibles en el campo respuesta */
+export type RespuestaValor = RespuestaUsuario | CalificacionAuditor;
+
+/** Estados del ciclo de vida de una respuesta */
+export type RespuestaEstado =
+  | 'borrador'
+  | 'enviado'
+  | 'pendiente_auditoria'
+  | 'auditado'
+  | 'modificado_admin';
 
 
 export interface Respuesta {
@@ -75,14 +91,26 @@ export interface Respuesta {
   pregunta_codigo: string;
   pregunta_texto: string;
   pregunta_objetivo?: string;
-  respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
-  respuesta_display: string;
+
+  // Respuesta del USUARIO: null = subió evidencias | 'NO_APLICA' = no aplica
+  respuesta: RespuestaValor | null;
+
   justificacion: string;
   comentarios_adicionales: string;
+
+  // Campos del AUDITOR (solo los rellena el auditor)
+  calificacion_auditor: CalificacionAuditor | null;
+  calificacion_display: string;
+  comentarios_auditor: string;
+  recomendaciones_auditor: string;
+  fecha_auditoria: string | null;
+  auditado_por: number | null;
+  auditado_por_nombre: string;
+
+  // Nivel de madurez (lo asigna el auditor)
   nivel_madurez: number;
-  nivel_madurez_display?: string;
-  justificacion_madurez: string;
-  estado: 'borrador' | 'enviado' | 'modificado_admin';
+
+  estado: RespuestaEstado;
   estado_display: string;
   respondido_por: number;
   respondido_por_nombre: string;
@@ -100,14 +128,19 @@ export interface RespuestaListItem {
   pregunta: string;
   pregunta_codigo: string;
   pregunta_texto: string;
-  respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
-  respuesta_display: string;
+
+  // null cuando el usuario subió evidencias sin marcar NO_APLICA
+  respuesta: RespuestaValor | null;
+
   justificacion: string;
-  nivel_madurez: number;
-  nivel_madurez_display?: string;
-  justificacion_madurez: string;
   comentarios_adicionales?: string;
-  estado: 'borrador' | 'enviado' | 'modificado_admin';
+
+  // Calificación del auditor
+  calificacion_auditor: CalificacionAuditor | null;
+  calificacion_display: string;
+  nivel_madurez: number;
+
+  estado: RespuestaEstado;
   estado_display: string;
   respondido_por: number;
   respondido_por_nombre: string;
@@ -116,22 +149,35 @@ export interface RespuestaListItem {
   version: number;
 }
 
+
 export interface RespuestaCreate {
   asignacion: string;
   pregunta: string;
-  respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
+  // null        → sube evidencias, el auditor calificará (opción "Sí")
+  // 'NO_CUMPLE' → usuario respondió "No", sin evidencias
+  // 'NO_APLICA' → no aplica, requiere justificación
+  respuesta: 'NO_APLICA' | 'NO_CUMPLE' | null;
   justificacion: string;
   comentarios_adicionales?: string;
-  nivel_madurez: number;
-  justificacion_madurez?: string;
 }
 
 export interface RespuestaUpdate {
-  respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
+  respuesta: 'NO_APLICA' | 'NO_CUMPLE' | null;
   justificacion: string;
   comentarios_adicionales?: string;
-  nivel_madurez?: number;
-  justificacion_madurez?: string;
+}
+
+/** Lo que envía el AUDITOR al calificar una respuesta */
+export interface AuditorCalificacion {
+  calificacion_auditor: CalificacionAuditor;
+  comentarios_auditor?: string;
+  recomendaciones_auditor?: string;
+  nivel_madurez: number;
+}
+
+/** Body para cerrar revisión de una asignación */
+export interface AuditorCerrarRevision {
+  comentario_cierre?: string;
 }
 
 export interface HistorialRespuesta {
