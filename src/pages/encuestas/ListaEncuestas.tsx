@@ -47,15 +47,18 @@ export const ListaEncuestas: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-    };
+  };
 
-
-  // Filtrar encuestas
+  // ⭐ FILTRO CORREGIDO
   const encuestasFiltradas = encuestas.filter((encuesta) => {
     const matchSearch = encuesta.nombre
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    const matchStatus = showInactive || encuesta.activo;
+    
+    // Si showInactive es true, mostrar solo inactivas
+    // Si showInactive es false, mostrar solo activas
+    const matchStatus = showInactive ? !encuesta.activo : encuesta.activo;
+    
     return matchSearch && matchStatus;
   });
 
@@ -93,7 +96,7 @@ export const ListaEncuestas: React.FC = () => {
 
   const handleToggleStatus = async (id: string) => {
     try {
-      await encuestasApi.toggleEstado(id);  // ✅ Usar la API correcta
+      await encuestasApi.toggleEstado(id);
       success('Estado actualizado correctamente');
       loadEncuestas();
     } catch (err: any) {
@@ -149,21 +152,12 @@ export const ListaEncuestas: React.FC = () => {
         {isSuperuser && (
           <div className="flex items-center gap-3">
             <Button
-              variant="secondary"
-              size="md"
-              onClick={handleDescargarPlantilla}
-            >
-              <Download size={18} className="mr-2" />
-              Plantilla
-            </Button>
-
-            <Button
               variant="primary"
               size="md"
               onClick={() => navigate(ROUTES.ENCUESTA_CARGAR)}
             >
               <Upload size={18} className="mr-2" />
-              Cargar Excel
+              Cargar Evaluación
             </Button>
           </div>
         )}
