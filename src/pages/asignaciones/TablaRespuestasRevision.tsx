@@ -1,265 +1,399 @@
 // src/pages/asignaciones/TablaRespuestasRevision.tsx
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit2, Save, X, FileText, ExternalLink } from 'lucide-react';
+import {
+  ChevronDown, ChevronUp, FileText, ExternalLink,
+  CheckCircle2, MinusCircle, XCircle, ClipboardCheck, AlertCircle, Ban,
+} from 'lucide-react';
 import { Button } from '@/components/common';
-import { Respuesta, Evidencia } from '@/types';
+import { Respuesta, CalificacionAuditor } from '@/types';
+import { respuestasApi } from '@/api/endpoints';
+import toast from 'react-hot-toast';
 
 interface TablaRespuestasRevisionProps {
   respuestas: Respuesta[];
-  modoEdicion: boolean;
-  onEditarRespuesta: (
-    respuestaId: string, 
-    datos: { 
-      respuesta: string; 
-      justificacion: string;
-      nivel_madurez: number;
-      justificacion_madurez: string;
-    }
-  ) => void;
+  asignacionId: string;
+  esAuditor?: boolean;
+  onRevisionActualizada?: () => void;
 }
+
+const NIVELES_MADUREZ = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+
+const CALIFICACIONES: { valor: CalificacionAuditor; label: string; color: string; icon: React.ReactNode }[] = [
+  { valor: 'SI_CUMPLE',      label: 'Sí Cumple',     color: 'border-green-500 bg-green-50 text-green-700',   icon: <CheckCircle2 size={15} className="text-green-600" /> },
+  { valor: 'CUMPLE_PARCIAL', label: 'Cumple Parcial', color: 'border-yellow-500 bg-yellow-50 text-yellow-700', icon: <MinusCircle  size={15} className="text-yellow-600" /> },
+  { valor: 'NO_CUMPLE',      label: 'No Cumple',      color: 'border-red-500 bg-red-50 text-red-700',         icon: <XCircle      size={15} className="text-red-600" /> },
+];
+
+const getColorCalificacion = (cal: CalificacionAuditor | null | undefined) => {
+  switch (cal) {
+    case 'SI_CUMPLE':      return 'bg-green-100 text-green-800 border-green-300';
+    case 'CUMPLE_PARCIAL': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    case 'NO_CUMPLE':      return 'bg-red-100 text-red-800 border-red-300';
+    default:               return 'bg-gray-100 text-gray-500 border-gray-200';
+  }
+};
+
+const getLabelCalificacion = (cal: CalificacionAuditor | null | undefined) => {
+  switch (cal) {
+    case 'SI_CUMPLE':      return 'Sí Cumple';
+    case 'CUMPLE_PARCIAL': return 'Cumple Parcial';
+    case 'NO_CUMPLE':      return 'No Cumple';
+    default:               return 'Sin calificar';
+  }
+};
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const getFileUrl = (url: string) =>
+  url ? (url.startsWith('http') ? url : `${BACKEND_URL}${url}`) : '#';
 
 export const TablaRespuestasRevision: React.FC<TablaRespuestasRevisionProps> = ({
   respuestas,
-  modoEdicion,
-  onEditarRespuesta,
+  asignacionId,
+  esAuditor = false,
+  onRevisionActualizada,
 }) => {
   const [expandidas, setExpandidas] = useState<Set<string>>(new Set());
-  const [editando, setEditando] = useState<string | null>(null);
-  const [respuestaEditada, setRespuestaEditada] = useState('');
-  const [justificacionEditada, setJustificacionEditada] = useState('');
-  
-  const [nivelMadurezEditado, setNivelMadurezEditado] = useState<number>(0);
-  const [justificacionMadurezEditada, setJustificacionMadurezEditada] = useState('');
-  
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const [calificaciones, setCalificaciones] = useState<
+    Record<string, {
+      calificacion_auditor: CalificacionAuditor | '';
+      nivel_madurez: number;
+      comentarios_auditor: string;
+      recomendaciones_auditor: string;
+      saving: boolean;
+    }>
+  >({});
 
-  // Lógica inteligente para determinar la URL del archivo
-  const getFileUrl = (url: string) => {
-    if (!url) return '#';
-    // Si la URL ya es completa (ej: Supabase), se usa tal cual.
-    // Si es relativa (ej: /media/...), se concatena el BACKEND_URL.
-    return url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+  const getCalState = (r: Respuesta) =>
+    calificaciones[r.id] ?? {
+      // ⭐ Si el usuario marcó NO (NO_CUMPLE), pre-seleccionar NO_CUMPLE para el auditor
+      calificacion_auditor: r.calificacion_auditor ??
+        (r.respuesta === 'NO_CUMPLE' ? 'NO_CUMPLE' : ''),
+      nivel_madurez:           r.nivel_madurez ?? 0,
+      comentarios_auditor:     r.comentarios_auditor ?? '',
+      recomendaciones_auditor: r.recomendaciones_auditor ?? '',
+      saving: false,
+    };
+
+  const updateCal = (id: string, patch: Partial<ReturnType<typeof getCalState>>) => {
+    setCalificaciones(prev => ({
+      ...prev,
+      [id]: { ...getCalState({ id } as Respuesta), ...patch },
+    }));
   };
-
-  const NIVELES_MADUREZ = [
-    { value: 0, label: '0' },
-    { value: 0.5, label: '0.5' },
-    { value: 1.0, label: '1' },
-    { value: 1.5, label: '1.5' },
-    { value: 2.0, label: '2' },
-    { value: 2.5, label: '2.5' },
-    { value: 3.0, label: '3' },
-    { value: 3.5, label: '3.5' },
-    { value: 4.0, label: '4' },
-    { value: 4.5, label: '4.5' },
-    { value: 5.0, label: '5' },
-  ];
 
   const toggleExpandir = (id: string) => {
-    const nuevas = new Set(expandidas);
-    if (nuevas.has(id)) {
-      nuevas.delete(id);
-    } else {
-      nuevas.add(id);
-    }
-    setExpandidas(nuevas);
-  };
-
-  const iniciarEdicion = (respuesta: Respuesta) => {
-    setEditando(respuesta.id);
-    setRespuestaEditada(respuesta.respuesta);
-    setJustificacionEditada(respuesta.justificacion);
-    setNivelMadurezEditado(respuesta.nivel_madurez || 0);
-    setJustificacionMadurezEditada(respuesta.justificacion_madurez || '');
-  };
-
-  const cancelarEdicion = () => {
-    setEditando(null);
-    setRespuestaEditada('');
-    setJustificacionEditada('');
-    setNivelMadurezEditado(0);
-    setJustificacionMadurezEditada('');
-  };
-
-  const guardarEdicion = (respuestaId: string) => {
-    onEditarRespuesta(respuestaId, {
-      respuesta: respuestaEditada,
-      justificacion: justificacionEditada,
-      nivel_madurez: nivelMadurezEditado,
-      justificacion_madurez: justificacionMadurezEditada,
+    setExpandidas(prev => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
     });
-    setEditando(null);
   };
 
-  const getColorRespuesta = (respuesta: string) => {
-    switch (respuesta) {
-      case 'SI_CUMPLE': return 'bg-green-100 text-green-800 border-green-300';
-      case 'CUMPLE_PARCIAL': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'NO_CUMPLE': return 'bg-red-100 text-red-800 border-red-300';
-      case 'NO_APLICA': return 'bg-gray-100 text-gray-800 border-gray-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+  const handleGuardarCalificacion = async (respuesta: Respuesta) => {
+    const cal = getCalState(respuesta);
+    if (!cal.calificacion_auditor) {
+      toast.error('Selecciona una calificación primero');
+      return;
     }
-  };
-
-  const getNombreRespuesta = (respuesta: string) => {
-    switch (respuesta) {
-      case 'SI_CUMPLE': return 'Sí Cumple';
-      case 'CUMPLE_PARCIAL': return 'Cumple Parcial';
-      case 'NO_CUMPLE': return 'No Cumple';
-      case 'NO_APLICA': return 'No Aplica';
-      default: return respuesta;
+    if (cal.calificacion_auditor !== 'NO_CUMPLE' && cal.nivel_madurez === 0) {
+      toast.error('Indica un nivel de madurez mayor a 0');
+      return;
     }
-  };
 
-  const requiereNivelMadurez = (respuesta: string) => {
-    return respuesta === 'SI_CUMPLE' || respuesta === 'CUMPLE_PARCIAL';
+    updateCal(respuesta.id, { saving: true });
+    try {
+      await respuestasApi.auditor.calificar(respuesta.id, {
+        calificacion_auditor:    cal.calificacion_auditor,
+        nivel_madurez:           cal.nivel_madurez,
+        comentarios_auditor:     cal.comentarios_auditor,
+        recomendaciones_auditor: cal.recomendaciones_auditor,
+      });
+      toast.success('Calificación guardada');
+      onRevisionActualizada?.();
+    } catch (error: any) {
+      console.error('Error detalle:', JSON.stringify(error.response?.data));
+      toast.error(error.response?.data?.message || 'Error al guardar calificación');
+    } finally {
+      updateCal(respuesta.id, { saving: false });
+    }
   };
 
   return (
     <div className="space-y-3">
       {respuestas.map((respuesta, index) => {
-        const estaExpandida = expandidas.has(respuesta.id);
-        const estaEditando = editando === respuesta.id;
-        const muestraNivelMadurez = respuesta.nivel_madurez > 0;
+        const expandida   = expandidas.has(respuesta.id);
+        const cal         = getCalState(respuesta);
+        const yaCalificada = respuesta.estado === 'auditado' && !!respuesta.calificacion_auditor;
+        const esNoAplica  = respuesta.respuesta === 'NO_APLICA';
+        // ⭐ El usuario respondió "No" directamente
+        const esNoCumpleUsuario = respuesta.respuesta === 'NO_CUMPLE' && !respuesta.calificacion_auditor;
 
         return (
-          <div key={respuesta.id} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-            {/* Header */}
+          <div
+            key={respuesta.id}
+            className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            {/* ── Header ── */}
             <div
               className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-              onClick={() => !estaEditando && toggleExpandir(respuesta.id)}
+              onClick={() => toggleExpandir(respuesta.id)}
             >
-              <div className="flex items-center gap-3 flex-1">
-                <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs font-semibold">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs font-bold shrink-0">
                   {index + 1}
                 </span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    {respuesta.pregunta_codigo} - {respuesta.pregunta_texto}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {respuesta.pregunta_codigo} — {respuesta.pregunta_texto}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {muestraNivelMadurez && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                      Madurez: {respuesta.nivel_madurez}
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Badge: respuesta del usuario */}
+                  {esNoAplica ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 flex items-center gap-1">
+                      <Ban size={11} /> No Aplica
+                    </span>
+                  ) : respuesta.respuesta === 'NO_CUMPLE' ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-200 flex items-center gap-1">
+                      <XCircle size={11} /> Usuario: No
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                      Con evidencias
                     </span>
                   )}
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getColorRespuesta(respuesta.respuesta)}`}>
-                    {getNombreRespuesta(respuesta.respuesta)}
+                  {/* Badge: calificación del auditor */}
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getColorCalificacion(respuesta.calificacion_auditor)}`}>
+                    {getLabelCalificacion(respuesta.calificacion_auditor)}
                   </span>
+                  {respuesta.nivel_madurez > 0 && (
+                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-medium">
+                      Nv. {respuesta.nivel_madurez}
+                    </span>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2 ml-4">
-                {modoEdicion && !estaEditando && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); iniciarEdicion(respuesta); }}
-                    className="p-2 hover:bg-primary-100 rounded transition-colors"
-                  >
-                    <Edit2 size={16} className="text-primary-600" />
-                  </button>
-                )}
-                {!estaEditando && (estaExpandida ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
+              <div className="ml-3 text-gray-400">
+                {expandida ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </div>
             </div>
 
-            {/* Contenido */}
-            {estaExpandida && (
-              <div className="p-4 space-y-4 border-t border-gray-200">
-                {estaEditando ? (
-                  <div className="space-y-4">
-                    {/* Campos de edición simplificados */}
+            {/* ── Cuerpo expandido ── */}
+            {expandida && (
+              <div className="p-5 border-t border-gray-100 space-y-5">
+
+                {/* Respuesta del usuario */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                      Justificación del Usuario
+                    </p>
+                    <p className="text-sm text-gray-800 bg-gray-50 rounded-lg p-3">
+                      {respuesta.justificacion || <span className="text-gray-400 italic">Sin justificación</span>}
+                    </p>
+                  </div>
+                  {respuesta.comentarios_adicionales && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Respuesta</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {['SI_CUMPLE', 'CUMPLE_PARCIAL', 'NO_CUMPLE', 'NO_APLICA'].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => setRespuestaEditada(opt)}
-                            className={`p-2 rounded border text-xs font-medium ${respuestaEditada === opt ? 'bg-primary-50 border-primary-500 text-primary-700' : 'border-gray-200'}`}
-                          >
-                            {getNombreRespuesta(opt)}
-                          </button>
-                        ))}
-                      </div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">
+                        Comentarios del Usuario
+                      </p>
+                      <p className="text-sm text-gray-800 bg-gray-50 rounded-lg p-3">
+                        {respuesta.comentarios_adicionales}
+                      </p>
                     </div>
+                  )}
+                </div>
 
-                    {requiereNivelMadurez(respuestaEditada) && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Nivel de Madurez</label>
-                        <select
-                          value={nivelMadurezEditado}
-                          onChange={(e) => setNivelMadurezEditado(Number(e.target.value))}
-                          className="w-full px-3 py-2 border rounded-lg text-sm"
-                        >
-                          {NIVELES_MADUREZ.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
-                        </select>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Justificación</label>
-                      <textarea
-                        value={justificacionEditada}
-                        onChange={(e) => setJustificacionEditada(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg text-sm"
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => guardarEdicion(respuesta.id)}>Guardar</Button>
-                      <Button size="sm" variant="secondary" onClick={cancelarEdicion}>Cancelar</Button>
+                {/* Evidencias */}
+                {respuesta.evidencias && respuesta.evidencias.filter(e => e.activo).length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                      Evidencias Adjuntas ({respuesta.evidencias.filter(e => e.activo).length})
+                    </p>
+                    <div className="space-y-2">
+                      {respuesta.evidencias.filter(e => e.activo).map(ev => (
+                        <div key={ev.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <FileText size={16} className="text-primary-500 shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{ev.titulo_documento}</p>
+                              <p className="text-xs text-gray-500">
+                                {ev.codigo_documento} · {ev.tipo_documento_display}
+                              </p>
+                            </div>
+                          </div>
+                          {ev.url_archivo && (
+                            <a
+                              href={getFileUrl(ev.url_archivo)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-primary-600 hover:bg-primary-50 rounded-full transition-colors"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <ExternalLink size={16} />
+                            </a>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase">Justificación</p>
-                        <p className="text-sm text-gray-800 mt-1">{respuesta.justificacion}</p>
-                      </div>
-                      {respuesta.comentarios_adicionales && (
-                        <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase">Comentarios</p>
-                          <p className="text-sm text-gray-800 mt-1">{respuesta.comentarios_adicionales}</p>
-                        </div>
+                )}
+
+                {/* ── Panel de calificación (auditor, no NO_APLICA) ── */}
+                {esAuditor && !esNoAplica && (
+                  <div className="border-t border-gray-100 pt-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <ClipboardCheck size={16} className="text-primary-600" />
+                      <p className="text-sm font-bold text-gray-700">Calificación del Auditor</p>
+                      {yaCalificada && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                          Guardada
+                        </span>
                       )}
                     </div>
 
-                    {/* Sección de Evidencias Corregida */}
-                    {respuesta.evidencias && respuesta.evidencias.length > 0 && (
-                      <div className="pt-4 border-t border-gray-100">
-                        <p className="text-xs font-bold text-gray-500 uppercase mb-3">Evidencias Adjuntas</p>
-                        <div className="space-y-2">
-                          {respuesta.evidencias.filter(ev => ev.activo).map((evidencia) => (
-                            <div key={evidencia.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <FileText size={18} className="text-primary-500" />
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">{evidencia.titulo_documento}</p>
-                                  <p className="text-xs text-gray-500">{evidencia.codigo_documento} • {evidencia.tipo_documento_display}</p>
-                                </div>
-                              </div>
-                              {evidencia.url_archivo && (
-                                <a
-                                  href={getFileUrl(evidencia.url_archivo)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-full transition-colors"
-                                  title="Ver documento"
-                                >
-                                  <ExternalLink size={18} />
-                                </a>
-                              )}
-                            </div>
+                    {/* ⭐ Aviso cuando el usuario respondió "No" */}
+                    {esNoCumpleUsuario && (
+                      <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+                        <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-700">
+                          El usuario respondió <strong>No</strong> a esta pregunta.
+                          Está pre-calificada como <strong>No Cumple</strong>.
+                          Puedes cambiar la calificación si consideras que hay mérito para ello.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Selector de calificación */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {CALIFICACIONES.map(op => (
+                        <button
+                          key={op.valor}
+                          type="button"
+                          onClick={() => updateCal(respuesta.id, {
+                            calificacion_auditor: op.valor,
+                            nivel_madurez: op.valor === 'NO_CUMPLE' ? 0 : cal.nivel_madurez,
+                          })}
+                          className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+                            cal.calificacion_auditor === op.valor
+                              ? op.color + ' border-current'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          {op.icon}
+                          {op.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Nivel de madurez */}
+                    {cal.calificacion_auditor && cal.calificacion_auditor !== 'NO_CUMPLE' && (
+                      <div className="mb-4">
+                        <label className="block text-xs font-semibold text-gray-600 mb-2">
+                          Nivel de Madurez <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {NIVELES_MADUREZ.map(n => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => updateCal(respuesta.id, { nivel_madurez: n })}
+                              className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                                cal.nivel_madurez === n
+                                  ? 'bg-primary-600 text-white border-primary-600'
+                                  : 'border-gray-200 text-gray-600 hover:border-primary-300'
+                              }`}
+                            >
+                              {n}
+                            </button>
                           ))}
                         </div>
                       </div>
                     )}
-                  </>
+
+                    {/* Comentarios y recomendaciones */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Comentarios</label>
+                        <textarea
+                          value={cal.comentarios_auditor}
+                          onChange={e => updateCal(respuesta.id, { comentarios_auditor: e.target.value })}
+                          rows={3}
+                          placeholder="Observaciones sobre esta respuesta..."
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Recomendaciones</label>
+                        <textarea
+                          value={cal.recomendaciones_auditor}
+                          onChange={e => updateCal(respuesta.id, { recomendaciones_auditor: e.target.value })}
+                          rows={3}
+                          placeholder="Qué debe mejorar la organización..."
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => handleGuardarCalificacion(respuesta)}
+                      disabled={cal.saving || !cal.calificacion_auditor}
+                    >
+                      <ClipboardCheck size={14} className="mr-1.5" />
+                      {cal.saving ? 'Guardando...' : yaCalificada ? 'Actualizar Calificación' : 'Guardar Calificación'}
+                    </Button>
+                  </div>
+                )}
+
+                {/* ── Vista calificación existente (no auditor) ── */}
+                {!esAuditor && respuesta.calificacion_auditor && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                      Calificación del Auditor
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getColorCalificacion(respuesta.calificacion_auditor)}`}>
+                          {getLabelCalificacion(respuesta.calificacion_auditor)}
+                        </span>
+                        {respuesta.nivel_madurez > 0 && (
+                          <span className="text-xs text-gray-600">
+                            Nivel: <strong>{respuesta.nivel_madurez}</strong>
+                          </span>
+                        )}
+                      </div>
+                      {respuesta.comentarios_auditor && (
+                        <p className="text-sm text-gray-700 bg-green-50 rounded p-2">
+                          <span className="font-medium">Comentarios: </span>
+                          {respuesta.comentarios_auditor}
+                        </p>
+                      )}
+                      {respuesta.recomendaciones_auditor && (
+                        <p className="text-sm text-gray-700 bg-blue-50 rounded p-2">
+                          <span className="font-medium">Recomendaciones: </span>
+                          {respuesta.recomendaciones_auditor}
+                        </p>
+                      )}
+                      {respuesta.auditado_por_nombre && (
+                        <p className="text-xs text-gray-500">
+                          Auditado por {respuesta.auditado_por_nombre}
+                          {respuesta.fecha_auditoria && ` · ${new Date(respuesta.fecha_auditoria).toLocaleDateString('es-PE')}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Aviso NO_APLICA */}
+                {esAuditor && esNoAplica && (
+                  <div className="border-t border-gray-100 pt-4 flex items-center gap-2 text-gray-500">
+                    <Ban size={15} />
+                    <p className="text-xs">
+                      Esta pregunta fue marcada como <strong>No Aplica</strong> por el usuario. No requiere calificación y está excluida del cálculo GAP.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
