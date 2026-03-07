@@ -108,5 +108,7 @@ export * from './notificaciones.types';
 export * from './asignaciones.types'; 
 export * from './respuestas.types';
 export * from './evaluaciones.types';
+export * as respuestaIQ from './respuesta-iq.types';
+
 export * as proyectoRemediacion from './proyecto-remediacion.types';
 export * from './proveedor';
