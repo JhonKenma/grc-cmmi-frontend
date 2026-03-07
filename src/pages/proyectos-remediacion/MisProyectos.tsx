@@ -10,7 +10,8 @@ import {
   FolderKanban,
   AlertCircle,
   TrendingUp,
-  Search
+  Search,
+  CheckSquare
 } from 'lucide-react';
 import { proyectosRemediacionApi } from '@/api/endpoints/proyectos-remediacion.api';
 import { ProyectoRemediacionList } from '@/types/proyecto-remediacion.types';
@@ -119,7 +120,7 @@ interface Evaluacion {
 }
 
 export const MisProyectos: React.FC = () => {
-  // const { user } = useAuth(); // Si no lo usas, coméntalo para limpiar
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -136,19 +137,15 @@ export const MisProyectos: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Promise.all inicia ambas peticiones simultáneamente
         const [resEvaluaciones, resProyectos] = await Promise.all([
           axiosInstance.get('/encuestas/encuestas/'),
           proyectosRemediacionApi.getMisProyectos()
         ]);
 
-        // Procesar Evaluaciones
         const evalData = Array.isArray(resEvaluaciones.data) 
           ? resEvaluaciones.data 
           : resEvaluaciones.data?.results || [];
         setEvaluaciones(evalData);
-
-        // Procesar Proyectos
         setProyectos(resProyectos);
 
       } catch (err) {
@@ -162,22 +159,15 @@ export const MisProyectos: React.FC = () => {
     fetchData();
   }, []);
 
-  // Función helper (stable con useCallback)
   const getProgresoReal = useCallback((p: ProyectoRemediacionList) => {
-    // Proyectos cerrados o en validación = 100%
     if (p.estado === 'cerrado' || p.estado === 'en_validacion') return 100;
-    
-    // Si tiene ítems, usar el avance de ítems
     if (p.modo_presupuesto === 'por_items' && p.total_items > 0) {
-      return p.porcentaje_avance_items || 0; // ✅ Usar avance de ítems
+      return p.porcentaje_avance_items || 0;
     }
-    
-    // Si es modo global, podrías usar tiempo o presupuesto
-    // Por ahora usemos el tiempo transcurrido como fallback
     return Math.min(p.porcentaje_tiempo_transcurrido || 0, 100);
   }, []);
   
-  // 2. FILTRADO MEMOIZADO (Solo se recalcula si cambian las dependencias)
+  // 2. FILTRADO MEMOIZADO
   const proyectosFiltrados = useMemo(() => {
     return proyectos.filter((p) => {
       if (filtroEstado !== 'todos' && p.estado !== filtroEstado) return false;
@@ -201,7 +191,6 @@ export const MisProyectos: React.FC = () => {
     let completados = 0;
     let vencidos = 0;
 
-    // Un solo bucle para calcular todo (más eficiente que 3 filter)
     proyectosFiltrados.forEach(p => {
       if (p.estado === 'en_ejecucion') enEjecucion++;
       if (p.estado === 'cerrado') completados++;
@@ -216,11 +205,24 @@ export const MisProyectos: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mis Proyectos</h1>
-        <p className="text-gray-600 mt-1">
-          Panel de seguimiento de brechas y remediación
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mis Proyectos</h1>
+          <p className="text-gray-600 mt-1">
+            Panel de seguimiento de brechas y remediación
+          </p>
+        </div>
+
+        {/* ⭐ Solo visible para administrador */}
+        {user?.rol === 'administrador' && (
+          <button
+            onClick={() => navigate('/aprobaciones-pendientes')}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+          >
+            <CheckSquare size={18} className="text-blue-600" />
+            Aprobaciones
+          </button>
+        )}
       </div>
       
       {/* ESTADÍSTICAS */}
@@ -281,7 +283,7 @@ export const MisProyectos: React.FC = () => {
         </div>
       </Card>
       
-      {/* LISTA SLIM */}
+      {/* LISTA */}
       <div className="space-y-3">
         {proyectosFiltrados.length > 0 ? (
           proyectosFiltrados.map((p) => (
@@ -303,7 +305,7 @@ export const MisProyectos: React.FC = () => {
   );
 };
 
-// Componente simple para las stats (para mantener el código limpio)
+// Componente simple para las stats
 const StatsCard = ({ icon, color, label, value }: any) => {
   const colorClasses: Record<string, string> = {
     blue: 'bg-blue-50 text-blue-600',
@@ -313,7 +315,7 @@ const StatsCard = ({ icon, color, label, value }: any) => {
   };
   
   const textClasses: Record<string, string> = {
-    blue: 'text-gray-900', // El valor general suele ser gris oscuro
+    blue: 'text-gray-900',
     yellow: 'text-yellow-600',
     green: 'text-green-600',
     red: 'text-red-600'
