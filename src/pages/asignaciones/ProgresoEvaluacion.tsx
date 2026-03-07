@@ -1,8 +1,11 @@
-// src/pages/asignaciones/ProgresoEvaluacion.tsx - CREAR NUEVO
+// src/pages/asignaciones/ProgresoEvaluacion.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, CheckCircle, Clock, AlertCircle, Users } from 'lucide-react';
+import {
+  ArrowLeft, Eye, CheckCircle, Clock, AlertCircle, Users,
+  ShieldCheck, ClipboardCheck,
+} from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
 import { ModalRevisarAsignacion } from '@/components/asignaciones/ModalRevisarAsignacion';
 import { evaluacionesApi, asignacionesApi } from '@/api/endpoints';
@@ -13,62 +16,46 @@ export const ProgresoEvaluacion: React.FC = () => {
   const { evaluacionId } = useParams<{ evaluacionId: string }>();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-  const [evaluacion, setEvaluacion] = useState<any>(null);
-  const [asignaciones, setAsignaciones] = useState<any[]>([]);
+  const [loading, setLoading]                           = useState(true);
+  const [evaluacion, setEvaluacion]                     = useState<any>(null);
+  const [asignaciones, setAsignaciones]                 = useState<any[]>([]);
   const [asignacionSeleccionada, setAsignacionSeleccionada] = useState<Asignacion | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen]                       = useState(false);
 
   useEffect(() => {
-    if (evaluacionId) {
-      loadData();
-    }
+    if (evaluacionId) loadData();
   }, [evaluacionId]);
 
-    const loadData = async () => {
+  const loadData = async () => {
     if (!evaluacionId) return;
-
     try {
-        setLoading(true);
+      setLoading(true);
 
-        // 1. Cargar evaluación
-        const evaluacionData = await evaluacionesApi.get(evaluacionId);
-        setEvaluacion(evaluacionData);
+      const evaluacionData       = await evaluacionesApi.get(evaluacionId);
+      setEvaluacion(evaluacionData);
 
-        // 2. Cargar TODAS las asignaciones
-        const asignacionesResponse = await asignacionesApi.list();
-        
-        // ⭐ SOLUCIÓN: Tipar explícitamente como 'any' para evitar el error
-        const todasAsignaciones = Array.isArray(asignacionesResponse)
+      const asignacionesResponse = await asignacionesApi.list();
+      const todas = Array.isArray(asignacionesResponse)
         ? asignacionesResponse
         : (asignacionesResponse as any).results || [];
 
-        // 3. Filtrar solo las de esta evaluación
-        const asignacionesFiltradas = todasAsignaciones.filter(
-        (a: any) => a.evaluacion_empresa_id === evaluacionId
-        );
-
-        console.log('🔍 Total asignaciones:', todasAsignaciones.length);
-        console.log('🔍 Filtradas para esta evaluación:', asignacionesFiltradas.length);
-        console.log('🔍 evaluacionId buscado:', evaluacionId);
-        console.log('🔍 Asignaciones filtradas:', asignacionesFiltradas);
-
-        setAsignaciones(asignacionesFiltradas);
+      const filtradas = todas.filter((a: any) => a.evaluacion_empresa_id === evaluacionId);
+      setAsignaciones(filtradas);
     } catch (error: any) {
-        console.error('Error al cargar datos:', error);
-        toast.error('Error al cargar datos');
-        navigate('/asignaciones/mis-evaluaciones');
+      console.error('Error al cargar datos:', error);
+      toast.error('Error al cargar datos');
+      navigate('/asignaciones/mis-evaluaciones');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-    };
+  };
 
   const handleRevisar = async (asignacionId: string) => {
     try {
       const asignacion = await asignacionesApi.get(asignacionId);
       setAsignacionSeleccionada(asignacion);
       setModalOpen(true);
-    } catch (error: any) {
+    } catch {
       toast.error('Error al cargar detalle de asignación');
     }
   };
@@ -78,39 +65,81 @@ export const ProgresoEvaluacion: React.FC = () => {
     toast.success('Asignación revisada exitosamente');
   };
 
-  const getEstadoBadge = (estado: string) => {
-    const badges = {
-      pendiente: { class: 'bg-yellow-100 text-yellow-800', icon: <Clock size={14} /> },
-      en_progreso: { class: 'bg-blue-100 text-blue-800', icon: <AlertCircle size={14} /> },
-      completado: { class: 'bg-green-100 text-green-800', icon: <CheckCircle size={14} /> },
-      pendiente_revision: { class: 'bg-purple-100 text-purple-800', icon: <Eye size={14} /> },
-      rechazado: { class: 'bg-orange-100 text-orange-800', icon: <AlertCircle size={14} /> },
-      vencido: { class: 'bg-red-100 text-red-800', icon: <AlertCircle size={14} /> },
+  // ── Helpers de estado ─────────────────────────────────────────────────────
+  const getEstadoBadge = (estado: string): { class: string; icon: React.ReactNode } => {
+    const badges: Record<string, { class: string; icon: React.ReactNode }> = {
+      pendiente: {
+        class: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        icon:  <Clock size={13} />,
+      },
+      en_progreso: {
+        class: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon:  <AlertCircle size={13} />,
+      },
+      completado: {
+        class: 'bg-green-100 text-green-800 border-green-200',
+        icon:  <CheckCircle size={13} />,
+      },
+      pendiente_auditoria: {
+        class: 'bg-purple-100 text-purple-800 border-purple-200',
+        icon:  <ClipboardCheck size={13} />,
+      },
+      auditado: {
+        class: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        icon:  <ShieldCheck size={13} />,
+      },
+      pendiente_revision: {
+        class: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        icon:  <Eye size={13} />,
+      },
+      rechazado: {
+        class: 'bg-orange-100 text-orange-800 border-orange-200',
+        icon:  <AlertCircle size={13} />,
+      },
+      vencido: {
+        class: 'bg-red-100 text-red-800 border-red-200',
+        icon:  <AlertCircle size={13} />,
+      },
     };
-
-    return badges[estado as keyof typeof badges] || badges.pendiente;
+    return badges[estado] ?? badges.pendiente;
   };
 
-  const getEstadoLabel = (estado: string) => {
+  const getEstadoLabel = (estado: string): string => {
     const labels: Record<string, string> = {
-      pendiente: 'Pendiente',
-      en_progreso: 'En Progreso',
-      completado: 'Completado',
-      pendiente_revision: 'Pendiente Revisión',
-      rechazado: 'Rechazado',
-      vencido: 'Vencido',
+      pendiente:           'Pendiente',
+      en_progreso:         'En Progreso',
+      completado:          'Completado',
+      pendiente_auditoria: 'Pend. Auditoría',
+      auditado:            'Auditado',
+      pendiente_revision:  'Pend. Revisión',
+      rechazado:           'Rechazado',
+      vencido:             'Vencido',
     };
-    return labels[estado] || estado;
+    return labels[estado] ?? estado;
   };
 
-  // Calcular estadísticas
+  const getBarColor = (estado: string): string => {
+    switch (estado) {
+      case 'completado':          return 'bg-green-500';
+      case 'pendiente_auditoria': return 'bg-purple-500';
+      case 'auditado':            return 'bg-emerald-500';
+      case 'pendiente_revision':  return 'bg-indigo-500';
+      case 'rechazado':           return 'bg-orange-500';
+      case 'vencido':             return 'bg-red-500';
+      default:                    return 'bg-blue-500';
+    }
+  };
+
+  // ── Estadísticas ──────────────────────────────────────────────────────────
   const stats = {
-    total: asignaciones.length,
-    pendientes: asignaciones.filter((a) => a.estado === 'pendiente').length,
-    en_progreso: asignaciones.filter((a) => a.estado === 'en_progreso').length,
-    completadas: asignaciones.filter((a) => a.estado === 'completado').length,
-    pendientes_revision: asignaciones.filter((a) => a.estado === 'pendiente_revision').length,
-    rechazadas: asignaciones.filter((a) => a.estado === 'rechazado').length,
+    total:               asignaciones.length,
+    pendientes:          asignaciones.filter(a => a.estado === 'pendiente').length,
+    en_progreso:         asignaciones.filter(a => a.estado === 'en_progreso').length,
+    completadas:         asignaciones.filter(a => a.estado === 'completado').length,
+    pendiente_auditoria: asignaciones.filter(a => a.estado === 'pendiente_auditoria').length,
+    auditadas:           asignaciones.filter(a => a.estado === 'auditado').length,
+    pendientes_revision: asignaciones.filter(a => a.estado === 'pendiente_revision').length,
+    rechazadas:          asignaciones.filter(a => a.estado === 'rechazado').length,
   };
 
   if (loading) return <LoadingScreen message="Cargando progreso..." />;
@@ -128,7 +157,8 @@ export const ProgresoEvaluacion: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className="flex items-center gap-4">
         <Button
           variant="secondary"
@@ -140,72 +170,77 @@ export const ProgresoEvaluacion: React.FC = () => {
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Progreso de Evaluación</h1>
           <p className="text-gray-600 mt-1">
-            {evaluacion.encuesta_info?.nombre} - {evaluacion.empresa_info?.nombre}
+            {evaluacion.encuesta_info?.nombre} — {evaluacion.empresa_info?.nombre}
           </p>
         </div>
       </div>
 
-      {/* Estadísticas Generales */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* ── Estadísticas ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
         <Card>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
-            <div className="text-sm text-gray-600 mt-1">Total Asignadas</div>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Total</div>
           </div>
         </Card>
-
         <Card>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-yellow-600">{stats.pendientes}</div>
-            <div className="text-sm text-gray-600 mt-1">Pendientes</div>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-yellow-600">{stats.pendientes}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Pendientes</div>
           </div>
         </Card>
-
         <Card>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{stats.en_progreso}</div>
-            <div className="text-sm text-gray-600 mt-1">En Progreso</div>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-blue-600">{stats.en_progreso}</div>
+            <div className="text-xs text-gray-500 mt-0.5">En Progreso</div>
           </div>
         </Card>
-
         <Card>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">{stats.pendientes_revision}</div>
-            <div className="text-sm text-gray-600 mt-1">Por Revisar</div>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-green-600">{stats.completadas}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Completadas</div>
           </div>
         </Card>
-
         <Card>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{stats.completadas}</div>
-            <div className="text-sm text-gray-600 mt-1">Completadas</div>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-purple-600">{stats.pendiente_auditoria}</div>
+            <div className="text-xs text-gray-500 mt-0.5">En Auditoría</div>
           </div>
         </Card>
-
         <Card>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600">{stats.rechazadas}</div>
-            <div className="text-sm text-gray-600 mt-1">Rechazadas</div>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-emerald-600">{stats.auditadas}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Auditadas</div>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-indigo-600">{stats.pendientes_revision}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Por Revisar</div>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-center py-1">
+            <div className="text-2xl font-bold text-orange-600">{stats.rechazadas}</div>
+            <div className="text-xs text-gray-500 mt-0.5">Rechazadas</div>
           </div>
         </Card>
       </div>
 
-      {/* Progreso Global */}
+      {/* ── Progreso Global ── */}
       <Card>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Progreso Global</h3>
               <p className="text-sm text-gray-600">
-                {evaluacion.dimensiones_completadas} de {evaluacion.total_dimensiones} dimensiones
-                completadas
+                {evaluacion.dimensiones_completadas} de {evaluacion.total_dimensiones} dimensiones completadas
               </p>
             </div>
             <div className="text-3xl font-bold text-primary-600">
               {Number(evaluacion.porcentaje_avance).toFixed(0)}%
             </div>
           </div>
-
           <div className="w-full bg-gray-200 rounded-full h-4">
             <div
               className="bg-primary-600 h-4 rounded-full transition-all"
@@ -215,14 +250,12 @@ export const ProgresoEvaluacion: React.FC = () => {
         </div>
       </Card>
 
-      {/* Lista de Asignaciones */}
+      {/* ── Lista de Asignaciones ── */}
       {asignaciones.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <Users size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No hay dimensiones asignadas
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay dimensiones asignadas</h3>
             <p className="text-gray-600 mb-6">
               Comienza asignando dimensiones a los usuarios de tu empresa
             </p>
@@ -251,100 +284,98 @@ export const ProgresoEvaluacion: React.FC = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Dimensión
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Asignado A
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Progreso
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Fecha Límite
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {asignaciones.map((asignacion) => {
-                  const estadoBadge = getEstadoBadge(asignacion.estado);
-
+              <tbody className="divide-y divide-gray-100">
+                {asignaciones.map(asignacion => {
+                  const badge = getEstadoBadge(asignacion.estado);
                   return (
-                    <tr key={asignacion.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
+                    <tr key={asignacion.id} className="hover:bg-gray-50 transition-colors">
+
+                      {/* Dimensión */}
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-semibold text-gray-900">
                           {asignacion.dimension_nombre}
                         </div>
-                        <div className="text-xs text-gray-500">{asignacion.dimension_codigo}</div>
+                        <div className="text-xs text-gray-400">{asignacion.dimension_codigo}</div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      {/* Usuario */}
+                      <td className="px-4 py-4">
                         <div className="text-sm text-gray-900">
                           {asignacion.usuario_asignado_nombre}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-400">
                           {asignacion.usuario_asignado_email}
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full ${estadoBadge.class}`}
-                        >
-                          {estadoBadge.icon}
+                      {/* Estado */}
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border ${badge.class}`}>
+                          {badge.icon}
                           {getEstadoLabel(asignacion.estado)}
                         </span>
                         {asignacion.requiere_revision && (
-                          <div className="text-xs text-blue-600 mt-1">📋 Requiere revisión</div>
+                          <div className="text-xs text-indigo-600 mt-1 flex items-center gap-1">
+                            <Eye size={11} /> Requiere revisión
+                          </div>
                         )}
                       </td>
 
-                      <td className="px-6 py-4">
+                      {/* Progreso */}
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[80px]">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[70px]">
                             <div
-                              className={`h-2 rounded-full transition-all ${
-                                asignacion.estado === 'completado'
-                                  ? 'bg-green-600'
-                                  : asignacion.estado === 'pendiente_revision'
-                                  ? 'bg-purple-600'
-                                  : 'bg-blue-600'
-                              }`}
+                              className={`h-2 rounded-full transition-all ${getBarColor(asignacion.estado)}`}
                               style={{ width: `${asignacion.porcentaje_avance}%` }}
                             />
                           </div>
-                          <span className="text-xs font-medium text-gray-600 min-w-[40px]">
+                          <span className="text-xs font-medium text-gray-600 min-w-[35px]">
                             {Number(asignacion.porcentaje_avance).toFixed(0)}%
                           </span>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-600">
-                          {new Date(asignacion.fecha_limite).toLocaleDateString('es-ES')}
+                      {/* Fecha límite */}
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-gray-700">
+                          {new Date(asignacion.fecha_limite).toLocaleDateString('es-PE')}
                         </div>
-                        <div
-                          className={`text-xs ${
-                            asignacion.dias_restantes < 0
-                              ? 'text-red-600'
-                              : asignacion.dias_restantes <= 3
-                              ? 'text-orange-600'
-                              : 'text-gray-500'
-                          }`}
-                        >
+                        <div className={`text-xs mt-0.5 ${
+                          asignacion.dias_restantes < 0
+                            ? 'text-red-600 font-medium'
+                            : asignacion.dias_restantes <= 3
+                            ? 'text-orange-600 font-medium'
+                            : 'text-gray-400'
+                        }`}>
                           {asignacion.dias_restantes < 0
-                            ? `Vencida`
+                            ? 'Vencida'
                             : `${asignacion.dias_restantes}d restantes`}
                         </div>
                       </td>
 
-                      <td className="px-6 py-4">
+                      {/* Acciones */}
+                      <td className="px-4 py-4">
                         {asignacion.estado === 'pendiente_revision' ? (
                           <Button
                             variant="primary"
@@ -374,7 +405,7 @@ export const ProgresoEvaluacion: React.FC = () => {
         </Card>
       )}
 
-      {/* Modal de Revisión */}
+      {/* ── Modal de Revisión ── */}
       {asignacionSeleccionada && (
         <ModalRevisarAsignacion
           asignacion={asignacionSeleccionada}
