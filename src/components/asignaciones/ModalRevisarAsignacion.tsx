@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, XCircle, Eye, Edit } from 'lucide-react';
 import { Button, LoadingScreen } from '@/components/common';
-import { asignacionesApi, respuestasApi } from '@/api/endpoints';
+import { asignacionesApi } from '@/api/endpoints';
+import { respuestasApi } from '@/api/endpoints/respuestas.api';
 import { Asignacion, Respuesta } from '@/types';
 import { TablaRespuestasRevision } from '@/pages/asignaciones/TablaRespuestasRevision';
 import toast from 'react-hot-toast';
