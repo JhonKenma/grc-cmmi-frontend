@@ -8,7 +8,7 @@ import {
   BookOpen, Layers, ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { Card, Button, LoadingScreen } from '@/components/common';
-import { respuestasApi } from '@/api/endpoints';
+import { respuestasApi } from '@/api/endpoints/respuestas.api';
 import toast from 'react-hot-toast';
 
 interface AsignacionAuditor {
