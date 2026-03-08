@@ -18,37 +18,51 @@ import { EmpresaEdit } from '@/pages/Empresas/EmpresaEdit';
 import { Usuarios } from '@/pages/Usuarios/Usuarios';
 import { UsuarioCreate } from '@/pages/Usuarios/UsuarioCreate';
 import { UsuarioEdit } from '@/pages/Usuarios/UsuarioEdit';
+
+// Proveedores
 import { ProveedoresPage } from '@/pages/proveedores/ProveedoresPage';
+
 // Encuestas
 import { CargarEncuesta } from '@/pages/encuestas/CargarEncuesta';
 import { ListaEncuestas } from '@/pages/encuestas/ListaEncuestas';
 import { DetalleEncuesta } from '@/pages/encuestas/DetalleEncuesta';
 import { EditarEncuesta } from '@/pages/encuestas/EditarEncuesta';
+import { EditarDimension } from '@/pages/encuestas/EditarDimension';
+import { EditarPregunta } from '@/pages/encuestas/EditarPregunta';
+import { EditarNivel } from '@/pages/encuestas/EditarNivel';
 
-import { EditarDimension } from '@/pages/encuestas/EditarDimension';    // ⭐ NUEVO
-import { EditarPregunta } from '@/pages/encuestas/EditarPregunta';      // ⭐ NUEVO
-import { EditarNivel } from '@/pages/encuestas/EditarNivel';            // ⭐ NUEVO
-
-// ⭐ IMPORTAR ESTOS COMPONENTES
+// Asignaciones
 import { AsignarEvaluacion } from '@/pages/asignaciones/AsignarEvaluacion';
-//import { AsignarDimensiones } from '@/pages/asignaciones/AsignarDimensiones'; //quitar esto
 import { ListaAsignaciones } from '@/pages/asignaciones/ListaAsignaciones';
 import { MisTareas } from '@/pages/asignaciones/MisTareas';
 import { ConfigurarNivelesEvaluacion } from '@/pages/asignaciones/ConfigurarNivelesEvaluacion';
 import { AsignarDimensionesEvaluacion } from '@/pages/asignaciones/AsignarDimensionesEvaluacion';
 import { ProgresoEvaluacion } from '@/pages/asignaciones/ProgresoEvaluacion';
-
 import { PendientesRevision } from '@/pages/asignaciones/PendientesRevision';
-import { ResponderDimension } from '@/pages/respuestas/ResponderDimension';
 import { MisEvaluaciones } from '@/pages/asignaciones/MisEvaluaciones';
+
+// Respuestas
+import { ResponderDimension } from '@/pages/respuestas/ResponderDimension';
+
+// Reportes
 import { ReporteEvaluacion } from '@/pages/reportes/ReporteEvaluacion';
+
+// Proyectos de Remediación
 import { DetalleProyecto } from '@/pages/proyectos-remediacion/DetalleProyecto';
 import { ProyectosPorGAP } from '@/pages/proyectos-remediacion/ProyectosPorGAP';
 import { ProyectosPorDimension } from '@/pages/proyectos-remediacion/ProyectosPorDimension';
 import { MisProyectos } from '@/pages/proyectos-remediacion/MisProyectos';
 import { AprobacionesPendientes } from '@/pages/proyectos-remediacion/AprobacionesPendientes';
+
+// Notificaciones
 import { HistorialNotificaciones } from '@/pages/notificaciones/HistorialNotificaciones';
 import { EnviarNotificacion } from '@/pages/notificaciones/EnviarNotificacion';
+
+// Documentos Maestros y Procesos
+import DocumentosMaestrosPage from '@/pages/documentos-maestros'; 
+import { TiposDocumentoPage } from '@/pages/documentos-maestros/TiposDocumentoPage';
+import ProcesosList from '@/pages/documentos-maestros/ProcesosList'; // <-- Importación agregada
+import DashboardSGI from '@/pages/documentos-maestros/DashboardSGI'; // <-- NUEVA IMPORTACIÓN DEL DASHBOARD
 
 function App() {
   return (
@@ -132,6 +146,55 @@ function App() {
             />
 
             {/* ========================================
+                RUTAS DE DOCUMENTOS MAESTROS Y PROCESOS
+                ======================================== */}
+            <Route
+              path="/documentos-maestros"
+              element={
+                <ProtectedRoute allowedRoles={['administrador']}>
+                  <MainLayout>
+                    <DocumentosMaestrosPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* NUEVA RUTA: DASHBOARD ESTADÍSTICAS SGI */}
+            <Route
+              path="/documentos-maestros/estadisticas"
+              element={
+                <ProtectedRoute allowedRoles={['administrador']}>
+                  <MainLayout>
+                    <DashboardSGI />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Nueva ruta para tipos de documentos */}
+            <Route
+              path="/documentos-maestros/tipos"
+              element={
+                <ProtectedRoute allowedRoles={['administrador']}>
+                  <MainLayout>
+                    <TiposDocumentoPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Nueva ruta para Procesos agregada */}
+            <Route
+              path="/procesos"
+              element={
+                <ProtectedRoute allowedRoles={['administrador']}>
+                  <MainLayout>
+                    <ProcesosList />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ========================================
                 RUTAS DE USUARIOS - SuperAdmin y Admin
                 ======================================== */}
             <Route
@@ -166,8 +229,8 @@ function App() {
             />
 
             {/* ========================================
-              ⭐ RUTAS DE PROVEEDORES - AGREGAR AQUÍ
-            ======================================== */}
+                RUTAS DE PROVEEDORES
+                ======================================== */}
             <Route
               path="/proveedores"
               element={
@@ -212,7 +275,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* ✅ AGREGAR AQUÍ - DENTRO DE LAS RUTAS DE ENCUESTAS */}
             <Route
               path="/encuestas/:id/editar"
               element={
@@ -223,7 +285,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* ⭐ NUEVAS RUTAS - para  EditarPregunta, EditarNivel, EditarDimension*/}
+            {/* Rutas de Edición Profunda de Encuestas */}
             <Route
               path="/encuestas/:encuestaId/dimensiones/:dimensionId/editar"
               element={
@@ -254,8 +316,9 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
             {/* ========================================
-                RUTAS DE ASIGNACIONES - ACTUALIZADO
+                RUTAS DE ASIGNACIONES
                 ======================================== */}
             <Route
               path="/asignaciones"
@@ -267,7 +330,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* SuperAdmin: Asignar evaluación completa */}
             <Route
               path="/asignaciones/asignar-evaluacion"
               element={
@@ -279,7 +341,6 @@ function App() {
               }
             />
 
-            {/* ⭐ NUEVA RUTA: Pendientes de Revisión */}
             <Route
               path="/asignaciones/pendientes-revision"
               element={
@@ -311,6 +372,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            
             <Route 
               path="/respuestas/:asignacionId" 
               element={
@@ -319,6 +381,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            
             <Route
               path="/asignaciones/mis-evaluaciones"
               element={
@@ -360,6 +423,10 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            
+            {/* ========================================
+                RUTAS DE REPORTES
+                ======================================== */}
             <Route
               path="/reportes/evaluacion"
               element={
@@ -370,6 +437,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
             {/* ========================================
                 RUTAS DE PROYECTOS DE REMEDIACIÓN
                 ======================================== */}
@@ -385,7 +453,7 @@ function App() {
             />
 
             <Route
-              path="/proyectos-remediacion/:id" // Detalle individual
+              path="/proyectos-remediacion/:id"
               element={
                 <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
                   <MainLayout>
@@ -394,7 +462,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            {/* ⭐ CORREGIR ESTA RUTA */}
             <Route 
               path="/proyectos-remediacion/dimension/:dimensionId" 
               element={
@@ -425,6 +492,10 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* ========================================
+                RUTAS DE NOTIFICACIONES
+                ======================================== */}
             <Route
               path="/notificaciones"
               element={

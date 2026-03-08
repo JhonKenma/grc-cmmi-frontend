@@ -13,4 +13,5 @@ export * from './respuestas.api';
 export * from './reportes.api';
 export * from './proyectos-remediacion.api';
 export * from './proveedores.api';
+export * from './documentos.api';
 // Aquí puedes agregar más exports según vayas creando APIs

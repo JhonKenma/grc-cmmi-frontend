@@ -27,7 +27,7 @@ export const respuestasApi = {
   },
 
   /**
-   * ⭐ NUEVO: Listar respuestas para revisión (incluye evidencias completas)
+   * Listar respuestas para revisión (incluye evidencias completas)
    * GET /api/respuestas/revision/?asignacion={id}
    */
   listParaRevision: async (asignacionId: string): Promise<{ count: number; results: Respuesta[] }> => {
@@ -83,7 +83,7 @@ export const respuestasApi = {
   },
 
   /**
-   * ⭐ NUEVO: Modificar respuesta como administrador
+   * Modificar respuesta como administrador
    * POST /api/respuestas/{id}/modificar_admin/
    */
   modificarAdmin: async (
@@ -100,66 +100,67 @@ export const respuestasApi = {
       data
     );
     return response.data;
-  },  
+  },
 
   /**
-   * Subir evidencia a Supabase Storage
-   * POST /api/evidencias//12/01/2026
+   * Subir evidencia o Vincular Documento Maestro (Lógica unificada)
+   * POST /api/evidencias/
    */
   subirEvidencia: async (data: EvidenciaCreate): Promise<ApiResponse<Evidencia>> => {
     const formData = new FormData();
     
-    // ⭐ ORDEN: Campos de metadatos primero, archivo al final
-    formData.append('respuesta_id', data.respuesta_id);  // ⭐ Cambió de 'respuesta'
-    formData.append('codigo_documento', data.codigo_documento);
-    formData.append('tipo_documento_enum', data.tipo_documento_enum);
-    formData.append('titulo_documento', data.titulo_documento);
-    formData.append('objetivo_documento', data.objetivo_documento);
-    formData.append('archivo', data.archivo);
-    
-    // ⭐ NO enviar fecha_ultima_actualizacion (se genera automáticamente en backend)
+    formData.append('respuesta_id', data.respuesta_id);
 
-    // Log para debugging
-    console.log('📤 [API] Subiendo evidencia a Supabase:');
-    console.log('   - Respuesta ID:', data.respuesta_id);
-    console.log('   - Código:', data.codigo_documento);
-    console.log('   - Tipo:', data.tipo_documento_enum);
-    console.log('   - Título:', data.titulo_documento);
-    console.log('   - Archivo:', data.archivo.name, `(${(data.archivo.size / 1024 / 1024).toFixed(2)} MB)`);
-
-    try {
-      const response = await axiosInstance.post<ApiResponse<Evidencia>>(
-        '/evidencias/',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-      
-      console.log('✅ [API] Evidencia subida exitosamente:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('❌ [API] Error al subir evidencia:', error.response?.data || error);
-      throw error;
+    // ✅ Ahora usamos documento_id (según la interfaz corregida)
+    if (data.documento_id) {
+      formData.append('documento_id', data.documento_id);
+    } else {
+      if (data.archivo) formData.append('archivo', data.archivo);
+      if (data.codigo_documento) formData.append('codigo_documento', data.codigo_documento);
+      if (data.titulo_documento) formData.append('titulo_documento', data.titulo_documento);
+      if (data.objetivo_documento) formData.append('objetivo_documento', data.objetivo_documento);
+      if (data.tipo_documento_enum) formData.append('tipo_documento_enum', data.tipo_documento_enum);
     }
+
+    const response = await axiosInstance.post<ApiResponse<Evidencia>>(
+      '/evidencias/',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
   },
 
   /**
-   * Eliminar evidencia de Supabase y BD//12/01/2026
+   * Eliminar evidencia de Supabase y BD
    * DELETE /api/evidencias/{id}/
    */
   eliminarEvidencia: async (id: string): Promise<void> => {
     console.log('🗑️ [API] Eliminando evidencia:', id);
-    
     try {
-      await axiosInstance.delete(`/evidencias/${id}/`);
-      console.log('✅ [API] Evidencia eliminada exitosamente');
+        await axiosInstance.delete(`/evidencias/${id}/`);
+        console.log('✅ [API] Evidencia eliminada exitosamente');
     } catch (error: any) {
-      console.error('❌ [API] Error al eliminar evidencia:', error.response?.data || error);
-      throw error;
+        console.error('❌ [API] Error al eliminar evidencia:', error.response?.data || error);
+        throw error;
     }
+  },
+
+  /**
+   * Verificar si código de documento existe
+   * POST /api/evidencias/verificar_codigo/
+   */
+  verificarCodigoDocumento: async (codigo: string): Promise<VerificacionCodigoResponse> => {
+    console.log('🔍 [API] Verificando código:', codigo);
+    
+    const response = await axiosInstance.post<VerificacionCodigoResponse>(
+      '/evidencias/verificar_codigo/',
+      { codigo_documento: codigo }
+    );
+    
+    console.log('✅ [API] Verificación completada:', response.data);
+    return response.data;
   },
 
   /**
@@ -174,22 +175,6 @@ export const respuestasApi = {
   },
 
   /**
-   * Verificar si código de documento existe//12/01/2026
-   * POST /api/evidencias/verificar_codigo/
-   */
-  verificarCodigoDocumento: async (codigoDocumento: string): Promise<VerificacionCodigoResponse> => {
-    console.log('🔍 [API] Verificando código:', codigoDocumento);
-    
-    const response = await axiosInstance.post<VerificacionCodigoResponse>(
-      '/evidencias/verificar_codigo/',
-      { codigo_documento: codigoDocumento }
-    );
-    
-    console.log('✅ [API] Verificación completada:', response.data);
-    return response.data;
-  },
-
-  /**
    * Listar evidencias de una respuesta
    * GET /api/evidencias/?respuesta={id}
    */
@@ -199,5 +184,5 @@ export const respuestasApi = {
       { params: { respuesta: respuestaId } }
     );
     return response.data;
-  },  
+  },
 };

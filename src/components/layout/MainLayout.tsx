@@ -115,6 +115,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     path: '/aprobaciones-pendientes',
     roles: ['superadmin', 'administrador'],
     },
+    // ⭐ AGREGADO: Maestro de Documentos
+    {
+      name: 'Maestro de Documentos',
+      icon: FileText,
+      path: '/documentos-maestros',
+      roles: ['administrador'],
+      requireSuperAdmin: false,
+    },
   ];
 
   // Filtrar menú según permisos
