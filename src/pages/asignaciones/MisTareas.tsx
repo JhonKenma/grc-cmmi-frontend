@@ -50,9 +50,31 @@ export const MisTareas: React.FC = () => {
   // ==========================================
   // FILTRAR ASIGNACIONES
   // ==========================================
+  // Estado para acciones: evita mostrar "Responder" cuando ya llego al 100%
+  // aunque el backend todavia no haya sincronizado el estado final.
+  const getEstadoParaAccion = (asignacion: AsignacionListItem) => {
+    const avance = Number(asignacion.porcentaje_avance || 0);
+
+    if (
+      asignacion.estado === 'completado' ||
+      asignacion.estado === 'pendiente_revision' ||
+      asignacion.estado === 'rechazado' ||
+      asignacion.estado === 'vencido'
+    ) {
+      return asignacion.estado;
+    }
+
+    if (avance >= 100) {
+      return 'completado';
+    }
+
+    return asignacion.estado;
+  };
+
   const asignacionesFiltradas = asignaciones.filter((asignacion) => {
     if (filtroEstado === 'todos') return true;
-    return asignacion.estado === filtroEstado;
+    const estadoReal = asignacion.estado;
+    return estadoReal === filtroEstado;
   });
 
   // ==========================================
@@ -63,6 +85,14 @@ export const MisTareas: React.FC = () => {
     pendientes: asignaciones.filter((a) => a.estado === 'pendiente').length,
     en_progreso: asignaciones.filter((a) => a.estado === 'en_progreso').length,
     completadas: asignaciones.filter((a) => a.estado === 'completado').length,
+    respondidas: asignaciones.filter((a) => {
+      const avance = Number(a.porcentaje_avance || 0);
+      return (
+        a.estado === 'completado' ||
+        a.estado === 'pendiente_revision' ||
+        avance >= 100
+      );
+    }).length,
     vencidas: asignaciones.filter((a) => a.estado === 'vencido').length,
     pendientes_revision: asignaciones.filter((a) => a.estado === 'pendiente_revision').length,
     rechazadas: asignaciones.filter((a) => a.estado === 'rechazado').length,
@@ -176,8 +206,8 @@ export const MisTareas: React.FC = () => {
               <CheckCircle size={24} className="text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Completadas</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completadas}</p>
+              <p className="text-sm text-gray-600">Respondidas</p>
+              <p className="text-2xl font-bold text-green-600">{stats.respondidas}</p>
             </div>
           </div>
         </Card>
@@ -258,6 +288,11 @@ export const MisTareas: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {asignacionesFiltradas.map((asignacion) => (
+            (() => {
+              const estadoVisual = asignacion.estado;
+              const estadoAccion = getEstadoParaAccion(asignacion);
+
+              return (
             <Card key={asignacion.id} className="hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between gap-4">
                 {/* Contenido principal */}
@@ -266,9 +301,9 @@ export const MisTareas: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-900">
                       {asignacion.encuesta_nombre}
                     </h3>
-                    {getEstadoBadge(asignacion.estado)}
+                    {getEstadoBadge(estadoVisual)}
                     
-                    {asignacion.requiere_revision && asignacion.estado !== 'completado' && (
+                    {asignacion.requiere_revision && estadoVisual !== 'completado' && estadoVisual !== 'pendiente_revision' && (
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
                         📋 Requiere Revisión
                       </span>
@@ -308,11 +343,11 @@ export const MisTareas: React.FC = () => {
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all ${
-                          asignacion.estado === 'completado' 
+                          estadoVisual === 'completado' 
                             ? 'bg-green-600'
-                            : asignacion.estado === 'pendiente_revision'
+                            : estadoVisual === 'pendiente_revision'
                             ? 'bg-purple-600'
-                            : asignacion.estado === 'rechazado'
+                            : estadoVisual === 'rechazado'
                             ? 'bg-orange-600'
                             : 'bg-primary-600'
                         }`}
@@ -322,7 +357,7 @@ export const MisTareas: React.FC = () => {
                   </div>
 
                   {/* Mensaje de rechazo */}
-                  {asignacion.estado === 'rechazado' && (
+                  {estadoVisual === 'rechazado' && (
                     <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                       <div className="flex items-start gap-2">
                         <XCircle size={18} className="text-orange-600 flex-shrink-0 mt-0.5" />
@@ -339,7 +374,7 @@ export const MisTareas: React.FC = () => {
                   )}
 
                   {/* Mensaje de pendiente revisión */}
-                  {asignacion.estado === 'pendiente_revision' && (
+                  {estadoVisual === 'pendiente_revision' && (
                     <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                       <div className="flex items-start gap-2">
                         <Eye size={18} className="text-purple-600 flex-shrink-0 mt-0.5" />
@@ -363,20 +398,20 @@ export const MisTareas: React.FC = () => {
                     <button
                       onClick={() => navigate(`/respuestas/${asignacion.id}`)}
                       className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
-                        asignacion.estado === 'completado'
+                        estadoAccion === 'completado'
                           ? 'bg-gray-600 hover:bg-gray-700'
-                          : asignacion.estado === 'pendiente_revision'
+                          : estadoAccion === 'pendiente_revision'
                           ? 'bg-purple-600 hover:bg-purple-700'
-                          : asignacion.estado === 'rechazado'
+                          : estadoAccion === 'rechazado'
                           ? 'bg-orange-600 hover:bg-orange-700'
                           : 'bg-primary-600 hover:bg-primary-700'
                       } text-white`}
                     >
-                      {asignacion.estado === 'completado'
+                      {estadoAccion === 'completado'
                         ? 'Ver Respuestas'
-                        : asignacion.estado === 'pendiente_revision'
+                        : estadoAccion === 'pendiente_revision'
                         ? 'En Revisión'
-                        : asignacion.estado === 'rechazado'
+                        : estadoAccion === 'rechazado'
                         ? 'Corregir'
                         : 'Responder'}
                     </button>
@@ -396,6 +431,8 @@ export const MisTareas: React.FC = () => {
                 </div>
               </div>
             </Card>
+              );
+            })()
           ))}
         </div>
       )}
