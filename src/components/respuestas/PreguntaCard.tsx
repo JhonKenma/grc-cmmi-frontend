@@ -5,7 +5,7 @@ import {
   CheckCircle, Save, Send, FileText, AlertCircle, Ban, XCircle,
 } from 'lucide-react';
 import { Button, Card } from '@/components/common';
-import { respuestasApi } from '@/api/endpoints';
+import { respuestasApi } from '@/api/endpoints/respuestas.api';
 import { Pregunta, RespuestaListItem, Evidencia } from '@/types';
 import { ModalEvidencia } from './ModalEvidencia';
 import { SeccionEvidencias } from './SeccionEvidencias';
@@ -32,6 +32,44 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
   respuestaExistente,
   onRespuestaChange,
 }) => {
+  const getApiErrorMessage = (error: any, fallback: string) => {
+    const data = error?.response?.data;
+    if (!data) return fallback;
+
+    if (data.errors && typeof data.errors === 'object') {
+      if (typeof data.errors.detalle === 'string' && data.errors.detalle.trim()) {
+        return data.errors.detalle;
+      }
+
+      if (Array.isArray(data.errors.respuesta) && data.errors.respuesta.length > 0) {
+        return String(data.errors.respuesta[0]);
+      }
+
+      if (typeof data.errors.respuesta === 'string' && data.errors.respuesta.trim()) {
+        return data.errors.respuesta;
+      }
+
+      const firstKey = Object.keys(data.errors)[0];
+      const firstValue = data.errors[firstKey];
+      if (Array.isArray(firstValue) && firstValue.length > 0) {
+        return String(firstValue[0]);
+      }
+      if (typeof firstValue === 'string') {
+        return firstValue;
+      }
+    }
+
+    if (typeof data.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+
+    if (typeof data.message === 'string' && data.message.trim()) {
+      return data.message;
+    }
+
+    return fallback;
+  };
+
   const [modoSeleccionado, setModoSeleccionado] = useState<ModoUsuario>('');
   const [justificacion, setJustificacion]       = useState('');
   const [comentarios, setComentarios]           = useState('');
@@ -139,7 +177,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       }
     } catch (error: any) {
       console.error('Error al guardar:', error);
-      toast.error(error.response?.data?.message || 'Error al guardar la respuesta');
+      toast.error(getApiErrorMessage(error, 'Error al guardar la respuesta'));
     } finally {
       setSaving(false);
     }
@@ -174,7 +212,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
       onRespuestaChange(mapToListItem(actualizada));
     } catch (error: any) {
       console.error('Error al enviar:', error);
-      toast.error(error.response?.data?.message || 'Error al enviar la respuesta');
+      toast.error(getApiErrorMessage(error, 'Error al enviar la respuesta'));
     } finally {
       setSaving(false);
     }
