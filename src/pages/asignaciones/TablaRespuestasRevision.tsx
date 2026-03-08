@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/common';
 import { Respuesta, CalificacionAuditor } from '@/types';
-import { respuestasApi } from '@/api/endpoints';
+import { respuestasApi } from '@/api/endpoints/respuestas.api';
 import toast from 'react-hot-toast';
 
 interface TablaRespuestasRevisionProps {
