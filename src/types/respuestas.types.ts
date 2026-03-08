@@ -1,69 +1,80 @@
 // src/types/respuestas.types.ts
 
+// --- GENERICOS ---
+export interface ApiResponse<T> {
+  message: string;
+  data: T;
+  status?: string | boolean;
+}
+
+// --- TIPOS AUXILIARES ---
 export interface TipoDocumento {
   id: string;
   nombre: string;
   descripcion: string;
   requiere_fecha: boolean;
   activo: boolean;
+  abreviatura?: string;
 }
 
+export interface EvidenciaEncontrada {
+  id: string;
+  codigo_documento: string;
+  tipo_documento_display: string;
+  titulo_documento: string;
+  pregunta_codigo: string;
+  dimension_nombre?: string;
+  subido_por: string | number;
+  fecha_creacion: string;
+  url_archivo?: string;
+}
+
+// --- TIPOS PRINCIPALES DE EVIDENCIA ---
 export interface Evidencia {
   id: string;
   respuesta: string;
-  
-  // Metadatos del documento
   codigo_documento: string;
-  tipo_documento_enum: 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro';
-  tipo_documento_display: string;
+  tipo_documento_enum?: 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro';
+  tipo_documento_display?: string;
   titulo_documento: string;
   objetivo_documento: string;
   fecha_ultima_actualizacion: string;
-  
-  // Datos del archivo
-  nombre_archivo_original: string;
-  archivo: string;  // ⭐ Ruta en Supabase (no URL completa)
-  url_archivo: string;  // ⭐ URL firmada temporal de Supabase
-  extension: string;  // ⭐ NUEVO: Extensión del archivo (.pdf, .docx, etc)
-  tamanio_bytes: number;
-  tamanio_mb: number;
-  tipo_mime: string;  // ⭐ NUEVO: Tipo MIME (application/pdf, etc)
-  
-  // Auditoría
+  documento_maestro?: string;          // ← este campo es solo de respuesta
+  nombre_archivo_original?: string;
+  archivo?: string;
+  url_archivo?: string;
+  extension?: string;
+  tamanio_bytes?: number;
+  tamanio_mb?: number;
+  tipo_mime?: string;
   subido_por: number;
   subido_por_nombre: string;
   fecha_creacion: string;
   activo: boolean;
 }
 
+// Payload para subir/crear evidencia (¡CORREGIDO!)
 export interface EvidenciaCreate {
-  respuesta_id: string;  // ⭐ CAMBIAR de 'respuesta' a 'respuesta_id'
-  codigo_documento: string;
-  tipo_documento_enum: 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro';
-  titulo_documento: string;
-  objetivo_documento: string;
-  archivo: File;  // ⭐ Solo el archivo, fecha_ultima_actualizacion se genera automáticamente
+  respuesta_id: string;
+  documento_id?: string | null;        // ← ahora se llama documento_id
+  codigo_documento?: string;
+  tipo_documento_enum?: 'politica' | 'norma' | 'procedimiento' | 'formato_interno' | 'otro';
+  titulo_documento?: string;
+  objetivo_documento?: string;
+  archivo?: File | null;
 }
 
+// Respuesta del endpoint de verificación de código
 export interface VerificacionCodigoResponse {
   existe: boolean;
-  evidencias_encontradas: Array<{
-    id: string;
-    codigo_documento: string;
-    tipo_documento: string;
-    tipo_documento_display: string;
-    titulo_documento: string;
-    objetivo_documento: string;
-    pregunta_codigo: string;
-    pregunta_texto: string;
-    dimension_nombre: string;
-    subido_por: string;
-    fecha_creacion: string;
-    url_archivo: string;
-    puede_reutilizar: boolean;
-  }>;
-  total_encontradas: number;
   mensaje: string;
+  documento_maestro?: {
+    id: string;
+    titulo: string;
+    estado: string;
+    version: string;
+  };
+  evidencias_encontradas?: EvidenciaEncontrada[];
 }
 
 /** Lo único que puede marcar el usuario */
@@ -82,8 +93,6 @@ export type RespuestaEstado =
   | 'pendiente_auditoria'
   | 'auditado'
   | 'modificado_admin';
-
-
 export interface Respuesta {
   id: string;
   asignacion: string;
@@ -180,6 +189,7 @@ export interface AuditorCerrarRevision {
   comentario_cierre?: string;
 }
 
+// --- HISTORIAL ---
 export interface HistorialRespuesta {
   id: string;
   respuesta: string;

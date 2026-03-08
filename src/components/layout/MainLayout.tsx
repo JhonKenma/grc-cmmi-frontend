@@ -122,7 +122,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/evaluaciones-inteligentes',
       roles: ['superadmin', 'administrador'],
     },
-
     // ⭐ NUEVO: Asignar Frameworks (SuperAdmin)
     {
       name: 'Asignar Frameworks',
@@ -147,6 +146,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['administrador'],
     },
 
+    // ⭐ AGREGADO: Maestro de Documentos
+    {
+      name: 'Maestro de Documentos',
+      icon: FileText,
+      path: '/documentos-maestros',
+      roles: ['administrador'],
+      requireSuperAdmin: false,
+    },
   ];
 
   // Filtrar menú según permisos
