@@ -15,7 +15,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
-import { respuestasApi } from '@/api/endpoints';
+import { respuestasApi } from '@/api/endpoints/respuestas.api';
 import { TablaRespuestasRevision } from '@/pages/asignaciones/TablaRespuestasRevision';
 import { Respuesta } from '@/types';
 import toast from 'react-hot-toast';
