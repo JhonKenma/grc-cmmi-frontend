@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { respuestaIQApi } from '@/api/endpoints/respuesta-iq.api';
-import { asignacionIQApi } from '@/api/endpoints/asignacion-iq.api';
 import toast from 'react-hot-toast';
 import type { PreguntasAsignacionResponse } from '@/types/respuesta-iq.types';
 import { FormularioPregunta } from './FormularioPregunta';
@@ -12,7 +11,7 @@ import { FormularioPregunta } from './FormularioPregunta';
 export const ResponderEvaluacionIQ = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<PreguntasAsignacionResponse | null>(null);
   const [preguntaActualIndex, setPreguntaActualIndex] = useState(0);
@@ -22,54 +21,19 @@ export const ResponderEvaluacionIQ = () => {
   }, [id]);
 
   const cargarPreguntas = async () => {
-    console.log('=== CARGANDO PREGUNTAS ===');
     try {
       setLoading(true);
       const response = await respuestaIQApi.obtenerPreguntasAsignacion(Number(id));
-      console.log('Respuesta del servidor:', response);
-      console.log('Total preguntas:', response.preguntas.length);
-      console.log('Preguntas respondidas:', response.asignacion.preguntas_respondidas);
-      console.log('Progreso:', response.asignacion.porcentaje_completado);
-      
       setData(response);
-      
-      const primeraNoRespondida = response.preguntas.findIndex(p => !p.respuesta);
-      console.log('Primera pregunta no respondida:', primeraNoRespondida);
-      if (primeraNoRespondida !== -1) setPreguntaActualIndex(primeraNoRespondida);
-      
-      console.log('=== PREGUNTAS CARGADAS ===');
+
+      // Ir a la primera pregunta sin responder (o la primera si todas respondidas)
+      const primeraLibre = response.preguntas.findIndex(p => !p.respuesta);
+      if (primeraLibre !== -1) setPreguntaActualIndex(primeraLibre);
     } catch (error) {
-      console.error('Error al cargar preguntas:', error);
       toast.error('Error al cargar la evaluación');
       navigate('/evaluaciones-iq/mis-asignaciones');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRespuestaGuardada = async () => {
-    console.log('handleRespuestaGuardada llamado');
-    await cargarPreguntas();
-    console.log('handleRespuestaGuardada completado');
-  };
-
-  const handleCompletarEvaluacion = async () => {
-    if (!data) return;
-    
-    const sinResponder = data.preguntas.filter(p => !p.respuesta).length;
-    if (sinResponder > 0) {
-      const confirmar = window.confirm(
-        `Aún tienes ${sinResponder} preguntas sin responder. ¿Continuar?`
-      );
-      if (!confirmar) return;
-    }
-    
-    try {
-      await asignacionIQApi.completar(Number(id));
-      toast.success('🎉 Evaluación completada');
-      navigate('/evaluaciones-iq/mis-asignaciones');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al completar');
     }
   };
 
@@ -83,75 +47,104 @@ export const ResponderEvaluacionIQ = () => {
 
   if (!data) return null;
 
-  const preguntaActual = data.preguntas[preguntaActualIndex];
-  const progreso = (data.asignacion.preguntas_respondidas / data.asignacion.total_preguntas) * 100;
+  const { asignacion, preguntas } = data;
+  const preguntaActual = preguntas[preguntaActualIndex];
+  const progreso = asignacion.total_preguntas > 0
+    ? (asignacion.preguntas_respondidas / asignacion.total_preguntas) * 100
+    : 0;
+  const todasEnviadas = asignacion.preguntas_respondidas >= asignacion.total_preguntas;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+
+      {/* Header */}
       <button
         onClick={() => navigate('/evaluaciones-iq/mis-asignaciones')}
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+        className="flex items-center gap-2 text-gray-500 hover:text-gray-800 mb-6 transition-colors"
       >
-        <ArrowLeft size={20} className="mr-2" />
-        Volver
+        <ArrowLeft size={18} />
+        <span className="text-sm">Volver a mis asignaciones</span>
       </button>
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">
-        {data.asignacion.evaluacion}
-      </h1>
-      
-      {/* Progreso */}
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">{asignacion.evaluacion}</h1>
+      <p className="text-sm text-gray-500 mb-6 capitalize">
+        Estado: <span className="font-medium">{asignacion.estado.replace('_', ' ')}</span>
+      </p>
+
+      {/* Barra de progreso */}
       <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">
-            {data.asignacion.preguntas_respondidas} / {data.asignacion.total_preguntas} preguntas
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-600">
+            {asignacion.preguntas_respondidas} de {asignacion.total_preguntas} preguntas enviadas
           </span>
-          <span className="text-sm font-bold text-primary-600">{progreso.toFixed(0)}%</span>
+          <span className="text-sm font-bold text-primary-600">
+            {progreso.toFixed(0)}%
+          </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-3">
+        <div className="w-full bg-gray-100 rounded-full h-2.5">
           <div
-            className="bg-primary-600 h-3 rounded-full"
+            className="bg-primary-600 h-2.5 rounded-full transition-all duration-500"
             style={{ width: `${progreso}%` }}
           />
         </div>
       </div>
 
-      {/* Navegación */}
-      <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex justify-between items-center mb-4">
-          <p className="font-medium">
-            Pregunta {preguntaActualIndex + 1} / {data.preguntas.length}
+      {/* Banner: evaluación completada */}
+      {(todasEnviadas || asignacion.estado === 'completada' || asignacion.estado === 'auditada') && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+          <CheckCircle size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-green-800">
+              {asignacion.estado === 'auditada'
+                ? '✅ Evaluación auditada'
+                : '🎉 Has respondido todas las preguntas'}
+            </p>
+            <p className="text-sm text-green-700 mt-0.5">
+              {asignacion.estado === 'auditada'
+                ? 'El auditor ha calificado todas las respuestas. Puedes ver el reporte GAP.'
+                : 'Tu evaluación fue enviada al auditor. Puedes revisar tus respuestas abajo.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Navegación + mini-mapa */}
+      <div className="mb-5 bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-sm font-medium text-gray-700">
+            Pregunta {preguntaActualIndex + 1} / {preguntas.length}
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => setPreguntaActualIndex(i => Math.max(0, i - 1))}
               disabled={preguntaActualIndex === 0}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50"
+              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50"
             >
               ← Anterior
             </button>
             <button
-              onClick={() => setPreguntaActualIndex(i => Math.min(data.preguntas.length - 1, i + 1))}
-              disabled={preguntaActualIndex === data.preguntas.length - 1}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50"
+              onClick={() => setPreguntaActualIndex(i => Math.min(preguntas.length - 1, i + 1))}
+              disabled={preguntaActualIndex === preguntas.length - 1}
+              className="px-3 py-1.5 border rounded-lg text-sm disabled:opacity-40 hover:bg-gray-50"
             >
               Siguiente →
             </button>
           </div>
         </div>
 
-        {/* Mini-mapa */}
-        <div className="flex flex-wrap gap-1">
-          {data.preguntas.map((p, i) => (
+        {/* Mini-mapa de preguntas */}
+        <div className="flex flex-wrap gap-1.5">
+          {preguntas.map((p, i) => (
             <button
               key={p.id}
               onClick={() => setPreguntaActualIndex(i)}
-              className={`w-10 h-10 rounded-lg text-sm font-medium ${
+              title={p.codigo_control}
+              className={`w-9 h-9 rounded-lg text-xs font-medium transition-colors ${
                 i === preguntaActualIndex
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-primary-600 text-white shadow'
                   : p.respuesta
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
               {i + 1}
@@ -160,33 +153,13 @@ export const ResponderEvaluacionIQ = () => {
         </div>
       </div>
 
-      {/* Formulario */}
+      {/* Formulario de la pregunta actual */}
       <FormularioPregunta
         pregunta={preguntaActual}
         asignacionId={Number(id)}
-        onRespuestaGuardada={handleRespuestaGuardada}
+        onRespuestaGuardada={cargarPreguntas}
       />
 
-      {/* Completar */}
-      {data.asignacion.estado === 'en_progreso' && (
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">¿Terminaste?</h3>
-              <p className="text-gray-600">
-                {data.asignacion.preguntas_respondidas} / {data.asignacion.total_preguntas} respondidas
-              </p>
-            </div>
-            <button
-              onClick={handleCompletarEvaluacion}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-            >
-              <CheckCircle size={20} />
-              Completar Evaluación
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
