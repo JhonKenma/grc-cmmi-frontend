@@ -139,12 +139,15 @@ export const ReporteEvaluacion: React.FC = () => {
   }, [reporte]);
 
   const handleCrearProyectoDesdeBrecha = (gapData: any) => {
+    console.log('🔍 gapData recibido:', gapData); // ← agrega esto
     setSelectedGAP({
       calculoNivelId: gapData.calculoNivelId,
+      asignacionId: gapData.asignacionId,
       gapInfo: { ...gapData }
     });
     setModalGAPOpen(true);
   };
+
 
   const handleChangeEvaluacion = (evaluacionId: string) => {
     setEvaluacionSeleccionada(evaluacionId);
@@ -348,6 +351,7 @@ export const ReporteEvaluacion: React.FC = () => {
             toast.success('Proyecto creado exitosamente');
           }}
           calculoNivelId={selectedGAP.calculoNivelId}
+          asignacionId={selectedGAP.asignacionId}   // ⭐ NUEVO
           gapInfo={selectedGAP.gapInfo}
         />
       )}
