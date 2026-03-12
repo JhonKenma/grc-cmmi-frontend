@@ -1,46 +1,62 @@
 // src/types/respuesta-iq.types.ts
 
-export interface RespuestaEvaluacionIQ {
-  id: number;
-  asignacion: number;
-  pregunta: number;
-  pregunta_detalle: PreguntaDetalle;
-  respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
-  respuesta_display: string;
-  justificacion: string;
-  nivel_madurez: number;
-  justificacion_madurez: string;
-  comentarios_adicionales: string;
-  es_respuesta_original: boolean;
-  propagada_desde: number | null;
-  origen_respuesta: OrigenRespuesta;
-  evidencias: Evidencia[];
-  puntaje: number | null;
-  respondido_por: number;
-  fecha_respuesta: string;
-  fecha_actualizacion: string;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// RESPUESTA DEL USUARIO
+// null        → "Sí" (subirá evidencias, auditor califica)
+// 'NO_CUMPLE' → reconoce que no cumple
+// 'NO_APLICA' → criterio no aplica
+// ─────────────────────────────────────────────────────────────────────────────
 
-export interface PreguntaDetalle {
-  correlativo: number;
-  codigo_control: string;
-  nombre_control: string;
-  pregunta: string;
-  objetivo_evaluacion: string;
-  nivel_madurez: number;
-  framework: string;
-}
+export type RespuestaUsuario = null | 'NO_CUMPLE' | 'NO_APLICA';
 
-export interface OrigenRespuesta {
-  tipo: 'original' | 'importada' | 'propagada' | 'desconocido';
+export type CalificacionAuditor = 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE';
+
+export type EstadoRespuesta = 'borrador' | 'enviado' | 'auditado';
+
+// ── Opciones que ve el USUARIO ────────────────────────────────────────────────
+
+export interface OpcionRespuesta {
+  value: RespuestaUsuario;
+  label: string;
   descripcion: string;
-  puede_editar: boolean;
-  fecha_original?: string;
-  pregunta_origen?: string;
+  requiereEvidencias: boolean;
 }
+
+export const OPCIONES_RESPUESTA_USUARIO: OpcionRespuesta[] = [
+  {
+    value: null,
+    label: 'Sí',
+    descripcion: 'Cumple — debes subir evidencias',
+    requiereEvidencias: true,
+  },
+  {
+    value: 'NO_CUMPLE',
+    label: 'No',
+    descripcion: 'No cumple con el control',
+    requiereEvidencias: false,
+  },
+  {
+    value: 'NO_APLICA',
+    label: 'No Aplica',
+    descripcion: 'El criterio no aplica en este contexto',
+    requiereEvidencias: false,
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+export const requiereEvidencias = (respuesta: RespuestaUsuario): boolean =>
+  respuesta === null;
+
+export const estaEnviada = (estado: EstadoRespuesta): boolean =>
+  estado === 'enviado' || estado === 'auditado';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVIDENCIA
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface Evidencia {
-  id: string;
+  id: number;
   codigo_documento: string;
   tipo_documento_enum: string;
   titulo_documento: string;
@@ -52,9 +68,76 @@ export interface Evidencia {
   fecha_creacion: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RESPUESTA IQ — lo que devuelve el backend
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface RespuestaIQ {
+  id: number;
+  asignacion: number;
+  pregunta: number;
+
+  // Respuesta del usuario
+  respuesta: RespuestaUsuario;
+  justificacion: string;
+  comentarios_adicionales: string;
+
+  // Calificación del auditor (read-only para el usuario)
+  calificacion_auditor: CalificacionAuditor | null;
+  calificacion_display: string | null;
+  comentarios_auditor: string;
+  recomendaciones_auditor: string;
+  fecha_auditoria: string | null;
+  auditado_por: number | null;
+  auditado_por_nombre: string | null;
+  nivel_madurez: number;
+
+  // Estado del flujo
+  estado: EstadoRespuesta;
+  estado_display: string;
+
+  // Propagación
+  es_respuesta_original: boolean;
+  propagada_desde: number | null;
+
+  // Auditoría de registro
+  respondido_por: number;
+  respondido_por_nombre: string;
+  respondido_at: string;
+  modificado_por: number | null;
+  modificado_at: string | null;
+  version: number;
+
+  // Relaciones
+  evidencias: Evidencia[];
+  total_evidencias: number;
+  puntaje: number | null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYLOAD CREAR / ACTUALIZAR (usuario)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CrearRespuestaIQData {
+  asignacion: number;
+  pregunta: number;
+  respuesta: RespuestaUsuario;
+  justificacion: string;
+  comentarios_adicionales?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREGUNTA CON RESPUESTA (para el formulario)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EvidenciaRequerida {
+  orden: number;
+  descripcion: string;
+}
+
 export interface PreguntaConRespuesta {
   id: number;
-  correlativo: number;
+  correlativo: string;
   framework: number;
   framework_nombre: string;
   codigo_control: string;
@@ -63,70 +146,25 @@ export interface PreguntaConRespuesta {
   objetivo_evaluacion: string;
   pregunta: string;
   nivel_madurez: number;
+  nivel_madurez_display: string;
   evidencias_requeridas: EvidenciaRequerida[];
-  respuesta: RespuestaEvaluacionIQ | null;
+  respuesta: RespuestaIQ | null;
 }
 
-export interface EvidenciaRequerida {
-  orden: number;
-  descripcion: string;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// RESPUESTA DEL ENDPOINT preguntas-asignacion
+// ─────────────────────────────────────────────────────────────────────────────
 
-export interface CrearRespuestaData {
-  asignacion: number;
-  pregunta: number;
-  respuesta: 'SI_CUMPLE' | 'CUMPLE_PARCIAL' | 'NO_CUMPLE' | 'NO_APLICA';
-  justificacion: string;
-  nivel_madurez: number;
-  justificacion_madurez?: string;
-  comentarios_adicionales?: string;
+export interface AsignacionIQResumen {
+  id: number;
+  evaluacion: string;
+  estado: string;
+  total_preguntas: number;
+  preguntas_respondidas: number;
+  porcentaje_completado: number;
 }
 
 export interface PreguntasAsignacionResponse {
-  asignacion: {
-    id: number;
-    evaluacion: string;
-    estado: string;
-    total_preguntas: number;
-    preguntas_respondidas: number;
-    porcentaje_completado: number;
-  };
+  asignacion: AsignacionIQResumen;
   preguntas: PreguntaConRespuesta[];
-}
-
-// Helpers
-export const RESPUESTA_OPCIONES = [
-  { value: 'SI_CUMPLE', label: 'Sí Cumple', color: 'green', puntos: 1.0 },
-  { value: 'CUMPLE_PARCIAL', label: 'Cumple Parcialmente', color: 'yellow', puntos: 0.5 },
-  { value: 'NO_CUMPLE', label: 'No Cumple', color: 'red', puntos: 0.0 },
-  { value: 'NO_APLICA', label: 'No Aplica', color: 'gray', puntos: null },
-] as const;
-
-export const NIVELES_MADUREZ = [
-  { value: 0, label: 'Nivel 0 - No implementado' },
-  { value: 0.5, label: 'Nivel 0.5' },
-  { value: 1.0, label: 'Nivel 1 - Inicial' },
-  { value: 1.5, label: 'Nivel 1.5' },
-  { value: 2.0, label: 'Nivel 2 - Gestionado' },
-  { value: 2.5, label: 'Nivel 2.5' },
-  { value: 3.0, label: 'Nivel 3 - Definido' },
-  { value: 3.5, label: 'Nivel 3.5' },
-  { value: 4.0, label: 'Nivel 4 - Cuantitativamente Gestionado' },
-  { value: 4.5, label: 'Nivel 4.5' },
-  { value: 5.0, label: 'Nivel 5 - Optimizado' },
-] as const;
-
-export function getRespuestaColor(respuesta: string): string {
-  const opcion = RESPUESTA_OPCIONES.find(o => o.value === respuesta);
-  return opcion?.color || 'gray';
-}
-
-export function getRespuestaLabel(respuesta: string): string {
-  const opcion = RESPUESTA_OPCIONES.find(o => o.value === respuesta);
-  return opcion?.label || respuesta;
-}
-
-export function getNivelMadurezLabel(nivel: number): string {
-  const nivelObj = NIVELES_MADUREZ.find(n => n.value === nivel);
-  return nivelObj?.label || `Nivel ${nivel}`;
 }
