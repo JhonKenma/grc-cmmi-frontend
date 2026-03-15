@@ -2,15 +2,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  AlertCircle, CheckCircle, Upload, X, FileText,
-  Send, Lock, Info, Clock,
+  AlertCircle, CheckCircle, Upload, FileText,
+  Send, Lock, Info, Clock, Link as LinkIcon, Trash2, ExternalLink,
 } from 'lucide-react';
 import { respuestaIQApi } from '@/api/endpoints/respuesta-iq.api';
+import { ModalEvidenciaIQ } from '@/components/EvaluacionesInteligentes/ModalEvidenciaIQ';
+import { Button } from '@/components/common';
 import toast from 'react-hot-toast';
 import type {
   PreguntaConRespuesta,
   CrearRespuestaIQData,
   RespuestaUsuario,
+  Evidencia,
 } from '@/types/respuesta-iq.types';
 import {
   OPCIONES_RESPUESTA_USUARIO,
@@ -23,6 +26,8 @@ interface Props {
   asignacionId: number;
   onRespuestaGuardada: () => void;
 }
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
 export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada }: Props) => {
   const respuestaExistente = pregunta.respuesta;
@@ -38,11 +43,14 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
   const [comentarios, setComentarios] = useState(
     respuestaExistente?.comentarios_adicionales ?? ''
   );
-  const [archivosNuevos, setArchivosNuevos] = useState<File[]>([]);
+  const [modalEvidenciaAbierto, setModalEvidenciaAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [respuestaId, setRespuestaId] = useState<number | null>(
     respuestaExistente?.id ?? null
+  );
+  const [evidencias, setEvidencias] = useState<Evidencia[]>(
+    respuestaExistente?.evidencias ?? []
   );
   const [ultimoGuardado, setUltimoGuardado] = useState<Date | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,9 +61,9 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
     setJustificacion(respuestaExistente?.justificacion ?? '');
     setComentarios(respuestaExistente?.comentarios_adicionales ?? '');
     setRespuestaId(respuestaExistente?.id ?? null);
-    setArchivosNuevos([]);
+    setEvidencias(respuestaExistente?.evidencias ?? []);
     setUltimoGuardado(null);
-  }, [pregunta.id]);
+  }, [pregunta.id, respuestaExistente?.id, respuestaExistente?.evidencias]);
 
   // ── Auto-guardado borrador ──────────────────────────────────────────────────
   useEffect(() => {
@@ -106,24 +114,150 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
     }
   };
 
-  // ── Archivos ────────────────────────────────────────────────────────────────
-  const totalEvidencias =
-    (respuestaExistente?.evidencias?.length ?? 0) + archivosNuevos.length;
+  // ── Evidencias ─────────────────────────────────────────────────────────────
+  const totalEvidencias = evidencias.length;
 
-  const handleSeleccionarArchivos = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    if (totalEvidencias + files.length > 3) {
-      toast.error('Máximo 3 evidencias en total');
+  const handleAbrirModal = async () => {
+    if (totalEvidencias >= 3) {
+      toast.error('Máximo 3 evidencias por pregunta');
       return;
     }
-    const grandes = files.filter(f => f.size > 10 * 1024 * 1024);
-    if (grandes.length) {
-      toast.error('Algunos archivos superan 10MB');
-      return;
+    // Si no hay borrador guardado aún, guardar primero para obtener respuestaId
+    if (!respuestaId) {
+      if (justificacion.length < 10) {
+        toast.error('Escribe al menos 10 caracteres en la justificación antes de agregar evidencias');
+        return;
+      }
+      await guardarBorrador(true);
+      // respuestaId se seteó dentro de guardarBorrador vía setRespuestaId
     }
-    setArchivosNuevos(prev => [...prev, ...files]);
-    e.target.value = '';
+    setModalEvidenciaAbierto(true);
+  };
+
+  const getFileUrl = (url?: string | null) => {
+    if (!url) return '#';
+    return url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+  };
+
+  const handleEliminarEvidencia = async (evidencia: Evidencia) => {
+    if (!confirm('¿Eliminar esta evidencia?')) return;
+    try {
+      await respuestaIQApi.eliminarEvidencia(evidencia.id);
+      setEvidencias(prev => prev.filter(item => item.id !== evidencia.id));
+      toast.success('Evidencia eliminada');
+      await onRespuestaGuardada();
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        'No fue posible eliminar la evidencia'
+      );
+    }
+  };
+
+  const renderEvidencias = (puedeEditar: boolean) => {
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Evidencias <span className="text-red-500">*</span>
+          <span className="text-gray-500 font-normal ml-2 text-xs">(máximo 3 archivos)</span>
+        </label>
+
+        {evidencias.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {evidencias.map((evidencia) => (
+              <div
+                key={evidencia.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="bg-white p-2 rounded border border-gray-100 shadow-sm flex-shrink-0">
+                    {evidencia.es_documento_oficial ? (
+                      <LinkIcon size={20} className="text-blue-600" />
+                    ) : (
+                      <FileText size={20} className="text-primary-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {(evidencia.es_documento_oficial
+                          ? evidencia.codigo_documento_maestro
+                          : evidencia.codigo_documento) || 'Sin código'}{' '}
+                        - {(evidencia.es_documento_oficial
+                          ? evidencia.nombre_documento_maestro
+                          : evidencia.titulo_documento) || evidencia.titulo_documento}
+                      </p>
+                      {evidencia.es_documento_oficial && (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase flex-shrink-0">
+                          Oficial
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      {evidencia.tipo_documento_enum}
+                      {evidencia.nombre_archivo_original ? ` · ${evidencia.nombre_archivo_original}` : ''}
+                      {typeof evidencia.tamanio_mb === 'number' ? ` (${evidencia.tamanio_mb.toFixed(2)} MB)` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 ml-4">
+                  {evidencia.url_archivo && (
+                    <a
+                      href={getFileUrl(evidencia.url_archivo)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center p-2 text-primary-600 hover:bg-primary-50 rounded-full transition-colors border border-transparent hover:border-primary-200"
+                      title="Ver archivo"
+                    >
+                      <ExternalLink size={18} />
+                    </a>
+                  )}
+
+                  {puedeEditar && (
+                    <button
+                      type="button"
+                      onClick={() => handleEliminarEvidencia(evidencia)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                      title="Eliminar evidencia"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {puedeEditar && evidencias.length < 3 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleAbrirModal}
+            disabled={guardando || enviando || !respuestaId}
+            type="button"
+            className="w-full sm:w-auto"
+          >
+            <Upload size={16} className="mr-2" />
+            Agregar Evidencia
+          </Button>
+        )}
+
+        {!respuestaId && puedeEditar && (
+          <p className="text-xs text-amber-600 mt-2">
+            Guarda primero la respuesta como borrador para poder agregar evidencias.
+          </p>
+        )}
+
+        {evidencias.length === 0 && (
+          <p className="text-xs text-gray-400 mt-1">
+            Aún no has agregado evidencias.
+          </p>
+        )}
+      </div>
+    );
   };
 
   // ── Enviar (borrador → enviado) ─────────────────────────────────────────────
@@ -132,7 +266,7 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
       toast.error('La justificación debe tener al menos 10 caracteres');
       return;
     }
-    const tieneEvidencias = totalEvidencias > 0;
+    const tieneEvidencias = evidencias.length > 0;
     if (respuesta === null && !tieneEvidencias) {
       toast.error('Debes subir al menos una evidencia para responder "Sí"');
       return;
@@ -159,16 +293,7 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
         setRespuestaId(nueva.id);
       }
 
-      // 2. Subir archivos nuevos
-      if (archivosNuevos.length > 0 && idActual) {
-        toast.loading(`Subiendo ${archivosNuevos.length} evidencia(s)...`, { id: 'envio' });
-        for (const archivo of archivosNuevos) {
-          await respuestaIQApi.subirEvidencia(idActual, archivo);
-        }
-        setArchivosNuevos([]);
-      }
-
-      // 3. Enviar → el backend actualiza el progreso de la asignación
+      // 2. Enviar → el backend actualiza el progreso de la asignación
       toast.loading('Enviando al auditor...', { id: 'envio' });
       const resultado = await respuestaIQApi.enviar(idActual!);
 
@@ -256,30 +381,7 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
         </div>
 
         {/* Evidencias */}
-        {r.evidencias && r.evidencias.length > 0 && (
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Evidencias ({r.evidencias.length})
-            </p>
-            <div className="space-y-2">
-              {r.evidencias.map(ev => (
-                <a
-                  key={ev.id}
-                  href={ev.url_archivo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <FileText size={18} className="text-primary-600 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{ev.titulo_documento}</p>
-                    <p className="text-xs text-gray-400">{ev.tamanio_mb?.toFixed(2)} MB</p>
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
+        {evidencias.length > 0 && renderEvidencias(false)}
 
         {/* Calificación del auditor */}
         {r.estado === 'auditado' && r.calificacion_auditor && (
@@ -438,78 +540,9 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
         </p>
       </div>
 
-      {/* Uploader de evidencias — solo si responde "Sí" */}
+      {/* Evidencias — solo si responde "Sí" */}
       {necesitaEvidencias && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Evidencias *{' '}
-            <span className="text-gray-400 font-normal">({totalEvidencias}/3)</span>
-          </label>
-
-          {/* Evidencias ya en backend */}
-          {(respuestaExistente?.evidencias?.length ?? 0) > 0 && (
-            <div className="mb-3 space-y-1">
-              <p className="text-xs text-gray-500">Ya subidas:</p>
-              {respuestaExistente!.evidencias.map(ev => (
-                <div
-                  key={ev.id}
-                  className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg"
-                >
-                  <FileText size={15} className="text-green-600" />
-                  <p className="text-sm flex-1 truncate">{ev.titulo_documento}</p>
-                  <CheckCircle size={13} className="text-green-500" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Archivos pendientes de subir */}
-          {archivosNuevos.length > 0 && (
-            <div className="mb-3 space-y-1">
-              <p className="text-xs text-gray-500">Se subirán al enviar:</p>
-              {archivosNuevos.map((file, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg"
-                >
-                  <FileText size={15} className="text-primary-600" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{file.name}</p>
-                    <p className="text-xs text-gray-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setArchivosNuevos(prev => prev.filter((_, idx) => idx !== i))}
-                    className="text-red-400 hover:text-red-600"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Drop zone */}
-          {totalEvidencias < 3 && (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-400 transition-colors">
-              <input
-                type="file"
-                id="file-upload"
-                className="hidden"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
-                onChange={handleSeleccionarArchivos}
-                multiple
-              />
-              <label htmlFor="file-upload" className="cursor-pointer block">
-                <Upload className="mx-auto mb-2 text-gray-400" size={28} />
-                <p className="text-sm text-gray-600">Click para seleccionar archivos</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  PDF, Word, Excel, PowerPoint, Imágenes — máx. 10MB c/u
-                </p>
-              </label>
-            </div>
-          )}
-        </div>
+        renderEvidencias(true)
       )}
 
       {/* Comentarios adicionales */}
@@ -548,6 +581,18 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
           }
         </button>
       </div>
+
+      {/* Modal de evidencias */}
+      {modalEvidenciaAbierto && respuestaId && (
+        <ModalEvidenciaIQ
+          respuestaIQId={respuestaId}
+          onClose={() => setModalEvidenciaAbierto(false)}
+          onSuccess={() => {
+            setModalEvidenciaAbierto(false);
+            onRespuestaGuardada();
+          }}
+        />
+      )}
     </div>
   );
 };
