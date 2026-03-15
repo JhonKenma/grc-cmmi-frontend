@@ -82,6 +82,7 @@ import { AuditorRevisionDetalle } from './pages/auditor/AuditorRevisionDetalle';
 import DocumentosMaestrosPage from '@/pages/documentos-maestros'; 
 import { TiposDocumentoPage } from '@/pages/documentos-maestros/TiposDocumentoPage';
 import ProcesosList from '@/pages/documentos-maestros/ProcesosList'; // <-- Importación agregada
+import NormasList from '@/pages/documentos-maestros/NormasList';
 import DashboardSGI from '@/pages/documentos-maestros/DashboardSGI'; // <-- NUEVA IMPORTACIÓN DEL DASHBOARD
 
 function App() {
@@ -209,6 +210,17 @@ function App() {
                 <ProtectedRoute allowedRoles={['administrador']}>
                   <MainLayout>
                     <ProcesosList />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/documentos-maestros/normas"
+              element={
+                <ProtectedRoute allowedRoles={['administrador']}>
+                  <MainLayout>
+                    <NormasList />
                   </MainLayout>
                 </ProtectedRoute>
               }
