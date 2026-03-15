@@ -56,7 +56,8 @@ export const estaEnviada = (estado: EstadoRespuesta): boolean =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Evidencia {
-  id: number;
+  id: string;
+  respuesta_iq: number;
   codigo_documento: string;
   tipo_documento_enum: string;
   titulo_documento: string;
@@ -66,6 +67,11 @@ export interface Evidencia {
   url_archivo: string;
   tamanio_mb: number;
   fecha_creacion: string;
+  // Campos de vinculación con documento maestro
+  documento_maestro_id: string | null;
+  es_documento_oficial: boolean;
+  nombre_documento_maestro: string | null;
+  codigo_documento_maestro: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
