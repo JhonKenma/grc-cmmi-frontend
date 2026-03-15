@@ -454,17 +454,31 @@ const ModalEditarDocumento: React.FC<Props> = ({
                 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-gray-500 uppercase">Norma</label>
-                  <select 
-                    className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-100 outline-none disabled:opacity-70 disabled:bg-gray-100"
-                    value={form.norma}
-                    onChange={(e) => setForm({...form, norma: e.target.value})}
-                    disabled={soloLectura || loading}
-                  >
-                    <option value="">Ninguna</option>
-                    {catalogos.normas.map(n => (
-                      <option key={n.id} value={n.id}>{n.nombre}</option>
-                    ))}
-                  </select>
+                  {soloLectura ? (
+                    <input
+                      type="text"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-100 outline-none"
+                      value={
+                        catalogos.normas.find(n => n.id === form.norma)?.nombre ||
+                        documento.nombre_norma ||
+                        'Ninguna'
+                      }
+                      disabled
+                      readOnly
+                    />
+                  ) : (
+                    <select 
+                      className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-100 outline-none disabled:opacity-70 disabled:bg-gray-100"
+                      value={form.norma}
+                      onChange={(e) => setForm({...form, norma: e.target.value})}
+                      disabled={loading}
+                    >
+                      <option value="">Ninguna</option>
+                      {catalogos.normas.map(n => (
+                        <option key={n.id} value={n.id}>{n.nombre}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
