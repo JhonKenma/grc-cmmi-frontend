@@ -297,6 +297,14 @@ const DocumentosMaestrosPage = () => {
             Tipos
           </Link>
 
+          <Link
+            to="/documentos-maestros/normas"
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50"
+          >
+            <Shield size={20} className="text-gray-500" />
+            Normas
+          </Link>
+
           <button 
             onClick={() => setMostrarModalCrear(true)}
             className="ml-2 flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white shadow-md transition-all hover:bg-blue-700 active:scale-95"
