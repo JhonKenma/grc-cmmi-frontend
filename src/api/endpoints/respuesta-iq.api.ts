@@ -81,7 +81,19 @@ export const respuestaIQApi = {
   },
 
   // ── Eliminar evidencia ────────────────────────────────────────────────────────
-  eliminarEvidencia: async (evidenciaId: number): Promise<void> => {
+  eliminarEvidencia: async (evidenciaId: number | string): Promise<void> => {
     await api.delete(`${EVIDENCIAS}/${evidenciaId}/`);
+  },
+
+  // ── Vincular documento oficial como evidencia ─────────────────────────────────
+  vincularDocumento: async (
+    respuestaIQId: number,
+    documentoId: string
+  ): Promise<any> => {
+    const res = await api.post(EVIDENCIAS + '/', {
+      respuesta_iq_id: respuestaIQId,
+      documento_id: documentoId,
+    });
+    return unwrap(res);
   },
 };
