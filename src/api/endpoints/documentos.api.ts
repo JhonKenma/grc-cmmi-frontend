@@ -189,15 +189,43 @@ export const documentosApi = {
      * Obtener normas para selects
      * GET /api/documentos/normas/
      */
-    getNormas: async (): Promise<Norma[]> => {
+    getNormas: async (options?: CatalogScopeOptions): Promise<Norma[]> => {
         try {
-            const response = await axiosInstance.get('/documentos/normas/');
+            const response = await axiosInstance.get('/documentos/normas/', {
+                params: buildEmpresaParams(options),
+            });
             console.log('✅ [API] Normas cargadas:', response.data);
             return response.data.results || response.data || [];
         } catch (error) {
             console.error('❌ [API] Error cargando normas:', error);
             return [];
         }
+    },
+
+    /**
+     * Crear una norma
+     * POST /api/documentos/normas/
+     */
+    createNorma: async (data: Partial<Norma>): Promise<Norma> => {
+        const response = await axiosInstance.post('/documentos/normas/', data);
+        return response.data;
+    },
+
+    /**
+     * Actualizar una norma
+     * PATCH /api/documentos/normas/:id/
+     */
+    updateNorma: async (id: string, data: Partial<Norma>): Promise<Norma> => {
+        const response = await axiosInstance.patch(`/documentos/normas/${id}/`, data);
+        return response.data;
+    },
+
+    /**
+     * Eliminar una norma
+     * DELETE /api/documentos/normas/:id/
+     */
+    deleteNorma: async (id: string): Promise<void> => {
+        await axiosInstance.delete(`/documentos/normas/${id}/`);
     },
 
     // ========================================================================
