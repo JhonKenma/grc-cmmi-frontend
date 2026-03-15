@@ -8,6 +8,7 @@ import { respuestasApi } from '@/api/endpoints/respuestas.api';
 import { documentosApi } from '@/api/endpoints/documentos.api'; 
 import { TipoDocumento, Documento, Proceso } from '@/types/documentos.types';
 import { VerificacionCodigoResponse } from '@/types/respuestas.types'; 
+import { deriveTipoDocumentoEnum, extractApiErrorMessage } from '@/utils/evidencias';
 import toast from 'react-hot-toast';
 
 interface ModalEvidenciaProps {
@@ -40,6 +41,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
   const [busquedaDoc, setBusquedaDoc] = useState<string>('');
   const [filtroTipoVincular, setFiltroTipoVincular] = useState<string>('');
   const [filtroProcesoVincular, setFiltroProcesoVincular] = useState<string>('');
+  const [paginaDocumentos, setPaginaDocumentos] = useState(1);
 
   // --- Estado para Modo: Subir Nuevo ---
   const [evidenciasExistentes, setEvidenciasExistentes] = useState<VerificacionCodigoResponse | null>(null);
@@ -118,8 +120,17 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
     }
   };
 
+  useEffect(() => {
+    setPaginaDocumentos(1);
+  }, [busquedaDoc, filtroTipoVincular, filtroProcesoVincular, modo]);
+
+  const PAGE_SIZE = 20;
+  const tieneCriteriosBusqueda =
+    busquedaDoc.trim().length >= 2 || !!filtroTipoVincular || !!filtroProcesoVincular;
+
   // Filtrado combinado (búsqueda + tipo + proceso)
   const documentosFiltrados = documentosMaestros.filter(doc => {
+    if (!tieneCriteriosBusqueda) return false;
     const coincideBusqueda = 
       doc.titulo.toLowerCase().includes(busquedaDoc.toLowerCase()) ||
       doc.codigo.toLowerCase().includes(busquedaDoc.toLowerCase());
@@ -127,6 +138,12 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
     const coincideProceso = filtroProcesoVincular ? doc.proceso === filtroProcesoVincular : true;
     return coincideBusqueda && coincideTipo && coincideProceso;
   });
+
+  const totalPaginas = Math.max(1, Math.ceil(documentosFiltrados.length / PAGE_SIZE));
+  const paginaActual = Math.min(paginaDocumentos, totalPaginas);
+  const inicio = (paginaActual - 1) * PAGE_SIZE;
+  const fin = inicio + PAGE_SIZE;
+  const documentosPaginados = documentosFiltrados.slice(inicio, fin);
 
   // 4. ENVÍO DEL FORMULARIO
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,7 +173,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
         payload.documento_id = documentoSeleccionado;
       } else {
         payload.codigo_documento = formData.codigo_documento.trim().toUpperCase();
-        payload.tipo_documento_enum = formData.tipo_id;
+        payload.tipo_documento_enum = deriveTipoDocumentoEnum(formData.tipo_id, tiposDoc);
         payload.titulo_documento = formData.titulo_documento.trim();
         payload.objetivo_documento = formData.objetivo_documento.trim();
         payload.archivo = formData.archivo;
@@ -169,7 +186,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
       onClose();
     } catch (error: any) {
       console.error('❌ Error:', error);
-      toast.error(error.response?.data?.message || 'Error al procesar la evidencia');
+      toast.error(extractApiErrorMessage(error));
     } finally {
       setUploading(false);
     }
@@ -358,14 +375,18 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
 
                   {/* Lista de documentos con scroll independiente */}
                   <div className="max-h-[300px] overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2 bg-gray-50 relative z-0">
-                    {documentosFiltrados.length === 0 ? (
+                    {!tieneCriteriosBusqueda ? (
+                      <p className="text-center text-gray-500 text-sm py-8">
+                        Aplica al menos un filtro o escribe 2+ caracteres para buscar documentos.
+                      </p>
+                    ) : documentosFiltrados.length === 0 ? (
                       <p className="text-center text-gray-500 text-sm py-8">
                         {documentosMaestros.length === 0 
                           ? 'No hay documentos vigentes en el sistema.' 
                           : 'No se encontraron documentos con esos filtros.'}
                       </p>
                     ) : (
-                      documentosFiltrados.map(doc => (
+                      documentosPaginados.map(doc => (
                         <div
                           key={doc.id}
                           onClick={() => setDocumentoSeleccionado(doc.id)}
@@ -392,6 +413,33 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                       ))
                     )}
                   </div>
+
+                  {tieneCriteriosBusqueda && documentosFiltrados.length > PAGE_SIZE && (
+                    <div className="flex items-center justify-between text-xs text-gray-600 px-1">
+                      <span>
+                        Mostrando {inicio + 1}-{Math.min(fin, documentosFiltrados.length)} de {documentosFiltrados.length}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaginaDocumentos(prev => Math.max(1, prev - 1))}
+                          disabled={paginaActual === 1}
+                          className="px-2 py-1 border rounded disabled:opacity-50 hover:bg-gray-100"
+                        >
+                          Anterior
+                        </button>
+                        <span>Página {paginaActual} / {totalPaginas}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPaginaDocumentos(prev => Math.min(totalPaginas, prev + 1))}
+                          disabled={paginaActual === totalPaginas}
+                          className="px-2 py-1 border rounded disabled:opacity-50 hover:bg-gray-100"
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
