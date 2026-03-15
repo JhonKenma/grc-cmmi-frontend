@@ -147,18 +147,21 @@ export const respuestasApi = {
   // ---------------------------------------------------------------------
 
   subirEvidencia: async (data: EvidenciaCreate): Promise<ApiResponse<Evidencia>> => {
+    if (data.documento_id) {
+      const response = await axiosInstance.post<ApiResponse<Evidencia>>('/evidencias/', {
+        respuesta_id: data.respuesta_id,
+        documento_id: data.documento_id,
+      });
+      return response.data;
+    }
+
     const formData = new FormData();
     formData.append('respuesta_id', data.respuesta_id);
-
-    if (data.documento_id) {
-      formData.append('documento_id', data.documento_id);
-    } else {
-      if (data.archivo) formData.append('archivo', data.archivo);
-      if (data.codigo_documento) formData.append('codigo_documento', data.codigo_documento);
-      if (data.titulo_documento) formData.append('titulo_documento', data.titulo_documento);
-      if (data.objetivo_documento) formData.append('objetivo_documento', data.objetivo_documento);
-      if (data.tipo_documento_enum) formData.append('tipo_documento_enum', data.tipo_documento_enum);
-    }
+    if (data.archivo) formData.append('archivo', data.archivo);
+    if (data.codigo_documento) formData.append('codigo_documento', data.codigo_documento);
+    if (data.titulo_documento) formData.append('titulo_documento', data.titulo_documento);
+    if (data.objetivo_documento) formData.append('objetivo_documento', data.objetivo_documento);
+    if (data.tipo_documento_enum) formData.append('tipo_documento_enum', data.tipo_documento_enum);
 
     const response = await axiosInstance.post<ApiResponse<Evidencia>>('/evidencias/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
