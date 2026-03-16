@@ -361,7 +361,7 @@ export const Login = () => {
                 />
               </div>
               <div className="title-area">
-                <h1>Bienvenido</h1>
+                <h1>ShieldGrid 365</h1>
                 <p>Ingresa tus credenciales para continuar</p>
               </div>
             </div>
@@ -433,7 +433,7 @@ export const Login = () => {
 
           <div className="bottom-info">
             <p>Sistema de Gestión de Riesgos y Cumplimiento</p>
-            <p>© 2025 · Todos los derechos reservados</p>
+            <p>© 2026 · Todos los derechos reservados</p>
           </div>
 
         </div>

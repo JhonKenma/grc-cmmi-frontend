@@ -199,9 +199,7 @@ export const TablaDetalleDimensiones: React.FC<TablaDetalleDimensionesProps> = (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Cumplimiento
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Usuarios
-                </th>
+
                 {onCrearProyecto && (
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acción
@@ -277,12 +275,7 @@ export const TablaDetalleDimensiones: React.FC<TablaDetalleDimensionesProps> = (
                         </div>
                       </td>
 
-                      {/* ── Usuarios ── */}
-                      <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          {dim.total_usuarios_evaluados}
-                        </span>
-                      </td>
+          
 
                       {/* ── Acciones ── */}
                       {onCrearProyecto && (
