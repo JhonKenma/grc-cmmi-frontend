@@ -84,6 +84,7 @@ import { TiposDocumentoPage } from '@/pages/documentos-maestros/TiposDocumentoPa
 import ProcesosList from '@/pages/documentos-maestros/ProcesosList'; // <-- Importación agregada
 import NormasList from '@/pages/documentos-maestros/NormasList';
 import DashboardSGI from '@/pages/documentos-maestros/DashboardSGI'; // <-- NUEVA IMPORTACIÓN DEL DASHBOARD
+import { Perfil } from './pages/Perfil/Perfil';
 
 function App() {
   return (
@@ -127,6 +128,16 @@ function App() {
                 <ProtectedRoute>
                   <MainLayout>
                     <Dashboard />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/perfil"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Perfil />
                   </MainLayout>
                 </ProtectedRoute>
               }
