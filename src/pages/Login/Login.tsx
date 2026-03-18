@@ -28,10 +28,16 @@ export const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
+
     try {
       await login(formData);
-    } catch (error) {
-      console.error('Error en login:', error);
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.detail ||
+        error?.response?.data?.non_field_errors?.[0] ||
+        'Error al iniciar sesión. Verifica tus credenciales.';
+
+      setErrors({ password: msg });
     }
   };
 
