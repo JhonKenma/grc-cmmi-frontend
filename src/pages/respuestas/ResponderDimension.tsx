@@ -118,10 +118,10 @@ export const ResponderDimension: React.FC = () => {
         <p className="text-gray-600">No se encontró la asignación</p>
         <Button
           variant="secondary"
-          onClick={() => navigate('/asignaciones/mis-tareas')}
+          onClick={() => navigate('/mis-tareas')}
           className="mt-4"
         >
-          Volver a Mis Tareas
+          Volver a Mis evaluaciones
         </Button>
       </div>
     );
@@ -136,7 +136,7 @@ export const ResponderDimension: React.FC = () => {
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => navigate('/asignaciones/mis-tareas')}
+          onClick={() => navigate('/mis-tareas')}
         >
           <ArrowLeft size={18} />
         </Button>
