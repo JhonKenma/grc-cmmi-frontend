@@ -137,16 +137,31 @@ export const MisProyectos: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [resEvaluaciones, resProyectos] = await Promise.all([
+        const [resEvaluaciones, resProyectos] = await Promise.allSettled([
           axiosInstance.get('/encuestas/encuestas/'),
           proyectosRemediacionApi.getMisProyectos()
         ]);
 
-        const evalData = Array.isArray(resEvaluaciones.data) 
-          ? resEvaluaciones.data 
-          : resEvaluaciones.data?.results || [];
-        setEvaluaciones(evalData);
-        setProyectos(resProyectos);
+        if (resEvaluaciones.status === 'fulfilled') {
+          const evalData = Array.isArray(resEvaluaciones.value.data)
+            ? resEvaluaciones.value.data
+            : resEvaluaciones.value.data?.results || [];
+          setEvaluaciones(evalData);
+        } else {
+          // Esta consulta es auxiliar para filtros; no debe bloquear la vista.
+          setEvaluaciones([]);
+        }
+
+        if (resProyectos.status === 'fulfilled') {
+          setProyectos(resProyectos.value);
+        } else {
+          const errorMessage =
+            (resProyectos.reason as any)?.response?.data?.detail ||
+            (resProyectos.reason as any)?.response?.data?.message ||
+            'Error al cargar tus proyectos';
+          toast.error(errorMessage);
+          setProyectos([]);
+        }
 
       } catch (err) {
         console.error('Error cargando datos:', err);

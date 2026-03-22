@@ -137,14 +137,14 @@ export const MisTareas: React.FC = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Cargando tus tareas..." />;
+    return <LoadingScreen message="Cargando tus evaluaciones..." />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mis Tareas</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Mis evaluaciones</h1>
         <p className="text-gray-600 mt-1">
           Gestiona tus evaluaciones y dimensiones asignadas
         </p>
