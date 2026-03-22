@@ -48,6 +48,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/dashboard',
       roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
     },
+    {
+      name: 'Usuarios',
+      icon: Users,
+      path: '/usuarios',
+      roles: ['superadmin', 'administrador', 'auditor'],
+    },
    {
       name: 'Mis Revisiones',
       icon: ShieldCheck,
@@ -63,12 +69,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       requireSuperAdmin: true,
     },
     {
-      name: 'Usuarios',
-      icon: Users,
-      path: '/usuarios',
-      roles: ['superadmin', 'administrador', 'auditor'],
-    },
-    {
       name: 'Proveedores',
       icon: Truck,
       path: '/proveedores',
@@ -79,7 +79,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       name: 'Evaluaciones',
       icon: FileText,
       path: '/encuestas',
-      roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
+      roles: ['superadmin', 'administrador', 'auditor'],
     },
     {
       name: 'Asignaciones',
@@ -88,7 +88,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['superadmin', 'administrador'],
     },
     {
-      name: 'Mis Tareas',
+      name: 'Mis evaluaciones',
       icon: ClipboardList,
       path: '/mis-tareas',
       roles: ['usuario'],
@@ -112,7 +112,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       name: 'Mis Proyectos',
       icon: FolderKanban,
       path: '/mis-proyectos',
-      roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
+      roles: ['superadmin', 'administrador', 'usuario'],
     },
     
     // ⭐ ACTUALIZADO: Evaluaciones IQ (Admin/SuperAdmin)
