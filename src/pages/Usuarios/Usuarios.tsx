@@ -25,6 +25,8 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 export const Usuarios = () => {
   const { isSuperAdmin, isAdmin, user } = useAuth();
   const navigate = useNavigate();
+  const canManageUsers = isAdmin || isSuperAdmin;
+  const canViewUsers = canManageUsers || user?.rol === 'auditor';
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +165,7 @@ export const Usuarios = () => {
     );
   };
 
-  if (!isAdmin && !isSuperAdmin) {
+  if (!canViewUsers) {
     return (
       <div className="card">
         <p className="text-center text-gray-600">
@@ -177,6 +179,8 @@ export const Usuarios = () => {
     return <LoadingSpinner fullScreen />;
   }
 
+  const tableColSpan = 4 + (isSuperAdmin ? 1 : 0) + (canManageUsers ? 1 : 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -185,10 +189,12 @@ export const Usuarios = () => {
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
           <p className="text-gray-600 mt-1">Administra los usuarios del sistema</p>
         </div>
-        <button onClick={handleCreate} className="btn-primary flex items-center gap-2">
-          <Plus size={20} />
-          Nuevo Usuario
-        </button>
+        {canManageUsers && (
+          <button onClick={handleCreate} className="btn-primary flex items-center gap-2">
+            <Plus size={20} />
+            Nuevo Usuario
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -296,13 +302,15 @@ export const Usuarios = () => {
                 )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                {canManageUsers && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                )}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsuarios.length === 0 ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 6 : 5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={tableColSpan} className="px-6 py-8 text-center text-gray-500">
                     {searchTerm || filterRol || filterEmpresa
                       ? 'No se encontraron usuarios con ese criterio'
                       : 'No hay usuarios registrados'}
@@ -344,63 +352,65 @@ export const Usuarios = () => {
                         {usuario.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="relative inline-block">
-                        <button
-                          onClick={() => setMenuOpen(menuOpen === usuario.id ? null : usuario.id)}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <MoreVertical size={18} />
-                        </button>
+                    {canManageUsers && (
+                      <td className="px-6 py-4 text-right">
+                        <div className="relative inline-block">
+                          <button
+                            onClick={() => setMenuOpen(menuOpen === usuario.id ? null : usuario.id)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <MoreVertical size={18} />
+                          </button>
 
-                        {menuOpen === usuario.id && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                              <button
-                                onClick={() => handleEdit(usuario.id)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                              >
-                                <Edit size={16} />
-                                Editar
-                              </button>
-                              
-                              {/* No permitir cambiar estado del usuario actual */}
-                              {usuario.id !== user?.id && (
-                                <>
-                                  <button
-                                    onClick={() => handleToggleStatus(usuario)}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                  >
-                                    {usuario.activo ? (
-                                      <>
-                                        <X size={16} />
-                                        Desactivar
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Check size={16} />
-                                        Activar
-                                      </>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setDeleteConfirm(usuario.id);
-                                      setMenuOpen(null);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  >
-                                    <Trash2 size={16} />
-                                    Eliminar
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </td>
+                          {menuOpen === usuario.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                                <button
+                                  onClick={() => handleEdit(usuario.id)}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Edit size={16} />
+                                  Editar
+                                </button>
+                                
+                                {/* No permitir cambiar estado del usuario actual */}
+                                {usuario.id !== user?.id && (
+                                  <>
+                                    <button
+                                      onClick={() => handleToggleStatus(usuario)}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                    >
+                                      {usuario.activo ? (
+                                        <>
+                                          <X size={16} />
+                                          Desactivar
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Check size={16} />
+                                          Activar
+                                        </>
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setDeleteConfirm(usuario.id);
+                                        setMenuOpen(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 size={16} />
+                                      Eliminar
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
