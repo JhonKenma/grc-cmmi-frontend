@@ -85,6 +85,8 @@ import ProcesosList from '@/pages/documentos-maestros/ProcesosList'; // <-- Impo
 import NormasList from '@/pages/documentos-maestros/NormasList';
 import DashboardSGI from '@/pages/documentos-maestros/DashboardSGI'; // <-- NUEVA IMPORTACIÓN DEL DASHBOARD
 import { Perfil } from './pages/Perfil/Perfil';
+import { AuditorRevisionesIQ } from './pages/auditor/AuditorRevisionesIQ';
+import { AuditorRevisionDetalleIQ } from './pages/auditor/AuditorRevisionDetalleIQ';
 
 function App() {
   return (
@@ -789,6 +791,27 @@ function App() {
                 <ProtectedRoute allowedRoles={['auditor']}>
                   <MainLayout>
                     <AuditorRevisionDetalle />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/auditor/revisiones-iq"
+              element={
+                <ProtectedRoute allowedRoles={['auditor']}>
+                  <MainLayout>
+                    <AuditorRevisionesIQ />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/auditor/revisiones-iq/:asignacionId"
+              element={
+                <ProtectedRoute allowedRoles={['auditor']}>
+                  <MainLayout>
+                    <AuditorRevisionDetalleIQ />
                   </MainLayout>
                 </ProtectedRoute>
               }
