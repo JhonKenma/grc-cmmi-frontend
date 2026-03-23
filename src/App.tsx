@@ -245,7 +245,7 @@ function App() {
             <Route
               path="/usuarios"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'auditor']}>
                   <MainLayout>
                     <Usuarios />
                   </MainLayout>
@@ -293,7 +293,7 @@ function App() {
             <Route
               path="/encuestas"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'auditor']}>
                   <MainLayout>
                     <ListaEncuestas />
                   </MainLayout>
@@ -313,7 +313,7 @@ function App() {
             <Route
               path="/encuestas/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'auditor']}>
                   <MainLayout>
                     <DetalleEncuesta />
                   </MainLayout>
@@ -520,7 +520,7 @@ function App() {
             <Route 
               path="/mis-proyectos" 
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'usuario', 'auditor']}>
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'usuario']}>
                   <MainLayout>
                     <MisProyectos />
                   </MainLayout>
