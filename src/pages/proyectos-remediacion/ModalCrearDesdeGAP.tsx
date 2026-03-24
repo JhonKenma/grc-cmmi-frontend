@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/common';
 import { useCrearProyectoDesdeGAP } from '@/hooks/useProyectosRemediacion';
-import { usuariosApi } from '@/api/endpoints';
+import { usuarioService } from '@/api/usuario.service';
 import { CrearDesdeGAPFormData, ModoPresupuesto } from '@/types/proyecto-remediacion.types';
 import { Usuario } from '@/types';
 import toast from 'react-hot-toast';
@@ -142,8 +142,8 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
   const loadUsuarios = async () => {
     try {
       setLoadingUsuarios(true);
-      const response = await usuariosApi.list();
-      const lista = Array.isArray(response) ? response : (response as any)?.results || [];
+      // Solo trae usuarios con rol 'usuario' de la empresa del admin
+      const lista = await usuarioService.getUsuariosAsignables();
       setUsuarios(lista);
     } catch {
       toast.error('Error al cargar usuarios');
@@ -291,7 +291,7 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
           </div>
         </div>
 
-        {/* ── ⭐ SECCIÓN AUDITORÍA (acordeón) ── */}
+        {/* ── SECCIÓN AUDITORÍA (acordeón) ── */}
         {asignacionId && (
           <div className="border-b border-gray-200">
             <button
@@ -340,11 +340,8 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
                 {!loadingAuditoria &&
                   respuestasAuditadas.map((resp, idx) => {
                     const cfg = getCfg(resp.calificacion_auditor);
-                    // Solo mostrar las que tienen comentario o recomendación para mantenerlo compacto
-                    // pero igual listar todas con su calificación
                     return (
                       <div key={resp.id} className={`rounded-lg border ${cfg.border} overflow-hidden`}>
-                        {/* Cabecera */}
                         <div className={`flex items-start justify-between px-3 py-2 ${cfg.bg}`}>
                           <div className="flex items-start gap-2 flex-1 min-w-0">
                             <span className="text-xs font-mono text-gray-400 shrink-0 mt-0.5">
@@ -363,7 +360,6 @@ export const ModalCrearDesdeGAP: React.FC<ModalCrearDesdeGAPProps> = ({
                           </span>
                         </div>
 
-                        {/* Cuerpo: solo si hay comentario o recomendación */}
                         {(resp.comentarios_auditor || resp.recomendaciones_auditor) && (
                           <div className="px-3 py-2 bg-white space-y-2">
                             {resp.comentarios_auditor && (

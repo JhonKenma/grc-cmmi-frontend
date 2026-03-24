@@ -1,10 +1,11 @@
-// src/pages/asignaciones/AsignarDimensionesEvaluacion.tsx - CREAR NUEVO
+// src/pages/asignaciones/AsignarDimensionesEvaluacion.tsx
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Check, AlertCircle, User } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
-import { evaluacionesApi, asignacionesApi, usuariosApi } from '@/api/endpoints';
+import { evaluacionesApi, asignacionesApi } from '@/api/endpoints';
+import { usuarioService } from '@/api/usuario.service';
 import { DimensionListItem, Usuario } from '@/types';
 import { DetalleAsignacion } from '@/api/endpoints/asignaciones.api';
 import { useAuth } from '@/context/AuthContext';
@@ -38,7 +39,7 @@ export const AsignarDimensionesEvaluacion: React.FC = () => {
 
   useEffect(() => {
     if (evaluacionId) {
-        console.log('📦 evaluacionId:', evaluacionId);
+      console.log('📦 evaluacionId:', evaluacionId);
       loadData();
     }
   }, [evaluacionId]);
@@ -53,32 +54,23 @@ export const AsignarDimensionesEvaluacion: React.FC = () => {
       const evaluacionData = await evaluacionesApi.get(evaluacionId);
       setEvaluacion(evaluacionData);
 
-      // 2. Cargar usuarios de la empresa
-      if (user?.empresa) {
-        const usuariosData = await usuariosApi.getByEmpresa(user.empresa);
-        const usuariosFiltrados = usuariosData.filter(
-          (u: Usuario) => u.rol !== 'superadmin' && u.id !== user?.id
-        );
-        setUsuarios(usuariosFiltrados);
-      }
+      // 2. Cargar solo usuarios con rol 'usuario' de la empresa
+      const usuariosData = await usuarioService.getUsuariosAsignables();
+      setUsuarios(usuariosData);
 
-    // 3. Cargar dimensiones disponibles
-    if (user?.empresa) {
-        console.log('🔍 Antes de llamar - evaluacionId:', evaluacionId);  // ⭐ AGREGAR
-        console.log('🔍 Antes de llamar - evaluacionData.encuesta:', evaluacionData.encuesta);  // ⭐ AGREGAR
-  
-    const data = await asignacionesApi.getDimensionesDisponibles(
-    evaluacionId  // ✅ ESTO ESTÁ BIEN
-    );
+      // 3. Cargar dimensiones disponibles
+      console.log('🔍 Antes de llamar - evaluacionId:', evaluacionId);
+      console.log('🔍 Antes de llamar - evaluacionData.encuesta:', evaluacionData.encuesta);
 
-    setDimensionesDisponibles(data.dimensiones);
-    setDetalleAsignaciones(data.detalle_asignaciones || []);
-    setInfoDimensiones({
+      const data = await asignacionesApi.getDimensionesDisponibles(evaluacionId);
+
+      setDimensionesDisponibles(data.dimensiones);
+      setDetalleAsignaciones(data.detalle_asignaciones || []);
+      setInfoDimensiones({
         total: data.total_dimensiones,
         asignadas: data.dimensiones_asignadas,
-        disponibles: data.dimensiones_disponibles
-    });
-    }
+        disponibles: data.dimensiones_disponibles,
+      });
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
       toast.error('Error al cargar datos');
@@ -118,7 +110,7 @@ export const AsignarDimensionesEvaluacion: React.FC = () => {
       setSubmitting(true);
 
       const payload = {
-        evaluacion_empresa_id: evaluacionId, // ⭐ IMPORTANTE
+        evaluacion_empresa_id: evaluacionId,
         dimension_ids: dimensionesSeleccionadas,
         usuario_id: parseInt(usuarioId),
         fecha_limite: fechaLimite,
