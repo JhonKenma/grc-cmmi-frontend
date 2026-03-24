@@ -98,4 +98,12 @@ export const usuarioService = {
     return response.data.results || response.data;
   },
 
+  // Obtener usuarios asignables (solo rol 'usuario' de la empresa)
+  async getUsuariosAsignables(empresaId?: number): Promise<Usuario[]> {
+    const params: any = {};
+    if (empresaId) params.empresa_id = empresaId;
+    
+    const response = await api.get('/auth/usuarios/usuarios_asignables/', { params });
+    return response.data.results || [];
+  },
 };
