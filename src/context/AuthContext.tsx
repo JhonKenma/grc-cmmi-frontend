@@ -92,13 +92,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ==========================================
   // LOGOUT
   // ==========================================
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    setUser(null);
-    toast.success('Sesión cerrada correctamente');
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await authService.logout(); // ← llama al backend primero
+    } catch {
+      // si falla igual cerramos sesión local
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      setUser(null);
+      toast.success('Sesión cerrada correctamente');
+      navigate('/login');
+    }
   };
 
     // ==========================================
