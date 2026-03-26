@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "shieldgrid365v2"
+  },
+  "targets": {
+    "shieldgrid365v2": {
+      "hosting": {
+        "dashboard": ["shieldgrid365-app"]
+      }
+    }
+  }
+}
