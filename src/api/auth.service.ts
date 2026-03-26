@@ -27,8 +27,16 @@ export const authService = {
   async changePassword(data: {
     password_actual: string;
     password_nuevo: string;
-    password_confirmacion: string;
+    password_confirmacion: string; 
   }): Promise<void> {
     await api.post('/auth/usuarios/cambiar_password/', data);
   },
+
+  async logout(): Promise<void> {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (refreshToken) {
+      await api.post('/auth/logout/', { refresh: refreshToken });
+    }
+  },
+
 };
