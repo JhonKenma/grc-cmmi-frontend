@@ -21,7 +21,6 @@ export * from './asignacion-iq.api'; // <-- AGREGAR
 export { respuestaIQApi } from './respuesta-iq.api';
 export * from './documentos.api';
 export * from './auditor-iq.api';
-export * from './copilot-chat.api';
 
 
 // Aquí puedes agregar más exports según vayas creando APIs
