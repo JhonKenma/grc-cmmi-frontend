@@ -87,6 +87,7 @@ import DashboardSGI from '@/pages/documentos-maestros/DashboardSGI'; // <-- NUEV
 import { Perfil } from './pages/Perfil/Perfil';
 import { AuditorRevisionesIQ } from './pages/auditor/AuditorRevisionesIQ';
 import { AuditorRevisionDetalleIQ } from './pages/auditor/AuditorRevisionDetalleIQ';
+import { GlobalCopilotChat } from '@/components/chat/GlobalCopilotChat';
 
 function App() {
   return (
@@ -821,6 +822,8 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+
+          <GlobalCopilotChat />
         </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
