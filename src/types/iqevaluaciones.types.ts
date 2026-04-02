@@ -151,6 +151,33 @@ export interface ReordenarPreguntasData {
   orden: number[];
 }
 
+export interface SugerirPreguntasIAData {
+  framework_codigo?: string;
+  instruction?: string;
+  seccion?: string;
+  nivel_madurez?: number;
+  max_preguntas?: number;
+}
+
+export interface SugerenciaPreguntaIA {
+  question_id: number;
+  score: number;
+  reason: string;
+}
+
+export interface SugerirPreguntasIAResponse {
+  success: boolean;
+  evaluacion_id: number;
+  framework: string;
+  total_candidatas: number;
+  total_sugeridas: number;
+  selected_question_ids: number[];
+  recommendations: SugerenciaPreguntaIA[];
+  preguntas_sugeridas: PreguntaEvaluacionList[];
+  model?: string;
+  message?: string;
+}
+
 export interface FiltrosPregunta {
   framework?: string;
   nivel_madurez?: number;
