@@ -93,17 +93,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // LOGOUT
   // ==========================================
   const logout = async () => {
+    //console.log('🔴 [logout] Iniciando cierre de sesión...');
     try {
-      await authService.logout(); // ← llama al backend primero
-    } catch {
-      // si falla igual cerramos sesión local
+      await authService.logout();
+      //console.log('✅ [logout] Backend notificado correctamente');
+    } catch (err) {
+      //console.warn('⚠️ [logout] Error al notificar backend (ignorado):', err);
     } finally {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
       setUser(null);
       toast.success('Sesión cerrada correctamente');
-      navigate('/login');
+      // Sin navigate aquí
     }
   };
 
