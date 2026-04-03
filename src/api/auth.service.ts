@@ -1,4 +1,3 @@
-// src/api/auth.service.ts
 import api from './axios';
 import { LoginCredentials, LoginResponse, Usuario } from '@/types';
 
@@ -27,16 +26,22 @@ export const authService = {
   async changePassword(data: {
     password_actual: string;
     password_nuevo: string;
-    password_confirmacion: string; 
+    password_confirmacion: string;
   }): Promise<void> {
     await api.post('/auth/usuarios/cambiar_password/', data);
   },
 
+  // Logout
   async logout(): Promise<void> {
     const refreshToken = localStorage.getItem('refresh_token');
+    //console.log('📡 [authService.logout] refresh_token existe:', !!refreshToken);
     if (refreshToken) {
-      await api.post('/auth/logout/', { refresh: refreshToken });
+      try {
+        await api.post('/auth/logout/', { refresh: refreshToken });
+        //console.log('✅ [authService.logout] POST /auth/logout/ exitoso');
+      } catch (err: any) {
+        //console.warn('⚠️ [authService.logout] POST /auth/logout/ falló:', err?.response?.status, err?.message);
+      }
     }
   },
-
 };
