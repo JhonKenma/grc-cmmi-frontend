@@ -81,8 +81,24 @@ export interface Empresa {
   activo: boolean;
   total_usuarios: number;
   total_encuestas: number;
+  plan?: PlanEmpresa;        // ← nuevo
+  plan_tipo?: string;        // ← del EmpresaListSerializer
+  plan_activo?: boolean;     // ← del EmpresaListSerializer
   fecha_creacion: string;
   fecha_actualizacion: string;
+}
+
+export interface PlanEmpresa {
+  id: number;
+  tipo: 'demo' | 'basico' | 'profesional' | 'enterprise';
+  tipo_display: string;
+  fecha_inicio: string;
+  fecha_expiracion: string | null;
+  max_usuarios: number;
+  max_administradores: number;
+  max_auditores: number;
+  esta_activo: boolean;
+  dias_restantes: number | null;
 }
 
 export interface LoginCredentials {
