@@ -1,17 +1,13 @@
-// src/api/axios.ts
-
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from '@/utils/constants';
 
-// Crear instancia de axios
-const axiosInstance = axios.create({  // ✅ Cambiar nombre a axiosInstance
+const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptores
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('access_token');
@@ -28,7 +24,14 @@ axiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // ── 401: intentar renovar token ──────────────────────
     if (error.response?.status === 401 && !originalRequest._retry) {
+
+      if (originalRequest.url?.includes('/auth/logout/')) {
+        //console.log('🚫 [interceptor] 401 de /auth/logout/ ignorado correctamente');
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {
@@ -48,7 +51,7 @@ axiosInstance.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${access}`;
         }
 
-        return axiosInstance(originalRequest);  // ✅ Cambiar a axiosInstance
+        return axiosInstance(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -58,8 +61,20 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    // ── 403: plan expirado o sin plan ────────────────────
+    if (error.response?.status === 403) {
+      const data = error.response.data as { codigo?: string };
+      
+      if (data?.codigo === 'PLAN_EXPIRADO' || data?.codigo === 'SIN_PLAN') {
+        if (window.location.pathname !== '/plan-expirado') {
+          window.location.href = '/plan-expirado';
+        }
+        return Promise.reject(error);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
 
-export default axiosInstance;  // ✅ Exportar axiosInstance
+export default axiosInstance;
