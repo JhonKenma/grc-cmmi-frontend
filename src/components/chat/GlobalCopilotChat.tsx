@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, SendHorizontal, Sparkles, X } from 'lucide-react';
+import { LoaderCircle, MessageCircle, Paperclip, SendHorizontal, Sparkles, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { empresaService } from '@/api/empresa.service';
 import { useAuth } from '@/context/AuthContext';
@@ -9,6 +11,8 @@ import { Empresa } from '@/types';
 
 type ChatRole = 'assistant' | 'user';
 type ChatResponseMode = 'auto' | 'evaluation_plan' | 'context_summary' | 'risk_recommendations';
+
+const ALLOWED_UPLOAD_EXTENSIONS_HINT = 'pdf, txt, md, csv, json, log, yaml, yml, xml';
 
 interface ChatMessage {
   id: string;
@@ -139,7 +143,9 @@ export const GlobalCopilotChat: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [targetEmpresaInput, setTargetEmpresaInput] = useState<string>(() => {
     return localStorage.getItem('chat_target_empresa_id') ?? '';
   });
@@ -161,6 +167,7 @@ export const GlobalCopilotChat: React.FC = () => {
   } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const pageContext = useMemo(() => {
     const label = resolvePageLabel(location.pathname);
@@ -243,13 +250,66 @@ export const GlobalCopilotChat: React.FC = () => {
     setEmpresaSearchInput(selectedEmpresa.nombre);
   }, [selectedEmpresa, showEmpresaSelector]);
 
-  const handleSendMessage = async () => {
-    const cleanMessage = inputValue.trim();
-    if (!cleanMessage || isSending) {
+  const resolveTargetEmpresaId = (): number | null => {
+    const empresaIdFromSession = getEmpresaIdFromSession();
+    const empresaIdFromInput = Number.parseInt(targetEmpresaInput, 10);
+    return (
+      empresaIdFromSession ??
+      (Number.isInteger(empresaIdFromInput) && empresaIdFromInput > 0
+        ? empresaIdFromInput
+        : null)
+    );
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
       return;
     }
 
-    setMessages((prev) => [...prev, createMessage('user', cleanMessage)]);
+    const pickedFiles = Array.from(files);
+    setSelectedFiles((prev) => {
+      const merged = [...prev];
+      pickedFiles.forEach((file) => {
+        const alreadyExists = merged.some(
+          (item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified
+        );
+        if (!alreadyExists) {
+          merged.push(file);
+        }
+      });
+      return merged;
+    });
+
+    event.target.value = '';
+  };
+
+  const handleRemoveFile = (targetFile: File) => {
+    setSelectedFiles((prev) =>
+      prev.filter(
+        (file) =>
+          !(file.name === targetFile.name && file.size === targetFile.size && file.lastModified === targetFile.lastModified)
+      )
+    );
+  };
+
+  const handleSendMessage = async () => {
+    const cleanMessage = inputValue.trim();
+    const hasSelectedFiles = selectedFiles.length > 0;
+
+    if ((!cleanMessage && !hasSelectedFiles) || isSending || isUploadingFiles) {
+      return;
+    }
+
+    const userMessage = cleanMessage
+      ? cleanMessage
+      : `Adjunto ${selectedFiles.length} archivo(s) para actualizar el contexto empresarial.`;
+
+    setMessages((prev) => [...prev, createMessage('user', userMessage)]);
     setInputValue('');
 
     if (!isAuthenticated) {
@@ -263,13 +323,44 @@ export const GlobalCopilotChat: React.FC = () => {
     setIsSending(true);
 
     try {
-      const empresaIdFromSession = getEmpresaIdFromSession();
-      const empresaIdFromInput = Number.parseInt(targetEmpresaInput, 10);
-      const targetEmpresaId =
-        empresaIdFromSession ??
-        (Number.isInteger(empresaIdFromInput) && empresaIdFromInput > 0
-          ? empresaIdFromInput
-          : null);
+      const targetEmpresaId = resolveTargetEmpresaId();
+
+      if (hasSelectedFiles) {
+        if (!targetEmpresaId) {
+          setMessages((prev) => [
+            ...prev,
+            createMessage('assistant', 'Selecciona una empresa objetivo para cargar documentos en la base RAG.'),
+          ]);
+          return;
+        }
+
+        setIsUploadingFiles(true);
+
+        const uploadResult = await copilotChatApi.uploadCompanyDocuments({
+          empresaId: targetEmpresaId,
+          files: selectedFiles,
+          framework: 'MULTI-FRAMEWORK',
+          sourceType: 'activo_informacion',
+          contextNote: cleanMessage || undefined,
+        });
+
+        const uploadSummary = [
+          `Documentos cargados: ${uploadResult.processed_files}.`,
+          `Chunks vectorizados: ${uploadResult.upserted}.`,
+        ];
+
+        if (uploadResult.skipped_files.length > 0) {
+          uploadSummary.push('', 'Archivos omitidos:');
+          uploadSummary.push(...uploadResult.skipped_files.map((file) => `- ${file}`));
+        }
+
+        setMessages((prev) => [...prev, createMessage('assistant', uploadSummary.join('\n'))]);
+        setSelectedFiles([]);
+
+        if (!cleanMessage && !pendingCompanyContext) {
+          return;
+        }
+      }
 
       if (!pendingCompanyContext && targetEmpresaId && isCompanyContextPayload(cleanMessage)) {
         const framework = 'MULTI-FRAMEWORK';
@@ -313,12 +404,14 @@ export const GlobalCopilotChat: React.FC = () => {
         }
 
         const framework = pendingCompanyContext.framework;
-        await copilotChatApi.saveCompanyContext({
-          empresaId: targetEmpresaId,
-          message: cleanMessage,
-          pageContext,
-          framework,
-        });
+        if (cleanMessage) {
+          await copilotChatApi.saveCompanyContext({
+            empresaId: targetEmpresaId,
+            message: cleanMessage,
+            pageContext,
+            framework,
+          });
+        }
 
         const response = await copilotChatApi.ask({
           empresaId: targetEmpresaId,
@@ -330,7 +423,9 @@ export const GlobalCopilotChat: React.FC = () => {
 
         const usage = response.context_used;
         const assistantText = [
-          'Gracias, ya guarde el contexto de tu empresa en la base de conocimiento.',
+          cleanMessage
+            ? 'Gracias, ya guarde el contexto de tu empresa en la base de conocimiento.'
+            : 'Gracias, ya procese los documentos y actualice el contexto de tu empresa.',
           '',
           response.suggestion,
           '',
@@ -344,10 +439,12 @@ export const GlobalCopilotChat: React.FC = () => {
 
       if (targetEmpresaId) {
         const framework = 'MULTI-FRAMEWORK';
-        const responseMode = inferResponseMode(cleanMessage);
+        const responseMode = cleanMessage ? inferResponseMode(cleanMessage) : 'context_summary';
         const response = await copilotChatApi.ask({
           empresaId: targetEmpresaId,
-          message: cleanMessage,
+          message:
+            cleanMessage ||
+            'Acabo de cargar documentos en el chat. Resume de forma natural y accionable que contexto nuevo tienes de mi empresa.',
           pageContext,
           framework,
           responseMode,
@@ -402,6 +499,7 @@ export const GlobalCopilotChat: React.FC = () => {
       ]);
     } finally {
       setIsSending(false);
+      setIsUploadingFiles(false);
     }
   };
 
@@ -547,15 +645,47 @@ export const GlobalCopilotChat: React.FC = () => {
               {messages.map((message) => (
                 <article
                   key={message.id}
-                  className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                  className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                     message.role === 'assistant'
                       ? 'mr-auto bg-white text-slate-700 shadow-sm'
                       : 'ml-auto bg-emerald-500 text-white'
                   }`}
                 >
-                  {message.content}
+                  {message.role === 'assistant' ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+                        ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                        code: ({ children }) => (
+                          <code className="rounded bg-slate-100 px-1 py-0.5 text-[12px] text-slate-800">{children}</code>
+                        ),
+                        h1: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
+                        h2: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
+                        h3: ({ children }) => <h4 className="mb-2 text-sm font-semibold">{children}</h4>,
+                        blockquote: ({ children }) => (
+                          <blockquote className="mb-2 border-l-2 border-emerald-300 pl-3 italic text-slate-600">
+                            {children}
+                          </blockquote>
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  )}
                 </article>
               ))}
+
+              {isUploadingFiles && (
+                <article className="mr-auto flex max-w-[88%] items-center gap-2 rounded-2xl bg-white px-3 py-2 text-sm text-slate-500 shadow-sm">
+                  <LoaderCircle size={14} className="animate-spin" />
+                  Procesando archivos y vectorizando chunks...
+                </article>
+              )}
 
               {isSending && (
                 <article className="max-w-[88%] rounded-2xl bg-white px-3 py-2 text-sm text-slate-500 shadow-sm">
@@ -572,25 +702,74 @@ export const GlobalCopilotChat: React.FC = () => {
                   Pendiente: comparte datos de la empresa (giro, procesos criticos, activos de informacion, riesgos y objetivos de cumplimiento). Guardare ese contexto y continuare la respuesta.
                 </p>
               )}
+              {selectedFiles.length > 0 && (
+                <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2">
+                  <p className="mb-1 text-[11px] text-emerald-800">
+                    Archivos listos para ingesta ({selectedFiles.length})
+                  </p>
+                  <div className="max-h-20 space-y-1 overflow-y-auto">
+                    {selectedFiles.map((file) => (
+                      <div
+                        key={`${file.name}-${file.lastModified}-${file.size}`}
+                        className="flex items-center justify-between rounded bg-white px-2 py-1 text-[11px] text-slate-700"
+                      >
+                        <span className="truncate pr-2">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(file)}
+                          className="rounded px-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                          aria-label={`Quitar archivo ${file.name}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-2 py-1">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.txt,.md,.csv,.json,.log,.yaml,.yml,.xml"
+                  className="hidden"
+                  onChange={handleFileSelection}
+                />
+                <button
+                  type="button"
+                  onClick={openFilePicker}
+                  disabled={isSending || isUploadingFiles}
+                  className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                  aria-label="Adjuntar archivos"
+                >
+                  <Paperclip size={16} />
+                </button>
                 <input
                   value={inputValue}
                   onChange={(event) => setInputValue(event.target.value)}
                   onKeyDown={handleInputKeyDown}
-                  placeholder={pendingCompanyContext ? 'Escribe el contexto de tu empresa...' : 'Escribe tu mensaje'}
+                  placeholder={
+                    pendingCompanyContext
+                      ? 'Escribe el contexto de tu empresa o adjunta documentos...'
+                      : 'Escribe tu mensaje o adjunta documentos'
+                  }
                   className="h-9 flex-1 border-none bg-transparent px-2 text-sm text-slate-700 outline-none"
-                  disabled={isSending}
+                  disabled={isSending || isUploadingFiles}
                 />
                 <button
                   type="button"
                   onClick={() => void handleSendMessage()}
-                  disabled={isSending || !inputValue.trim()}
+                  disabled={isSending || isUploadingFiles || (!inputValue.trim() && selectedFiles.length === 0)}
                   className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                   aria-label="Enviar mensaje"
                 >
                   <SendHorizontal size={16} />
                 </button>
               </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Formatos permitidos: {ALLOWED_UPLOAD_EXTENSIONS_HINT}.
+              </p>
             </div>
           </div>
         </section>

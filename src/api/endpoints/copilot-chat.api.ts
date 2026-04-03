@@ -41,6 +41,21 @@ interface CopilotIngestionResponse {
   upserted: number;
 }
 
+interface CopilotUploadDocumentsParams {
+  empresaId: number;
+  files: File[];
+  framework?: string;
+  sourceType?: string;
+  contextNote?: string;
+}
+
+interface CopilotUploadDocumentsResponse {
+  empresa_id: number;
+  upserted: number;
+  processed_files: number;
+  skipped_files: string[];
+}
+
 interface CompletionResponse {
   content: string;
   model: string;
@@ -169,6 +184,42 @@ export const copilotChatApi = {
             },
           ],
         }
+      );
+      return data;
+    } catch (error) {
+      throw new Error(buildApiErrorMessage(error));
+    }
+  },
+
+  uploadCompanyDocuments: async ({
+    empresaId,
+    files,
+    framework = 'MULTI-FRAMEWORK',
+    sourceType = 'activo_informacion',
+    contextNote,
+  }: CopilotUploadDocumentsParams): Promise<CopilotUploadDocumentsResponse> => {
+    if (!files.length) {
+      throw new Error('Debes seleccionar al menos un archivo para cargar.');
+    }
+
+    const formData = new FormData();
+    formData.append('empresa_id', String(empresaId));
+    formData.append('framework', framework);
+    formData.append('source_type', sourceType);
+
+    const normalizedContextNote = contextNote?.trim();
+    if (normalizedContextNote) {
+      formData.append('context_note', normalizedContextNote);
+    }
+
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    try {
+      const { data } = await aiAxios.post<CopilotUploadDocumentsResponse>(
+        '/copilot/ingestion/upload',
+        formData
       );
       return data;
     } catch (error) {
