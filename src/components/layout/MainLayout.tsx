@@ -129,18 +129,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/evaluaciones-inteligentes/asignar-frameworks',
       roles: ['superadmin'],
     },
-    
-    // ⭐ NUEVO: Asignar Evaluaciones (Admin)
-    {
-      name: 'Asignar Evaluaciones',
-      icon: Users,
-      path: '/evaluaciones-inteligentes/asignar',
-      roles: ['administrador'],
-    },
+  
     
     // ⭐ NUEVO: Gestionar Asignaciones (Admin)
     {
-      name: 'Gestionar Asignaciones',
+      name: 'G-Asignaciones',
       icon: CheckSquare,
       path: '/evaluaciones-inteligentes/gestionar-asignaciones',
       roles: ['administrador'],
@@ -148,7 +141,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
     // ⭐ AGREGADO: Maestro de Documentos
     {
-      name: 'Maestro de Documentos',
+      name: 'Gobierno',
       icon: FileText,
       path: '/documentos-maestros',
       roles: ['administrador'],
@@ -165,9 +158,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login'); // ✅ Navega después de que logout limpió todo
   };
 
   return (
