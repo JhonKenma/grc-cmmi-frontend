@@ -8,6 +8,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { UsuarioFormFields } from './components/UsuarioFormFields';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { manejarErrorCrearUsuario } from '@/utils/errorHandler';
 
 export const UsuarioEdit = () => {
   const navigate = useNavigate();
@@ -138,19 +139,17 @@ export const UsuarioEdit = () => {
 
     try {
       setLoading(true);
-      
-      // Preparar datos para enviar
+
       const dataToSend: any = {
-        email: formData.email,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        rol: formData.rol,
-        cargo: formData.cargo,
+        email:        formData.email,
+        first_name:   formData.first_name,
+        last_name:    formData.last_name,
+        rol:          formData.rol,
+        cargo:        formData.cargo,
         departamento: formData.departamento,
-        telefono: formData.telefono,
+        telefono:     formData.telefono,
       };
 
-      // Solo incluir empresa si no es superadmin
       if (formData.rol !== 'superadmin') {
         dataToSend.empresa = parseInt(formData.empresa);
       } else {
@@ -160,23 +159,10 @@ export const UsuarioEdit = () => {
       await usuarioService.update(parseInt(id), dataToSend);
       toast.success('Usuario actualizado correctamente');
       navigate('/usuarios');
+
     } catch (error: any) {
-      console.error('Error al actualizar usuario:', error);
-      
-      if (error.response?.data) {
-        const backendErrors = error.response.data;
-        const errorMessages: Record<string, string> = {};
-        
-        Object.keys(backendErrors).forEach((key) => {
-          const value = backendErrors[key];
-          errorMessages[key] = Array.isArray(value) ? value[0] : value;
-        });
-        
-        setErrors(errorMessages);
-        toast.error('Error al actualizar el usuario. Revise los campos');
-      } else {
-        toast.error('Error al actualizar el usuario');
-      }
+      // En edición también pueden haber errores de plan
+      manejarErrorCrearUsuario(error, setErrors, toast);
     } finally {
       setLoading(false);
     }
