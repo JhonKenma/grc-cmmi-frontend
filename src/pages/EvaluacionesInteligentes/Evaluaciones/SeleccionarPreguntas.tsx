@@ -45,7 +45,15 @@ export const SeleccionarPreguntas = () => {
   const [evaluacion, setEvaluacion] = useState<EvaluacionDetail | null>(null);
   const [ultimaSugerencia, setUltimaSugerencia] = useState<{
     total: number;
+    criterio?: string;
     model?: string;
+    detalles?: Array<{
+      questionId: number;
+      codigoControl?: string;
+      pregunta?: string;
+      reason: string;
+      score: number;
+    }>;
   } | null>(null);
 
   // ── Framework activo ───────────────────────────────────────────────────────
@@ -222,6 +230,25 @@ export const SeleccionarPreguntas = () => {
         }
       );
 
+      const preguntasById = new Map(response.preguntas_sugeridas.map((pregunta) => [pregunta.id, pregunta]));
+      const detalles = response.recommendations.map((recomendacion) => {
+        const pregunta = preguntasById.get(recomendacion.question_id);
+        return {
+          questionId: recomendacion.question_id,
+          codigoControl: pregunta?.codigo_control,
+          pregunta: pregunta?.pregunta,
+          reason: recomendacion.reason,
+          score: recomendacion.score,
+        };
+      });
+
+      setUltimaSugerencia({
+        total: response.total_sugeridas,
+        criterio: response.criterio,
+        model: response.model,
+        detalles,
+      });
+
       if (!response.selected_question_ids.length) {
         toast('La IA no encontro preguntas sugeridas con los filtros actuales.');
         return;
@@ -230,11 +257,6 @@ export const SeleccionarPreguntas = () => {
       setPreguntasSeleccionadas((prev) =>
         new Set([...prev, ...response.selected_question_ids])
       );
-
-      setUltimaSugerencia({
-        total: response.total_sugeridas,
-        model: response.model,
-      });
 
       toast.success(`${response.total_sugeridas} pregunta(s) sugerida(s) por IA`);
     } catch (error: any) {
@@ -376,6 +398,30 @@ export const SeleccionarPreguntas = () => {
             IA aplico una preseleccion de {ultimaSugerencia.total} pregunta(s)
             {ultimaSugerencia.model ? ` usando ${ultimaSugerencia.model}` : ''}.
           </p>
+          {ultimaSugerencia.criterio && (
+            <p className="text-sm text-indigo-700 mt-2 whitespace-pre-line">
+              Criterio IA: {ultimaSugerencia.criterio}
+            </p>
+          )}
+
+          {Boolean(ultimaSugerencia.detalles?.length) && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">
+                Por que eligio cada pregunta
+              </p>
+              <ul className="mt-2 space-y-2">
+                {ultimaSugerencia.detalles?.slice(0, 8).map((detalle) => (
+                  <li key={detalle.questionId} className="text-sm text-indigo-800">
+                    <span className="font-medium">
+                      {detalle.codigoControl || `Pregunta ${detalle.questionId}`}
+                    </span>
+                    {detalle.pregunta ? ` - ${detalle.pregunta}` : ''}
+                    {`: ${detalle.reason} (score ${detalle.score.toFixed(2)})`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

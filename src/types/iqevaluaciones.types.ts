@@ -169,6 +169,7 @@ export interface SugerirPreguntasIAResponse {
   success: boolean;
   evaluacion_id: number;
   framework: string;
+  criterio: string;
   total_candidatas: number;
   total_sugeridas: number;
   selected_question_ids: number[];

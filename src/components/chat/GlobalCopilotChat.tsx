@@ -8,6 +8,7 @@ import { copilotChatApi } from '@/api/endpoints/copilot-chat.api';
 import { Empresa } from '@/types';
 
 type ChatRole = 'assistant' | 'user';
+type ChatResponseMode = 'auto' | 'evaluation_plan' | 'context_summary' | 'risk_recommendations';
 
 interface ChatMessage {
   id: string;
@@ -61,6 +62,77 @@ function createMessage(role: ChatRole, content: string): ChatMessage {
   };
 }
 
+function isCompanyContextPayload(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  const markers = [
+    'contexto de mi empresa',
+    'contexto grc actual',
+    'a que se dedican',
+    'a qué se dedican',
+    'objetivo inmediato',
+    'razon social',
+    'razón social',
+    'ruc',
+    'sector',
+    'tamaño',
+    'tamano',
+    'pais',
+    'país',
+    'usuarios activos',
+    'frameworks activos',
+  ];
+
+  const markerHits = markers.reduce((count, marker) => {
+    return normalized.includes(marker) ? count + 1 : count;
+  }, 0);
+
+  const structuredLines = message
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('-') || line.includes(':')).length;
+
+  return markerHits >= 2 || (normalized.length >= 350 && structuredLines >= 5);
+}
+
+function inferResponseMode(message: string): ChatResponseMode {
+  if (isCompanyContextPayload(message)) {
+    return 'context_summary';
+  }
+
+  const normalized = message.trim().toLowerCase();
+
+  const contextSummaryPatterns = [
+    'que sabes',
+    'qué sabes',
+    'acerca de mi empresa',
+    'sobre mi empresa',
+    'resumen de mi empresa',
+    'mi empresa',
+  ];
+  if (contextSummaryPatterns.some((pattern) => normalized.includes(pattern))) {
+    return 'context_summary';
+  }
+
+  const riskPatterns = [
+    'riesgo',
+    'brecha',
+    'gap',
+    'remediacion',
+    'remediación',
+    'plan de accion',
+    'plan de acción',
+  ];
+  if (riskPatterns.some((pattern) => normalized.includes(pattern))) {
+    return 'risk_recommendations';
+  }
+
+  return 'auto';
+}
+
 export const GlobalCopilotChat: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
@@ -81,6 +153,12 @@ export const GlobalCopilotChat: React.FC = () => {
       'Hola, soy tu Copilot GRC. Preguntame por riesgos, brechas o recomendaciones segun la vista actual.'
     ),
   ]);
+  const [pendingCompanyContext, setPendingCompanyContext] = useState<{
+    empresaId: number;
+    framework: string;
+    originalQuestion: string;
+    responseMode: ChatResponseMode;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -193,22 +271,116 @@ export const GlobalCopilotChat: React.FC = () => {
           ? empresaIdFromInput
           : null);
 
-      if (targetEmpresaId) {
-        const response = await copilotChatApi.ask({
+      if (!pendingCompanyContext && targetEmpresaId && isCompanyContextPayload(cleanMessage)) {
+        const framework = 'MULTI-FRAMEWORK';
+
+        await copilotChatApi.saveCompanyContext({
           empresaId: targetEmpresaId,
           message: cleanMessage,
           pageContext,
+          framework,
+        });
+
+        const summaryResponse = await copilotChatApi.ask({
+          empresaId: targetEmpresaId,
+          message: 'Con base en el contexto que acabo de compartir, resume que sabes de mi empresa de forma natural y accionable.',
+          pageContext,
+          framework,
+          responseMode: 'context_summary',
+        });
+
+        const usage = summaryResponse.context_used;
+        const assistantText = [
+          'Perfecto, ya guarde el contexto de tu empresa en la base de conocimiento.',
+          '',
+          summaryResponse.suggestion,
+          '',
+          `Contexto recuperado: activos=${usage.activos_previos_count}, hallazgos=${usage.hallazgos_historicos_count}, normativa=${usage.normativa_count}.`,
+        ].join('\n');
+
+        setPendingCompanyContext(null);
+        setMessages((prev) => [...prev, createMessage('assistant', assistantText)]);
+        return;
+      }
+
+      if (pendingCompanyContext) {
+        if (!targetEmpresaId) {
+          setMessages((prev) => [
+            ...prev,
+            createMessage('assistant', 'Necesito una empresa objetivo para guardar este contexto y continuar.'),
+          ]);
+          return;
+        }
+
+        const framework = pendingCompanyContext.framework;
+        await copilotChatApi.saveCompanyContext({
+          empresaId: targetEmpresaId,
+          message: cleanMessage,
+          pageContext,
+          framework,
+        });
+
+        const response = await copilotChatApi.ask({
+          empresaId: targetEmpresaId,
+          message: pendingCompanyContext.originalQuestion,
+          pageContext,
+          framework,
+          responseMode: pendingCompanyContext.responseMode,
         });
 
         const usage = response.context_used;
         const assistantText = [
+          'Gracias, ya guarde el contexto de tu empresa en la base de conocimiento.',
+          '',
           response.suggestion,
           '',
           `Contexto recuperado: activos=${usage.activos_previos_count}, hallazgos=${usage.hallazgos_historicos_count}, normativa=${usage.normativa_count}.`,
         ].join('\n');
 
+        setPendingCompanyContext(null);
+        setMessages((prev) => [...prev, createMessage('assistant', assistantText)]);
+        return;
+      }
+
+      if (targetEmpresaId) {
+        const framework = 'MULTI-FRAMEWORK';
+        const responseMode = inferResponseMode(cleanMessage);
+        const response = await copilotChatApi.ask({
+          empresaId: targetEmpresaId,
+          message: cleanMessage,
+          pageContext,
+          framework,
+          responseMode,
+        });
+
+        const usage = response.context_used;
+        const assistantChunks = [
+          response.suggestion,
+          '',
+          `Contexto recuperado: activos=${usage.activos_previos_count}, hallazgos=${usage.hallazgos_historicos_count}, normativa=${usage.normativa_count}.`,
+        ];
+
+        if (response.context_gap_detected && response.context_gap_message) {
+          assistantChunks.push(
+            '',
+            response.context_gap_message,
+            'Responde con esos datos en tu siguiente mensaje y los guardare para mejorar las respuestas de tu empresa.'
+          );
+          setPendingCompanyContext({
+            empresaId: targetEmpresaId,
+            framework,
+            originalQuestion: cleanMessage,
+            responseMode,
+          });
+        } else {
+          setPendingCompanyContext(null);
+        }
+
+        const assistantText = assistantChunks.join('\n');
+
         setMessages((prev) => [...prev, createMessage('assistant', assistantText)]);
       } else {
+        setPendingCompanyContext(null);
         const fallbackResponse = await copilotChatApi.askGeneric({
           message: cleanMessage,
           pageContext,
@@ -395,12 +567,17 @@ export const GlobalCopilotChat: React.FC = () => {
             </div>
 
             <div className="border-t border-slate-200 bg-white p-3">
+              {pendingCompanyContext && (
+                <p className="mb-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                  Pendiente: comparte datos de la empresa (giro, procesos criticos, activos de informacion, riesgos y objetivos de cumplimiento). Guardare ese contexto y continuare la respuesta.
+                </p>
+              )}
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-2 py-1">
                 <input
                   value={inputValue}
                   onChange={(event) => setInputValue(event.target.value)}
                   onKeyDown={handleInputKeyDown}
-                  placeholder="Escribe tu mensaje"
+                  placeholder={pendingCompanyContext ? 'Escribe el contexto de tu empresa...' : 'Escribe tu mensaje'}
                   className="h-9 flex-1 border-none bg-transparent px-2 text-sm text-slate-700 outline-none"
                   disabled={isSending}
                 />

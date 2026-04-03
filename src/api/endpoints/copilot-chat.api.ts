@@ -10,6 +10,9 @@ interface CopilotEvaluationPlanResponse {
     hallazgos_historicos_count: number;
     normativa_count: number;
   };
+  context_gap_detected?: boolean;
+  context_gap_message?: string | null;
+  response_mode?: 'auto' | 'evaluation_plan' | 'context_summary' | 'risk_recommendations';
   model: string;
 }
 
@@ -18,11 +21,24 @@ interface CopilotAskParams {
   message: string;
   pageContext: string;
   framework?: string;
+  responseMode?: 'auto' | 'evaluation_plan' | 'context_summary' | 'risk_recommendations';
 }
 
 interface CopilotAskGenericParams {
   message: string;
   pageContext: string;
+}
+
+interface CopilotSaveCompanyContextParams {
+  empresaId: number;
+  message: string;
+  pageContext: string;
+  framework?: string;
+}
+
+interface CopilotIngestionResponse {
+  empresa_id: number;
+  upserted: number;
 }
 
 interface CompletionResponse {
@@ -65,7 +81,8 @@ export const copilotChatApi = {
     empresaId,
     message,
     pageContext,
-    framework = 'ISO 27001',
+    framework = 'MULTI-FRAMEWORK',
+    responseMode = 'auto',
   }: CopilotAskParams): Promise<CopilotEvaluationPlanResponse> => {
     const instruction = [
       'Responde como chat empresarial en espanol claro y accionable.',
@@ -80,6 +97,7 @@ export const copilotChatApi = {
           empresa_id: empresaId,
           framework,
           instruction,
+          response_mode: responseMode,
         }
       );
 
@@ -105,6 +123,53 @@ export const copilotChatApi = {
         system_prompt:
           'Eres un asistente GRC. Responde en espanol claro, sin inventar datos empresariales especificos.',
       });
+      return data;
+    } catch (error) {
+      throw new Error(buildApiErrorMessage(error));
+    }
+  },
+
+  saveCompanyContext: async ({
+    empresaId,
+    message,
+    pageContext,
+    framework = 'MULTI-FRAMEWORK',
+  }: CopilotSaveCompanyContextParams): Promise<CopilotIngestionResponse> => {
+    const cleanMessage = message.trim();
+    if (!cleanMessage) {
+      throw new Error('Debes enviar informacion de la empresa para guardarla.');
+    }
+
+    const nowIso = new Date().toISOString();
+    const sourceId = `chat-company-context-${Date.now()}`;
+    const normalizedText = [
+      'Contexto empresarial compartido por usuario en chat:',
+      cleanMessage,
+      '',
+      `Contexto de navegacion: ${pageContext}`,
+      `Registrado en: ${nowIso}`,
+    ].join('\n');
+
+    try {
+      const { data } = await aiAxios.post<CopilotIngestionResponse>(
+        '/copilot/ingestion/upsert',
+        {
+          empresa_id: empresaId,
+          documents: [
+            {
+              source_type: 'activo_informacion',
+              source_id: sourceId,
+              framework,
+              text: normalizedText,
+              idioma: 'es',
+              metadata: {
+                source_channel: 'chat',
+                page_context: pageContext,
+              },
+            },
+          ],
+        }
+      );
       return data;
     } catch (error) {
       throw new Error(buildApiErrorMessage(error));
