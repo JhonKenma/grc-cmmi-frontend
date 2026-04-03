@@ -88,6 +88,8 @@ import { Perfil } from './pages/Perfil/Perfil';
 import { AuditorRevisionesIQ } from './pages/auditor/AuditorRevisionesIQ';
 import { AuditorRevisionDetalleIQ } from './pages/auditor/AuditorRevisionDetalleIQ';
 
+import { PlanExpirado } from '@/pages/PlanExpirado';
+
 function App() {
   return (
     <BrowserRouter>
@@ -816,7 +818,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
+            <Route path="/plan-expirado" element={<PlanExpirado />} />
             {/* Rutas por defecto */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

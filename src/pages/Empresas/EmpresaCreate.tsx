@@ -73,7 +73,6 @@ export const EmpresaCreate = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) {
       toast.error('Por favor, complete todos los campos requeridos');
       return;
@@ -81,31 +80,42 @@ export const EmpresaCreate = () => {
 
     try {
       setLoading(true);
-      await empresaService.create(formData);
-      toast.success('Empresa creada correctamente');
-      navigate('/empresas');
-    } catch (error: any) {
-      console.error('Error al crear empresa:', error);
-      
-      if (error.response?.data) {
-        const backendErrors = error.response.data;
-        const errorMessages: Record<string, string> = {};
-        
-        Object.keys(backendErrors).forEach((key) => {
-          const value = backendErrors[key];
-          errorMessages[key] = Array.isArray(value) ? value[0] : value;
-        });
-        
-        setErrors(errorMessages);
-        toast.error('Error al crear la empresa. Revise los campos');
-      } else {
-        toast.error('Error al crear la empresa');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      const empresa = await empresaService.create(formData);
 
+      // Calcular fecha demo: hoy + 60 días en formato YYYY-MM-DD
+      const fechaDemo = new Date();
+      fechaDemo.setDate(fechaDemo.getDate() + 60);
+      const fechaDemoStr = fechaDemo.toISOString().slice(0, 10);
+
+      await empresaService.asignarPlan(empresa.id, {
+        tipo:                'demo',
+        max_usuarios:        3,
+        max_administradores: 1,
+        max_auditores:       1,
+        fecha_expiracion:    fechaDemoStr,
+        sin_expiracion:      false,        // ← importante
+      });
+
+      toast.success('Empresa creada con plan demo (60 días)');
+      navigate('/empresas');
+
+  } catch (error: any) {
+    if (error.response?.data) {
+      const backendErrors = error.response.data;
+      const errorMessages: Record<string, string> = {};
+      Object.keys(backendErrors).forEach((key) => {
+        const value = backendErrors[key];
+        errorMessages[key] = Array.isArray(value) ? value[0] : value;
+      });
+      setErrors(errorMessages);
+      toast.error('Error al crear la empresa. Revise los campos');
+    } else {
+      toast.error('Error al crear la empresa');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="space-y-6">
       {/* Header */}
