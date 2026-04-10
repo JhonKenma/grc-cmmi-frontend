@@ -83,10 +83,11 @@ export const AuditorRevisionDetalleIQ: React.FC = () => {
         notas_auditoria: notasCierre,
       });
 
-      const data = (res as any).data || res;
+      const innerData = (res as any).data || res;
+      console.log('🔍 innerData:', JSON.stringify(innerData));
       setResultadoCierre({
-        gap_info:           data?.gap_info || null,
-        pendientes_auto_nc: data?.pendientes_auto_nc || 0,
+        gap_info:           innerData?.gap_info || null,
+        pendientes_auto_nc: innerData?.pendientes_auto_nc || 0,
       });
       setMostrarModalCierre(false);
 
