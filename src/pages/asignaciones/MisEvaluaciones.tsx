@@ -98,7 +98,7 @@ export const MisEvaluaciones: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Evaluaciones</h1>
-          <p className="text-sm text-slate-500">Monitorea y gestiona el progreso de las encuestas asignadas.</p>
+          <p className="text-sm text-slate-500">Monitorea y gestiona el progreso de las evaluaciones asignadas.</p>
         </div>
         
         <div className="flex items-center gap-3">
