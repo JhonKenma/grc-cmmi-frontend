@@ -89,6 +89,9 @@ import { AuditorRevisionesIQ } from './pages/auditor/AuditorRevisionesIQ';
 import { AuditorRevisionDetalleIQ } from './pages/auditor/AuditorRevisionDetalleIQ';
 
 import { PlanExpirado } from '@/pages/PlanExpirado';
+import { GestionarAsignacionesDetalle } from './pages/EvaluacionesInteligentes/Asignaciones/GestionarAsignacionesDetalle';
+import { VerRespuestasAdmin } from './pages/EvaluacionesInteligentes/Asignaciones/VerRespuestasAdmin';
+import { ReporteEvaluacionIQ } from './pages/reportes/ReporteEvaluacionIQ';
 
 function App() {
   return (
@@ -484,7 +487,16 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+              path="/reportes/evaluacion-iq"
+              element={
+                <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                  <MainLayout>
+                    <ReporteEvaluacionIQ />  {/* ← CAMBIAR ESTO */}
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
             {/* ========================================
                 RUTAS DE PROYECTOS DE REMEDIACIÓN
                 ======================================== */}
@@ -767,11 +779,31 @@ function App() {
             path="/evaluaciones-iq/responder/:id" 
             element={
               <ProtectedRoute allowedRoles={['usuario', 'administrador', 'superadmin']}>
-                <MainLayout>
-                  <ResponderEvaluacionIQ />
-                </MainLayout>
+                <ResponderEvaluacionIQ />
               </ProtectedRoute>
             } 
+          />
+
+          <Route
+            path="/evaluaciones-inteligentes/gestionar-asignaciones/:evaluacionId"
+            element={
+              <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                <MainLayout>
+                  <GestionarAsignacionesDetalle />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/evaluaciones-iq/asignacion/:asignacionId/respuestas"
+            element={
+              <ProtectedRoute allowedRoles={['administrador', 'superadmin']}>
+                <MainLayout>
+                  <VerRespuestasAdmin />
+                </MainLayout>
+              </ProtectedRoute>
+            }
           />
 
             {/* ========================================
@@ -811,7 +843,7 @@ function App() {
             <Route
               path="/auditor/revisiones-iq/:asignacionId"
               element={
-                <ProtectedRoute allowedRoles={['auditor']}>
+                <ProtectedRoute allowedRoles={['auditor', 'administrador', 'superadmin']}>  {/* ← agregar roles */}
                   <MainLayout>
                     <AuditorRevisionDetalleIQ />
                   </MainLayout>
