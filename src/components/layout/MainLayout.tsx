@@ -107,7 +107,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: BarChart3,
       path: '/reportes/evaluacion',
       roles: ['superadmin', 'administrador'],
-    },
+    }, 
+
+    {
+    name: 'Análisis GAP IQ',
+    icon: ShieldCheck,
+    path: '/reportes/evaluacion-iq',
+    roles: ['superadmin', 'administrador'],
+  },
     {
       name: 'Mis Proyectos',
       icon: FolderKanban,
