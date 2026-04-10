@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { FileText, FileSpreadsheet } from 'lucide-react';
 import axiosInstance from '@/api/axios';
 import toast from 'react-hot-toast';
+import { reportesApi } from '@/api/endpoints/reportes.api';
+import { generateEvaluationPDF } from '@/utils/reportes-pdf';
 
 interface ExportButtonsProps {
   evaluacionId: string;
@@ -47,43 +49,21 @@ export const ExportButtons: React.FC<ExportButtonsProps> = ({ evaluacionId }) =>
   const handleExportPDF = async () => {
     try {
       setLoadingPDF(true);
-      
-      console.log('🔍 Descargando PDF para evaluación:', evaluacionId);  // ⭐ DEBUG
-      
-      const response = await axiosInstance.get('/reportes/export_pdf_evaluacion/', {
-        params: { evaluacion_empresa_id: evaluacionId },
-        responseType: 'blob',
+
+      const reporte = await reportesApi.getReporteEvaluacion(evaluacionId);
+      generateEvaluationPDF({
+        evaluacionId,
+        reporte,
       });
-      
-      console.log('✅ Respuesta recibida:', response);  // ⭐ DEBUG
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Reporte_Evaluacion_${evaluacionId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      
-      toast.success('PDF descargado exitosamente');
+
+      toast.success('PDF generado exitosamente con recomendaciones dinamicas');
     } catch (error: any) {
-      console.error('❌ Error completo:', error);  // ⭐ DEBUG
-      console.error('❌ Error response:', error.response);  // ⭐ DEBUG
-      console.error('❌ Error status:', error.response?.status);  // ⭐ DEBUG
-      
-      // Mostrar el error real
-      if (error.response?.status === 500) {
-        toast.error('Error al generar PDF. Revisa la consola del backend.');
-      } else if (error.response?.status === 404) {
-        toast.error('Endpoint no encontrado. Verifica la URL.');
-      } else {
-        const errorMessage = error.response?.data?.message || 
-                            error.message || 
-                            'Error al generar PDF';
-        toast.error(errorMessage);
-      }
+      console.error('Error al generar PDF en frontend:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Error al generar PDF';
+      toast.error(errorMessage);
     } finally {
       setLoadingPDF(false);
     }

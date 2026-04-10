@@ -28,6 +28,7 @@ import type {
 
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 400;
+const IA_MAX_PREGUNTAS_SUGERIDAS = 25;
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
@@ -46,7 +47,6 @@ export const SeleccionarPreguntas = () => {
   const [ultimaSugerencia, setUltimaSugerencia] = useState<{
     total: number;
     criterio?: string;
-    model?: string;
     detalles?: Array<{
       questionId: number;
       codigoControl?: string;
@@ -226,7 +226,7 @@ export const SeleccionarPreguntas = () => {
           instruction,
           seccion: seccion || undefined,
           nivel_madurez: nivelMadurez ? Number(nivelMadurez) : undefined,
-          max_preguntas: 25,
+          max_preguntas: IA_MAX_PREGUNTAS_SUGERIDAS,
         }
       );
 
@@ -245,7 +245,6 @@ export const SeleccionarPreguntas = () => {
       setUltimaSugerencia({
         total: response.total_sugeridas,
         criterio: response.criterio,
-        model: response.model,
         detalles,
       });
 
@@ -395,8 +394,7 @@ export const SeleccionarPreguntas = () => {
       {ultimaSugerencia && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
           <p className="text-sm text-indigo-800">
-            IA aplico una preseleccion de {ultimaSugerencia.total} pregunta(s)
-            {ultimaSugerencia.model ? ` usando ${ultimaSugerencia.model}` : ''}.
+            IA aplico una preseleccion de {ultimaSugerencia.total} pregunta(s).
           </p>
           {ultimaSugerencia.criterio && (
             <p className="text-sm text-indigo-700 mt-2 whitespace-pre-line">

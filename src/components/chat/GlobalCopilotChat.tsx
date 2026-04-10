@@ -20,6 +20,37 @@ interface ChatMessage {
   content: string;
 }
 
+interface ParsedAssistantContent {
+  reasoning: string | null;
+  answer: string;
+}
+
+function parseAssistantContent(content: string): ParsedAssistantContent {
+  const rawContent = content.trim();
+  if (!rawContent) {
+    return { reasoning: null, answer: '' };
+  }
+
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/gi;
+  const matches = Array.from(rawContent.matchAll(thinkRegex));
+
+  if (!matches.length) {
+    return { reasoning: null, answer: rawContent };
+  }
+
+  const reasoning = matches
+    .map((match) => match[1]?.trim() ?? '')
+    .filter(Boolean)
+    .join('\n\n');
+
+  const answer = rawContent.replace(thinkRegex, '').trim();
+
+  return {
+    reasoning: reasoning || null,
+    answer: answer || 'No se genero una respuesta final visible.',
+  };
+}
+
 function resolvePageLabel(pathname: string): string {
   if (pathname.startsWith('/dashboard')) return 'Dashboard';
   if (pathname.startsWith('/empresas')) return 'Empresas';
@@ -156,7 +187,7 @@ export const GlobalCopilotChat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     createMessage(
       'assistant',
-      'Hola, soy tu Copilot GRC. Preguntame por riesgos, brechas o recomendaciones segun la vista actual.'
+      'Hola, soy tu asistente, Shielly. Preguntame por riesgos, brechas o recomendaciones segun la vista actual.'
     ),
   ]);
   const [pendingCompanyContext, setPendingCompanyContext] = useState<{
@@ -652,28 +683,66 @@ export const GlobalCopilotChat: React.FC = () => {
                   }`}
                 >
                   {message.role === 'assistant' ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
-                        ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
-                        li: ({ children }) => <li>{children}</li>,
-                        code: ({ children }) => (
-                          <code className="rounded bg-slate-100 px-1 py-0.5 text-[12px] text-slate-800">{children}</code>
-                        ),
-                        h1: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
-                        h2: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
-                        h3: ({ children }) => <h4 className="mb-2 text-sm font-semibold">{children}</h4>,
-                        blockquote: ({ children }) => (
-                          <blockquote className="mb-2 border-l-2 border-emerald-300 pl-3 italic text-slate-600">
-                            {children}
-                          </blockquote>
-                        ),
-                      }}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
+                    (() => {
+                      const parsed = parseAssistantContent(message.content);
+
+                      return (
+                        <>
+                          {parsed.reasoning && (
+                            <details className="mb-3 rounded-lg border border-slate-200 bg-slate-50/70 p-2">
+                              <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                                Ver razonamiento
+                              </summary>
+                              <div className="mt-2 rounded-md border border-slate-200 bg-white px-2 py-2 text-xs text-slate-600">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                                    ul: ({ children }) => (
+                                      <ul className="mb-1.5 list-disc space-y-1 pl-4 last:mb-0">{children}</ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                      <ol className="mb-1.5 list-decimal space-y-1 pl-4 last:mb-0">{children}</ol>
+                                    ),
+                                    li: ({ children }) => <li>{children}</li>,
+                                    code: ({ children }) => (
+                                      <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px] text-slate-800">
+                                        {children}
+                                      </code>
+                                    ),
+                                  }}
+                                >
+                                  {parsed.reasoning}
+                                </ReactMarkdown>
+                              </div>
+                            </details>
+                          )}
+
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+                              ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+                              li: ({ children }) => <li>{children}</li>,
+                              code: ({ children }) => (
+                                <code className="rounded bg-slate-100 px-1 py-0.5 text-[12px] text-slate-800">{children}</code>
+                              ),
+                              h1: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
+                              h2: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
+                              h3: ({ children }) => <h4 className="mb-2 text-sm font-semibold">{children}</h4>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="mb-2 border-l-2 border-emerald-300 pl-3 italic text-slate-600">
+                                  {children}
+                                </blockquote>
+                              ),
+                            }}
+                          >
+                            {parsed.answer}
+                          </ReactMarkdown>
+                        </>
+                      );
+                    })()
                   ) : (
                     <p className="whitespace-pre-wrap">{message.content}</p>
                   )}

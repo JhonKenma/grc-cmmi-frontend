@@ -1,6 +1,12 @@
 import axios, { AxiosError } from 'axios';
 import { AI_API_URL } from '@/utils/constants';
 
+type ApiErrorData = {
+  detail?: unknown;
+  message?: unknown;
+  error?: unknown;
+};
+
 interface CopilotEvaluationPlanResponse {
   empresa_id: number;
   framework: string;
@@ -64,9 +70,6 @@ interface CompletionResponse {
 
 const aiAxios = axios.create({
   baseURL: AI_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 aiAxios.interceptors.request.use((config) => {
@@ -79,16 +82,67 @@ aiAxios.interceptors.request.use((config) => {
 
 function buildApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<{ detail?: string }>;
-    if (axiosError.response?.data?.detail) {
-      return axiosError.response.data.detail;
+    const axiosError = error as AxiosError<ApiErrorData>;
+    const data = axiosError.response?.data;
+
+    if (data) {
+      const parsedFromDetail = parseUnknownErrorMessage(data.detail);
+      if (parsedFromDetail) {
+        return parsedFromDetail;
+      }
+
+      const parsedFromMessage = parseUnknownErrorMessage(data.message);
+      if (parsedFromMessage) {
+        return parsedFromMessage;
+      }
+
+      const parsedFromError = parseUnknownErrorMessage(data.error);
+      if (parsedFromError) {
+        return parsedFromError;
+      }
     }
+
     if (axiosError.message) {
       return axiosError.message;
     }
   }
 
   return 'No se pudo obtener respuesta del asistente.';
+}
+
+function parseUnknownErrorMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const text = value.trim();
+    return text ? text : null;
+  }
+
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((entry) => parseUnknownErrorMessage(entry))
+      .filter((entry): entry is string => Boolean(entry));
+
+    if (messages.length > 0) {
+      return messages.join(' | ');
+    }
+    return null;
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+
+    const directMessage = parseUnknownErrorMessage(record.msg ?? record.message ?? record.detail ?? record.error);
+    if (directMessage) {
+      return directMessage;
+    }
+
+    try {
+      return JSON.stringify(record);
+    } catch {
+      return 'Error estructurado del servidor.';
+    }
+  }
+
+  return null;
 }
 
 export const copilotChatApi = {
