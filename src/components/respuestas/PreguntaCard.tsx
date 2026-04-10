@@ -372,7 +372,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   <div className="flex-1">
                     <p className={`text-sm font-bold ${modoSeleccionado === 'NO' ? 'text-red-700' : 'text-gray-800'}`}>No</p>
                     <p className="text-xs text-gray-500 mt-0.5 leading-snug">
-                      Reconoce que no cumples.
+                      Reconoce el no cumplimiento del mencionado control.
                     </p>
                   </div>
                   {modoSeleccionado === 'NO' && <CheckCircle size={16} className="text-red-400 shrink-0 mt-0.5" />}
