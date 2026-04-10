@@ -318,13 +318,12 @@ export const DetalleAsignacionAdmin = () => {
           </>
         )}
 
-        <button
-          onClick={() => navigate(`/evaluaciones/${asignacion.evaluacion}/responder`)}
-          className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-        >
-          Ver Respuestas
-        </button>
-      </div>
+      <button
+        onClick={() => navigate(`/evaluaciones-iq/asignacion/${asignacion.id}/respuestas`)}
+        className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+      >
+        Ver Respuestas
+      </button>
 
       {/* Modal de Aprobación */}
       {showApprovalModal && (
@@ -413,6 +412,7 @@ export const DetalleAsignacionAdmin = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
