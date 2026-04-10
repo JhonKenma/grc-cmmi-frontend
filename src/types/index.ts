@@ -128,3 +128,4 @@ export * as respuestaIQ from './respuesta-iq.types';
 
 export * as proyectoRemediacion from './proyecto-remediacion.types';
 export * from './proveedor';
+export * from './reporte-iq.types';
