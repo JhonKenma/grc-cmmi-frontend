@@ -577,7 +577,7 @@ export const FormularioPregunta = ({ pregunta, asignacionId, onRespuestaGuardada
         >
           {enviando
             ? <span className="animate-pulse">Enviando...</span>
-            : <><Send size={18} /> Enviar al auditor</>
+            : <><Send size={18} /> Enviar al respuesta</>
           }
         </button>
       </div>
