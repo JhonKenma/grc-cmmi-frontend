@@ -1,13 +1,14 @@
 // src/pages/EvaluacionesInteligentes/Evaluaciones/SeleccionarPreguntas.tsx
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Search,
   Filter,
   Loader2,
   Check,
+  Sparkles,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { evaluacionesInteligentesApi } from '@/api/endpoints';
 import { PreguntaCard } from '@/components/iqevaluaciones/PreguntaCard';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 import type {
   EvaluacionDetail,
@@ -26,18 +28,33 @@ import type {
 
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 400;
+const IA_MAX_PREGUNTAS_SUGERIDAS = 25;
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export const SeleccionarPreguntas = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
 
   // ── Estado general ─────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
   const [loadingPreguntas, setLoadingPreguntas] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [suggestingIA, setSuggestingIA] = useState(false);
   const [evaluacion, setEvaluacion] = useState<EvaluacionDetail | null>(null);
+  const [ultimaSugerencia, setUltimaSugerencia] = useState<{
+    total: number;
+    criterio?: string;
+    detalles?: Array<{
+      questionId: number;
+      codigoControl?: string;
+      pregunta?: string;
+      reason: string;
+      score: number;
+    }>;
+  } | null>(null);
 
   // ── Framework activo ───────────────────────────────────────────────────────
   const [frameworkActual, setFrameworkActual] = useState<Framework | null>(null);
@@ -54,9 +71,11 @@ export const SeleccionarPreguntas = () => {
   const [seccion, setSeccion] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const canUseAISuggestions = user?.rol === 'administrador' || user?.rol === 'superadmin';
 
   // Ref para debounce
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSuggestTriggeredRef = useRef(false);
 
   // ── Inicialización ─────────────────────────────────────────────────────────
 
@@ -188,6 +207,90 @@ export const SeleccionarPreguntas = () => {
     }
   };
 
+  const handleSugerirConIA = async () => {
+    if (!id || !frameworkActual) {
+      return;
+    }
+
+    try {
+      setSuggestingIA(true);
+
+      const instruction = searchTerm
+        ? `Prioriza preguntas relacionadas con: ${searchTerm}`
+        : 'Prioriza preguntas con mayor impacto en cumplimiento y reduccion de riesgo.';
+
+      const response = await evaluacionesInteligentesApi.evaluaciones.sugerirPreguntasIA(
+        Number(id),
+        {
+          framework_codigo: frameworkActual.codigo,
+          instruction,
+          seccion: seccion || undefined,
+          nivel_madurez: nivelMadurez ? Number(nivelMadurez) : undefined,
+          max_preguntas: IA_MAX_PREGUNTAS_SUGERIDAS,
+        }
+      );
+
+      const preguntasById = new Map(response.preguntas_sugeridas.map((pregunta) => [pregunta.id, pregunta]));
+      const detalles = response.recommendations.map((recomendacion) => {
+        const pregunta = preguntasById.get(recomendacion.question_id);
+        return {
+          questionId: recomendacion.question_id,
+          codigoControl: pregunta?.codigo_control,
+          pregunta: pregunta?.pregunta,
+          reason: recomendacion.reason,
+          score: recomendacion.score,
+        };
+      });
+
+      setUltimaSugerencia({
+        total: response.total_sugeridas,
+        criterio: response.criterio,
+        detalles,
+      });
+
+      if (!response.selected_question_ids.length) {
+        toast('La IA no encontro preguntas sugeridas con los filtros actuales.');
+        return;
+      }
+
+      setPreguntasSeleccionadas((prev) =>
+        new Set([...prev, ...response.selected_question_ids])
+      );
+
+      toast.success(`${response.total_sugeridas} pregunta(s) sugerida(s) por IA`);
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.error ||
+          error?.message ||
+          'No se pudo obtener sugerencias de IA'
+      );
+    } finally {
+      setSuggestingIA(false);
+    }
+  };
+
+  useEffect(() => {
+    const shouldAutoSuggest = searchParams.get('autoSuggest') === '1';
+
+    if (!shouldAutoSuggest || autoSuggestTriggeredRef.current) {
+      return;
+    }
+
+    if (!canUseAISuggestions || loading || loadingPreguntas || !frameworkActual) {
+      return;
+    }
+
+    autoSuggestTriggeredRef.current = true;
+    handleSugerirConIA();
+  }, [
+    searchParams,
+    canUseAISuggestions,
+    loading,
+    loadingPreguntas,
+    frameworkActual,
+    handleSugerirConIA,
+  ]);
+
   // ── Paginación ─────────────────────────────────────────────────────────────
 
   const totalPages = Math.ceil(totalPreguntas / PAGE_SIZE);
@@ -247,6 +350,16 @@ export const SeleccionarPreguntas = () => {
             <p className="text-lg font-bold text-gray-900">{preguntasSeleccionadas.size}</p>
             <p className="text-sm text-gray-600">preguntas seleccionadas</p>
           </div>
+          {canUseAISuggestions && (
+            <button
+              onClick={handleSugerirConIA}
+              disabled={suggestingIA || loadingPreguntas}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-100 text-indigo-800 rounded-lg hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {suggestingIA ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+              Sugerir con IA
+            </button>
+          )}
           <button
             onClick={handleGuardar}
             disabled={submitting || preguntasSeleccionadas.size === 0}
@@ -277,6 +390,38 @@ export const SeleccionarPreguntas = () => {
           ))}
         </div>
       </div>
+
+      {ultimaSugerencia && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+          <p className="text-sm text-indigo-800">
+            IA aplico una preseleccion de {ultimaSugerencia.total} pregunta(s).
+          </p>
+          {ultimaSugerencia.criterio && (
+            <p className="text-sm text-indigo-700 mt-2 whitespace-pre-line">
+              Criterio IA: {ultimaSugerencia.criterio}
+            </p>
+          )}
+
+          {Boolean(ultimaSugerencia.detalles?.length) && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-indigo-900 uppercase tracking-wide">
+                Por que eligio cada pregunta
+              </p>
+              <ul className="mt-2 space-y-2">
+                {ultimaSugerencia.detalles?.slice(0, 8).map((detalle) => (
+                  <li key={detalle.questionId} className="text-sm text-indigo-800">
+                    <span className="font-medium">
+                      {detalle.codigoControl || `Pregunta ${detalle.questionId}`}
+                    </span>
+                    {detalle.pregunta ? ` - ${detalle.pregunta}` : ''}
+                    {`: ${detalle.reason} (score ${detalle.score.toFixed(2)})`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 

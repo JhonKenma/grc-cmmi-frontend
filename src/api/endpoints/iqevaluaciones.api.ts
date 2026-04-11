@@ -14,6 +14,8 @@ import type {
   ImportarFrameworkResponse,
   AgregarPreguntasResponse,
   QuitarPreguntasResponse,
+  SugerirPreguntasIAData,
+  SugerirPreguntasIAResponse,
   EstadisticasGeneralesResponse,
   PaginatedResponse,
   FiltrosPregunta,
@@ -234,6 +236,20 @@ export const evaluacionesApi = {
     const { data } = await axiosInstance.put(
       `${BASE_URL}/evaluaciones/${id}/reordenar-preguntas/`,
       orden
+    );
+    return data;
+  },
+
+  /**
+   * Solicita sugerencias de preguntas con IA para una evaluacion
+   */
+  sugerirPreguntasIA: async (
+    id: number,
+    payload: SugerirPreguntasIAData
+  ): Promise<SugerirPreguntasIAResponse> => {
+    const { data } = await axiosInstance.post<SugerirPreguntasIAResponse>(
+      `${BASE_URL}/evaluaciones/${id}/sugerir-preguntas-ia/`,
+      payload
     );
     return data;
   },

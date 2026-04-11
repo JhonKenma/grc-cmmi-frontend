@@ -25,6 +25,7 @@ export const CrearEvaluacion = () => {
     descripcion: '',
     nivel_deseado: 3,  // ⭐ NUEVO - default nivel 3
     usar_todas_preguntas: true,
+    sugerir_preguntas_ia: false,
     usar_respuestas_compartidas: true,
   });
 
@@ -127,7 +128,8 @@ export const CrearEvaluacion = () => {
 
       // Redirigir según el modo
       if (!formData.usar_todas_preguntas) {
-        navigate(`/evaluaciones-inteligentes/evaluaciones/${evaluacion.id}/seleccionar-preguntas`);
+        const query = formData.sugerir_preguntas_ia ? '?autoSuggest=1' : '';
+        navigate(`/evaluaciones-inteligentes/evaluaciones/${evaluacion.id}/seleccionar-preguntas${query}`);
       } else {
         navigate(`/evaluaciones-inteligentes/evaluaciones/${evaluacion.id}`);
       }
@@ -349,7 +351,7 @@ export const CrearEvaluacion = () => {
               <div className="flex-1">
                 <p className="font-medium text-gray-900">Seleccionar preguntas manualmente</p>
                 <p className="text-sm text-gray-600">
-                  Podrás elegir preguntas específicas de los frameworks
+                  Podrás elegir preguntas específicas o usar sugerencias de IA
                 </p>
                 {!formData.usar_todas_preguntas && (
                   <p className="text-xs text-primary-700 mt-2 font-medium">
@@ -358,6 +360,25 @@ export const CrearEvaluacion = () => {
                 )}
               </div>
             </label>
+
+            {!formData.usar_todas_preguntas && (
+              <label className="flex items-start p-3 rounded-lg border border-indigo-200 bg-indigo-50">
+                <input
+                  type="checkbox"
+                  checked={formData.sugerir_preguntas_ia}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sugerir_preguntas_ia: e.target.checked })
+                  }
+                  className="mt-1 mr-3"
+                />
+                <div>
+                  <p className="font-medium text-indigo-900">Activar sugerencia automática con IA</p>
+                  <p className="text-sm text-indigo-700">
+                    Al continuar, la IA preseleccionará preguntas recomendadas según framework y contexto.
+                  </p>
+                </div>
+              </label>
+            )}
           </div>
         </div>
 
