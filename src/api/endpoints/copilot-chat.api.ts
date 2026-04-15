@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { API_URL } from '@/utils/constants';
+import { AI_API_URL } from '@/utils/constants';
 
 type ApiErrorData = {
   detail?: unknown;
