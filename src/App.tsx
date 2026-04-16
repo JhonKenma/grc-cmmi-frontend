@@ -92,6 +92,7 @@ import { PlanExpirado } from '@/pages/PlanExpirado';
 import { GestionarAsignacionesDetalle } from './pages/EvaluacionesInteligentes/Asignaciones/GestionarAsignacionesDetalle';
 import { VerRespuestasAdmin } from './pages/EvaluacionesInteligentes/Asignaciones/VerRespuestasAdmin';
 import { ReporteEvaluacionIQ } from './pages/reportes/ReporteEvaluacionIQ';
+import { GlobalCopilotChat } from '@/components/chat/GlobalCopilotChat';
 
 function App() {
   return (
@@ -855,6 +856,7 @@ function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          <GlobalCopilotChat />
         </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
