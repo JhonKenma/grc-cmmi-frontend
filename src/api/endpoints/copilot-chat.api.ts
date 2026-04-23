@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { API_URL } from '@/utils/constants';
+import { AI_API_URL } from '@/utils/constants';
 
 type ApiErrorData = {
   detail?: unknown;
@@ -69,7 +69,7 @@ interface CompletionResponse {
 }
 
 const aiAxios = axios.create({
-  baseURL: API_URL,
+  baseURL: AI_API_URL,
 });
 
 aiAxios.interceptors.request.use((config) => {

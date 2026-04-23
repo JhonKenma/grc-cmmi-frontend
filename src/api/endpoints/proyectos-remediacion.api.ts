@@ -26,6 +26,8 @@ import {
   AprobacionGAPDetail,
   ResponderAprobacionData,
   AprobacionGAP,
+  DashboardFiltros,
+  DashboardCumplimiento,
 } from '@/types/proyecto-remediacion.types';
 
 const BASE_URL = '/proyectos-remediacion';
@@ -414,6 +416,26 @@ export const proyectosRemediacionApi = {
       }
     );
     return response.data.data;
+  },
+
+  /**
+   * Obtener dashboard de cumplimiento de una evaluación
+   * GET /api/proyectos-remediacion/dashboard_cumplimiento/
+   */
+  getDashboardCumplimiento: async (
+    filtros: DashboardFiltros
+  ): Promise<DashboardCumplimiento> => {
+    const params = new URLSearchParams();
+ 
+    params.append('evaluacion_id', filtros.evaluacion_id);
+    if (filtros.fecha_desde)     params.append('fecha_desde',     filtros.fecha_desde);
+    if (filtros.fecha_hasta)     params.append('fecha_hasta',     filtros.fecha_hasta);
+    if (filtros.estado_proyecto) params.append('estado_proyecto', filtros.estado_proyecto);
+ 
+    const response = await axiosInstance.get<DashboardCumplimiento>(
+      `${BASE_URL}/dashboard_cumplimiento/?${params}`
+    );
+    return response.data;
   },
 
 };
