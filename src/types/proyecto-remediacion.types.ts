@@ -886,3 +886,133 @@ export const formatearFechaCorta = (fecha: string): string => {
     year: 'numeric',
   });
 };
+//══════════════════════════════════════════════════════════
+
+// ─── Filtros del dashboard ────────────────────────────────────
+export interface DashboardFiltros {
+  evaluacion_id: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  estado_proyecto?: EstadoProyecto;
+}
+
+// ─── Respuestas de respuestas por dimensión ───────────────────
+export interface ResumenRespuestasDimension {
+  total: number;
+  si_cumple: number;
+  cumple_parcial: number;
+  no_cumple: number;
+  no_aplica: number;
+}
+
+// ─── Proyecto resumido dentro del GAP ────────────────────────
+export interface ProyectoResumidoDashboard {
+  id: string;
+  codigo_proyecto: string;
+  nombre_proyecto: string;
+  estado: EstadoProyecto;
+  estado_display: string;
+  prioridad: PrioridadProyecto;
+  fecha_fin_estimada: string;
+  esta_vencido: boolean;
+  porcentaje_avance_items: number;
+  presupuesto_total_planificado: number;
+  presupuesto_total_ejecutado: number;
+}
+
+// ─── GAP por dimensión ────────────────────────────────────────
+export interface GAPDimension {
+  calculo_id: string;
+  dimension_id: string;
+  dimension_nombre: string;
+  dimension_codigo: string;
+  nivel_actual: number;
+  nivel_deseado: number;
+  gap: number;
+  clasificacion_gap: string;
+  clasificacion_gap_display: string;
+  porcentaje_cumplimiento: number;
+  remediado: boolean;
+  fecha_remediacion: string | null;
+  respuestas: ResumenRespuestasDimension;
+  proyecto: ProyectoResumidoDashboard | null;
+}
+
+// ─── Alerta del dashboard ─────────────────────────────────────
+export interface AlertaDashboard {
+  tipo: 'critico' | 'vencido' | 'advertencia';
+  mensaje: string;
+  cantidad: number;
+}
+
+// ─── Info de evaluación ───────────────────────────────────────
+export interface EvaluacionDashboardInfo {
+  id: string;
+  nombre: string;
+  empresa: string;
+  encuesta: string;
+  estado: string;
+}
+
+// ─── Respuesta completa del dashboard ────────────────────────
+export interface DashboardCumplimiento {
+  success: boolean;
+  evaluacion: EvaluacionDashboardInfo;
+  resumen: {
+    total_dimensiones: number;
+    nivel_promedio_actual: number;
+    nivel_promedio_deseado: number;
+    porcentaje_cumplimiento_global: number;
+  };
+  brechas: {
+    total: number;
+    criticas: number;
+    altas: number;
+    medias: number;
+    bajas: number;
+    cumplidas: number;
+    remediadas: number;
+    abiertas: number;
+  };
+  proyectos: {
+    total: number;
+    planificados: number;
+    en_ejecucion: number;
+    en_validacion: number;
+    cerrados: number;
+    vencidos: number;
+  };
+  presupuesto: {
+    total_planificado: number;
+    total_ejecutado: number;
+    disponible: number;
+    porcentaje_gastado: number;
+  };
+  gap_por_dimension: GAPDimension[];
+  alertas: AlertaDashboard[];
+}
+
+// ─── Helper: color de clasificación de GAP ───────────────────
+export const getClasificacionGapColor = (clasificacion: string): string => {
+  const colores: Record<string, string> = {
+    critico:  'bg-red-100 text-red-800 border-red-300',
+    alto:     'bg-orange-100 text-orange-800 border-orange-300',
+    medio:    'bg-yellow-100 text-yellow-800 border-yellow-300',
+    bajo:     'bg-blue-100 text-blue-800 border-blue-300',
+    cumplido: 'bg-green-100 text-green-800 border-green-300',
+    superado: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  };
+  return colores[clasificacion] || 'bg-gray-100 text-gray-800 border-gray-300';
+};
+
+export const getClasificacionGapBg = (clasificacion: string): string => {
+  const colores: Record<string, string> = {
+    critico:  'bg-red-500',
+    alto:     'bg-orange-500',
+    medio:    'bg-yellow-500',
+    bajo:     'bg-blue-500',
+    cumplido: 'bg-green-500',
+    superado: 'bg-emerald-500',
+  };
+  return colores[clasificacion] || 'bg-gray-400';
+};
