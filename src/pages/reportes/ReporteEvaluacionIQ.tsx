@@ -1,293 +1,117 @@
 // src/pages/reportes/ReporteEvaluacionIQ.tsx
 
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import {
-  BarChart3, FileText, Target, Users, Activity,
-  AlertTriangle, Download, ShieldCheck,
+  BarChart3, Target, AlertTriangle, Activity,
+  Download, ShieldCheck, Users, Layers, RefreshCw,
 } from 'lucide-react';
 import { Card, LoadingScreen } from '@/components/common';
 import { reportesIQApi } from '@/api/endpoints/reportes-iq.api';
 import toast from 'react-hot-toast';
-import type { ReporteEvaluacionIQ as ReporteIQData, AsignacionIQAuditada, BrechaIQ } from '@/types/reporte-iq.types';
-import { adaptarSeccionParaTabla } from '@/types/reporte-iq.types';
+import type {
+  ReporteEvaluacionIQ as ReporteIQType,
+  EvaluacionIQAuditada,
+} from '@/types/reporte-iq.types';
 
-// ── Reutilizamos los mismos componentes de encuestas ──────────────────────────
-const ResumenGeneral = lazy(() =>
-  import('./components/ResumenGeneral').then(m => ({ default: m.ResumenGeneral }))
+// ── Componentes propios IQ ────────────────────────────────────────────────────
+const ResumenIQ = lazy(() =>
+  import('./components/components-iq/ResumenIQ').then(m => ({ default: m.ResumenIQ }))
 );
-const GraficoRadar = lazy(() =>
-  import('./components/GraficoRadar').then(m => ({ default: m.GraficoRadar }))
+const TablaSeccionesIQ = lazy(() =>
+  import('./components/components-iq/TablaSeccionesIQ').then(m => ({ default: m.TablaSeccionesIQ }))
 );
-const GraficoBarrasGap = lazy(() =>
-  import('./components/GraficoBarrasGap').then(m => ({ default: m.GraficoBarrasGap }))
+const TablaBrechasIQ = lazy(() =>
+  import('./components/components-iq/TablaBrechasIQ').then(m => ({ default: m.TablaBrechasIQ }))
 );
-const GraficoPastelClasificacion = lazy(() =>
-  import('./components/GraficoPastelClasificacion').then(m => ({ default: m.GraficoPastelClasificacion }))
+const GraficoRadarIQ = lazy(() =>
+  import('./components/components-iq/GraficosIQ').then(m => ({ default: m.GraficoRadarIQ }))
+);
+const GraficoBarrasIQ = lazy(() =>
+  import('./components/components-iq/GraficosIQ').then(m => ({ default: m.GraficoBarrasIQ }))
 );
 const GraficoPastelRespuestas = lazy(() =>
   import('./components/GraficoPastelRespuestas').then(m => ({ default: m.GraficoPastelRespuestas }))
 );
-const TablaDetalleDimensiones = lazy(() =>
-  import('./components/TablaDetalleDimensiones').then(m => ({ default: m.TablaDetalleDimensiones }))
-);
-const ProgresoUsuarios = lazy(() =>
-  import('./components/ProgresoUsuarios').then(m => ({ default: m.ProgresoUsuarios }))
-);
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-
 type TabType = 'resumen' | 'secciones' | 'brechas' | 'analisis';
 
-const TABS = [
-  { id: 'resumen'   as TabType, name: 'Resumen General',      icon: <BarChart3 size={18} /> },
-  { id: 'secciones' as TabType, name: 'Análisis por Sección', icon: <Target size={18} />   },
-  { id: 'brechas'   as TabType, name: 'Brechas a Remediar',   icon: <AlertTriangle size={18} /> },
-  { id: 'analisis'  as TabType, name: 'Distribución',         icon: <Activity size={18} /> },
+const TABS: { id: TabType; name: string; icon: React.ReactNode }[] = [
+  { id: 'resumen',   name: 'Resumen',        icon: <BarChart3 size={17} />     },
+  { id: 'secciones', name: 'Por Sección',     icon: <Target size={17} />        },
+  { id: 'brechas',   name: 'Brechas',         icon: <AlertTriangle size={17} /> },
+  { id: 'analisis',  name: 'Distribución',    icon: <Activity size={17} />      },
 ];
 
+// ── Estilos estáticos para Tailwind (evitar clases dinámicas) ─────────────────
+const CARD_STYLES = {
+  red:    { card: 'p-5 bg-red-50 border-red-200',       label: 'text-sm font-medium text-red-800 mb-1',    value: 'text-3xl font-bold text-red-600',    sub: 'text-xs text-red-700 mt-1'    },
+  orange: { card: 'p-5 bg-orange-50 border-orange-200', label: 'text-sm font-medium text-orange-800 mb-1', value: 'text-3xl font-bold text-orange-600', sub: 'text-xs text-orange-700 mt-1' },
+  yellow: { card: 'p-5 bg-yellow-50 border-yellow-200', label: 'text-sm font-medium text-yellow-800 mb-1', value: 'text-3xl font-bold text-yellow-600', sub: 'text-xs text-yellow-700 mt-1' },
+  blue:   { card: 'p-5 bg-blue-50 border-blue-200',     label: 'text-sm font-medium text-blue-800 mb-1',   value: 'text-3xl font-bold text-blue-600',   sub: 'text-xs text-blue-700 mt-1'   },
+} as const;
+
 const SectionLoader = () => (
-  <div className="w-full h-64 bg-gray-50 border border-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-400 animate-pulse">
-    <Activity className="mb-2 opacity-20" size={32} />
+  <div className="w-full h-64 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center text-gray-400 animate-pulse">
     <span className="text-sm">Cargando visualización...</span>
   </div>
 );
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPONENTE: Tabla de brechas para remediación
-// ─────────────────────────────────────────────────────────────────────────────
-
-const TablaBrechas: React.FC<{ brechas: BrechaIQ[] }> = ({ brechas }) => {
-  const COLORES: Record<string, string> = {
-    critico: 'bg-red-100 text-red-800 border-red-200',
-    alto:    'bg-orange-100 text-orange-800 border-orange-200',
-    medio:   'bg-yellow-100 text-yellow-800 border-yellow-200',
-    bajo:    'bg-blue-100 text-blue-800 border-blue-200',
-  };
-  const ICONOS: Record<string, string> = {
-    critico: '🔴', alto: '🟠', medio: '🟡', bajo: '🔵',
-  };
-
-  if (brechas.length === 0) {
-    return (
-      <Card className="p-12 text-center">
-        <ShieldCheck size={48} className="mx-auto text-green-500 mb-3" />
-        <p className="text-lg font-semibold text-gray-800">¡Sin brechas significativas!</p>
-        <p className="text-sm text-gray-500 mt-1">
-          Todos los controles cumplen o superan el nivel deseado.
-        </p>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Brechas Identificadas</h3>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {brechas.length} secciones requieren atención — ordenadas por prioridad
-          </p>
-        </div>
-        <span className="text-sm font-medium text-gray-600">
-          {brechas.filter(b => b.clasificacion_gap === 'critico').length} críticas ·{' '}
-          {brechas.filter(b => b.clasificacion_gap === 'alto').length} altas
-        </span>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              {['Prioridad', 'Sección', 'Framework', 'Nivel Deseado', 'Nivel Actual', 'GAP', '% Cumpl.', 'No Cumple'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
-            {brechas.map((brecha, idx) => (
-              <tr key={brecha.calculo_nivel_iq_id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${COLORES[brecha.clasificacion_gap] || 'bg-gray-100 text-gray-700'}`}>
-                    {ICONOS[brecha.clasificacion_gap]} {brecha.clasificacion_gap_display}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-gray-900 max-w-[200px] truncate" title={brecha.seccion}>
-                    {brecha.seccion}
-                  </p>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-600">{brecha.framework_nombre}</td>
-                <td className="px-4 py-3 text-center">
-                  <span className="inline-flex items-center justify-center w-10 h-7 rounded-full bg-blue-100 text-blue-800 text-sm font-semibold">
-                    {brecha.nivel_deseado.toFixed(1)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className="inline-flex items-center justify-center w-10 h-7 rounded-full bg-green-100 text-green-800 text-sm font-semibold">
-                    {brecha.nivel_actual.toFixed(1)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className={`inline-flex items-center justify-center w-10 h-7 rounded-full text-sm font-semibold ${
-                    brecha.gap >= 2 ? 'bg-red-100 text-red-800' :
-                    brecha.gap >= 1 ? 'bg-orange-100 text-orange-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {brecha.gap.toFixed(1)}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-1.5 min-w-[60px]">
-                      <div
-                        className="bg-primary-600 h-1.5 rounded-full"
-                        style={{ width: `${brecha.porcentaje_cumplimiento}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-600 min-w-[36px]">
-                      {brecha.porcentaje_cumplimiento.toFixed(0)}%
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className="text-sm font-medium text-red-600">
-                    {brecha.respuestas_no_cumple}
-                    <span className="text-gray-400 font-normal"> / {brecha.total_preguntas}</span>
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PÁGINA PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ReporteEvaluacionIQ: React.FC = () => {
-  const { user } = useAuth();
+  const [loading,        setLoading]        = useState(true);
+  const [evaluaciones,   setEvaluaciones]   = useState<EvaluacionIQAuditada[]>([]);
+  const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null);
+  const [reporte,        setReporte]        = useState<ReporteIQType | null>(null);
+  const [loadingReporte, setLoadingReporte] = useState(false);
+  const [activeTab,      setActiveTab]      = useState<TabType>('resumen');
 
-  const [loading,               setLoading]               = useState(true);
-  const [evaluaciones,          setEvaluaciones]          = useState<AsignacionIQAuditada[]>([]);
-  const [seleccionadaId,        setSeleccionadaId]        = useState<number | null>(null);
-  const [reporte,               setReporte]               = useState<ReporteIQData | null>(null);
-  const [loadingReporte,        setLoadingReporte]        = useState(false);
-  const [activeTab,             setActiveTab]             = useState<TabType>('resumen');
-
-  // ── Cargar selector ────────────────────────────────────────────────────────
-  useEffect(() => {
-    cargarEvaluaciones();
-    console.log('🔍 ReporteEvaluacionIQ montado');
-    console.log('🔍 user:', user);
-  }, []);
+  useEffect(() => { cargarEvaluaciones(); }, []);
 
   const cargarEvaluaciones = async () => {
     try {
       setLoading(true);
-      // Ya no necesita empresa_id — el backend lo toma del token
-      console.log('🔍 llamando listarEvaluaciones...');
       const lista = await reportesIQApi.listarEvaluaciones();
-      console.log('🔍 lista evaluaciones IQ:', lista);
-      console.log('🔍 lista:', lista);
       setEvaluaciones(lista);
-
       if (lista.length > 0) {
-        setSeleccionadaId(lista[0].asignacion_id);
-        cargarReporte(lista[0].asignacion_id);
+        setSeleccionadaId(lista[0].evaluacion_id);
+        cargarReporte(lista[0].evaluacion_id);
       }
-    } catch (error) {
-      console.error('❌ Error:', error);
+    } catch {
       toast.error('Error al cargar evaluaciones IQ');
     } finally {
       setLoading(false);
     }
   };
 
-  const cargarReporte = async (asignacionId: number) => {
+  const cargarReporte = async (evaluacionId: number) => {
     try {
       setLoadingReporte(true);
-      console.log('🔍 cargando reporte para asignacion:', asignacionId);
-      const data = await reportesIQApi.getReporte(asignacionId);
-      console.log('🔍 reporte recibido:', data);
+      const data = await reportesIQApi.getReporte(evaluacionId);
       setReporte(data);
     } catch (error: any) {
-      console.error('❌ Error reporte:', error.response?.data || error);
-      const msg = error.response?.data?.message || 'Error al cargar reporte IQ';
-      toast.error(msg);
+      toast.error(error.response?.data?.message || 'Error al cargar reporte IQ');
     } finally {
       setLoadingReporte(false);
     }
   };
 
-  const handleCambiarEvaluacion = (id: number) => {
+  const handleCambiar = (id: number) => {
     setSeleccionadaId(id);
+    setActiveTab('resumen');
     cargarReporte(id);
   };
 
-  // ── Datos adaptados para los componentes reutilizados ─────────────────────
-  const seccionesAdaptadas = useMemo(() => {
-    if (!reporte) return [];
-    return reporte.por_seccion.map(adaptarSeccionParaTabla);
-  }, [reporte]);
-
-  // Para GraficoRadar y GraficoBarrasGap — shape de encuestas
-  const dimensionesParaGraficos = useMemo(() => {
-    if (!reporte) return [];
-    return reporte.por_seccion.map(s => ({
-      dimension: {
-        id:     s.seccion.id,
-        codigo: s.seccion.codigo,
-        nombre: s.seccion.nombre,
-        orden:  s.seccion.orden,
-      },
-      nivel_deseado:                    s.nivel_deseado,
-      nivel_actual_promedio:            s.nivel_actual_promedio,
-      gap_promedio:                     s.gap_promedio,
-      porcentaje_cumplimiento_promedio: s.porcentaje_cumplimiento_promedio,
-      clasificacion_gap:                s.clasificacion_gap,
-    }));
-  }, [reporte]);
-
-  // Para ProgresoUsuarios — shape de encuestas
-    const usuariosAdaptados = useMemo(() => {
-    if (!reporte) return [];
-    return reporte.por_usuario.map(u => ({
-        usuario: {
-        id:              u.usuario.id,
-        nombre_completo: u.usuario.nombre_completo,
-        email:           u.usuario.email,
-        cargo:           u.usuario.cargo ?? '',  // ← fix
-        },
-        nivel_actual_promedio:            u.nivel_actual_promedio,
-        gap_promedio:                     u.gap_promedio,
-        porcentaje_cumplimiento_promedio: u.porcentaje_cumplimiento_promedio,
-        total_dimensiones_evaluadas:      u.total_dimensiones_evaluadas,
-        dimensiones: u.dimensiones.map(d => ({
-        dimension_id:           `${d.framework_nombre}__${d.seccion_nombre}`,
-        dimension_codigo:       d.seccion_nombre.substring(0, 8).toUpperCase(),
-        dimension_nombre:       `${d.seccion_nombre} (${d.framework_nombre})`,
-        nivel_deseado:          d.nivel_deseado,
-        nivel_actual:           d.nivel_actual,
-        gap:                    d.gap,
-        clasificacion_gap:      d.clasificacion_gap,
-        porcentaje_cumplimiento: d.porcentaje_cumplimiento,
-        })),
-    }));
-    }, [reporte]);
-
+  // ── Stats para tarjetas de análisis ──────────────────────────────────────
   const gapStats = useMemo(() => {
     if (!reporte?.clasificaciones_gap) return { criticos: 0, medios: 0, cumplidos: 0 };
     const c = reporte.clasificaciones_gap;
     return {
-      criticos:  (c.critico || 0) + (c.alto || 0),
-      medios:    (c.medio   || 0) + (c.bajo || 0),
+      criticos:  (c.critico  || 0) + (c.alto    || 0),
+      medios:    (c.medio    || 0) + (c.bajo    || 0),
       cumplidos: (c.cumplido || 0) + (c.superado || 0),
     };
   }, [reporte]);
@@ -305,7 +129,7 @@ export const ReporteEvaluacionIQ: React.FC = () => {
               No hay evaluaciones IQ auditadas
             </h3>
             <p className="text-gray-500 text-sm">
-              Las evaluaciones deben estar auditadas para generar reportes.
+              Las evaluaciones deben tener al menos un usuario auditado para generar reportes.
             </p>
           </div>
         </Card>
@@ -313,97 +137,138 @@ export const ReporteEvaluacionIQ: React.FC = () => {
     );
   }
 
-  const evaluacionActual = evaluaciones.find(e => e.asignacion_id === seleccionadaId);
-
   return (
     <div className="h-full flex flex-col bg-gray-50">
 
-      {/* ── HEADER ──────────────────────────────────────────────────────────── */}
+      {/* ── HEADER ── */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
 
           {/* Título + controles */}
-          <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                Dashboard Evaluación Inteligente
+                Reporte — Evaluación Inteligente IQ
               </h1>
               <p className="text-sm text-gray-500 mt-1">
-                Análisis GAP por secciones y frameworks · Identificación de brechas
+                Análisis GAP por secciones · Múltiples frameworks · Múltiples usuarios
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {/* Selector de evaluación */}
               <select
                 value={seleccionadaId ?? ''}
-                onChange={e => handleCambiarEvaluacion(Number(e.target.value))}
-                className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 cursor-pointer max-w-[280px]"
+                onChange={e => handleCambiar(Number(e.target.value))}
+                className="px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:ring-2 focus:ring-primary-500 cursor-pointer max-w-[300px]"
               >
                 {evaluaciones.map(ev => (
-                  <option key={ev.asignacion_id} value={ev.asignacion_id}>
-                    {ev.evaluacion_nombre} — {ev.usuario}
+                  <option key={ev.evaluacion_id} value={ev.evaluacion_id}>
+                    {ev.evaluacion_nombre}
+                    {ev.total_usuarios > 1 ? ` (${ev.total_usuarios} usuarios)` : ''}
                   </option>
                 ))}
               </select>
 
+              {/* Actualizar */}
+              <button
+                onClick={cargarEvaluaciones}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Actualizar"
+              >
+                <RefreshCw size={16} />
+              </button>
+
               {/* Exportar */}
               {seleccionadaId && (
                 <div className="flex gap-2">
-                <button
-                  onClick={async () => await reportesIQApi.exportarPDF(seleccionadaId!)}
-                  className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
-                >
-                  <Download size={16} /> PDF
-                </button>
-                <button
-                  onClick={async () => await reportesIQApi.exportarExcel(seleccionadaId!)}
-                  className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
-                >
-                  <Download size={16} /> Excel
-                </button>
+                  <button
+                    onClick={async () => {
+                      try { await reportesIQApi.exportarPDF(seleccionadaId); }
+                      catch { toast.error('Error al exportar PDF'); }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Download size={15} /> PDF
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try { await reportesIQApi.exportarExcel(seleccionadaId); }
+                      catch { toast.error('Error al exportar Excel'); }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Download size={15} /> Excel
+                  </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Métricas inline */}
+          {/* Métricas de cabecera */}
           {reporte && (
-            <div className="flex items-center gap-8 pb-6 border-b border-gray-200 flex-wrap">
+            <div className="flex items-center gap-6 pb-5 border-b border-gray-200 flex-wrap">
 
+              {/* Nombre evaluación */}
               <div className="flex items-center gap-3">
-                <div className="w-2 h-12 bg-blue-600 rounded-full" />
+                <div className="w-2 h-10 bg-blue-600 rounded-full" />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Empresa</p>
-                  <p className="text-sm font-bold text-gray-900">{reporte.asignacion.empresa}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-12 bg-purple-600 rounded-full" />
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Evaluado</p>
-                  <p className="text-sm font-bold text-gray-900">{reporte.asignacion.usuario}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-12 bg-indigo-600 rounded-full" />
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Frameworks</p>
-                  <p className="text-sm font-bold text-gray-900">
-                    {reporte.asignacion.frameworks.join(', ')}
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Evaluación</p>
+                  <p className="text-sm font-bold text-gray-900 max-w-[200px] truncate">
+                    {reporte.evaluacion.nombre}
                   </p>
                 </div>
               </div>
 
+              {/* Usuarios */}
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-12 rounded-full ${
+                <div className="w-2 h-10 bg-purple-600 rounded-full" />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Usuarios</p>
+                  <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                    <Users size={13} className="text-purple-500" />
+                    {reporte.evaluacion.total_usuarios} evaluados
+                  </p>
+                </div>
+              </div>
+
+              {/* Frameworks */}
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-10 bg-indigo-600 rounded-full" />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Frameworks</p>
+                  <div className="flex gap-1 mt-0.5 flex-wrap">
+                    {reporte.evaluacion.frameworks.map(fw => (
+                      <span
+                        key={fw.id}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-800 text-xs font-medium rounded"
+                      >
+                        <Layers size={9} /> {fw.codigo}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Nivel deseado */}
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-10 bg-blue-400 rounded-full" />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Nivel Deseado</p>
+                  <p className="text-sm font-bold text-blue-600">
+                    {reporte.evaluacion.nivel_deseado_display}
+                  </p>
+                </div>
+              </div>
+
+              {/* GAP Promedio */}
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-10 rounded-full ${
                   reporte.resumen.gap_promedio >= 2 ? 'bg-red-500' :
                   reporte.resumen.gap_promedio >= 1 ? 'bg-orange-500' : 'bg-green-500'
                 }`} />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">GAP Promedio</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">GAP Promedio</p>
                   <p className={`text-sm font-bold ${
                     reporte.resumen.gap_promedio >= 2 ? 'text-red-600' :
                     reporte.resumen.gap_promedio >= 1 ? 'text-orange-600' : 'text-green-600'
@@ -413,10 +278,11 @@ export const ReporteEvaluacionIQ: React.FC = () => {
                 </div>
               </div>
 
+              {/* Brechas */}
               <div className="flex items-center gap-3">
-                <div className="w-2 h-12 bg-amber-500 rounded-full" />
+                <div className="w-2 h-10 bg-amber-500 rounded-full" />
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Brechas</p>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Brechas</p>
                   <p className="text-sm font-bold text-amber-600">
                     {reporte.brechas_identificadas.length} secciones
                   </p>
@@ -426,7 +292,7 @@ export const ReporteEvaluacionIQ: React.FC = () => {
           )}
 
           {/* Tabs */}
-          <div className="flex gap-8 mt-6">
+          <div className="flex gap-6 mt-5">
             {TABS.map(tab => (
               <button
                 key={tab.id}
@@ -440,9 +306,8 @@ export const ReporteEvaluacionIQ: React.FC = () => {
                 {activeTab === tab.id && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full" />
                 )}
-                {/* Badge brechas */}
                 {tab.id === 'brechas' && reporte && reporte.brechas_identificadas.length > 0 && (
-                  <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+                  <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
                     {reporte.brechas_identificadas.length}
                   </span>
                 )}
@@ -452,13 +317,13 @@ export const ReporteEvaluacionIQ: React.FC = () => {
         </div>
       </div>
 
-      {/* ── CONTENIDO ────────────────────────────────────────────────────────── */}
+      {/* ── CONTENIDO ── */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
 
           {loadingReporte ? (
             <div className="flex items-center justify-center py-32">
-              <LoadingScreen message="Generando reporte..." />
+              <LoadingScreen message="Generando reporte IQ..." />
             </div>
           ) : !reporte ? (
             <Card>
@@ -472,67 +337,55 @@ export const ReporteEvaluacionIQ: React.FC = () => {
               {/* ── RESUMEN ── */}
               {activeTab === 'resumen' && (
                 <div className="space-y-6">
-                  <ResumenGeneral resumen={reporte.resumen} />
+                  <ResumenIQ
+                    resumen={reporte.resumen}
+                    evaluacion={reporte.evaluacion}
+                  />
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <GraficoRadar dimensiones={dimensionesParaGraficos} />
-                    <GraficoPastelClasificacion
-                      clasificaciones={reporte.clasificaciones_gap}
-                      dimensiones={dimensionesParaGraficos}
-                    />
+                    <GraficoRadarIQ secciones={reporte.por_seccion} />
+                    <GraficoBarrasIQ secciones={reporte.por_seccion} />
                   </div>
                 </div>
               )}
 
-              {/* ── SECCIONES ── */}
+              {/* ── POR SECCIÓN ── */}
               {activeTab === 'secciones' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <GraficoRadar dimensiones={dimensionesParaGraficos} />
-                    <GraficoBarrasGap dimensiones={dimensionesParaGraficos} />
+                    <GraficoRadarIQ secciones={reporte.por_seccion} />
+                    <GraficoBarrasIQ secciones={reporte.por_seccion} />
                   </div>
-                  {/* TablaDetalleDimensiones reutilizada con datos adaptados */}
-                  <TablaDetalleDimensiones
-                    dimensiones={seccionesAdaptadas}
-                    onCrearProyecto={undefined}  // Se habilitará cuando exista remediación IQ
-                  />
+                  <TablaSeccionesIQ secciones={reporte.por_seccion} />
                 </div>
               )}
 
               {/* ── BRECHAS ── */}
               {activeTab === 'brechas' && (
                 <div className="space-y-6">
-
-                  {/* Tarjetas resumen */}
+                  {/* Tarjetas de clasificación con clases estáticas */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {[
-                      { label: 'Críticas',  count: reporte.clasificaciones_gap.critico,  color: 'red'    },
-                      { label: 'Altas',     count: reporte.clasificaciones_gap.alto,     color: 'orange' },
-                      { label: 'Medias',    count: reporte.clasificaciones_gap.medio,    color: 'yellow' },
-                      { label: 'Bajas',     count: reporte.clasificaciones_gap.bajo,     color: 'blue'   },
-                    ].map(({ label, count, color }) => (
-                      <Card key={label} className={`p-5 bg-${color}-50 border-${color}-200`}>
-                        <p className={`text-sm font-medium text-${color}-800 mb-1`}>{label}</p>
-                        <p className={`text-3xl font-bold text-${color}-600`}>{count}</p>
-                        <p className={`text-xs text-${color}-700 mt-1`}>secciones</p>
+                    {([
+                      { label: 'Críticas',  count: reporte.clasificaciones_gap.critico, s: CARD_STYLES.red    },
+                      { label: 'Altas',     count: reporte.clasificaciones_gap.alto,    s: CARD_STYLES.orange },
+                      { label: 'Medias',    count: reporte.clasificaciones_gap.medio,   s: CARD_STYLES.yellow },
+                      { label: 'Bajas',     count: reporte.clasificaciones_gap.bajo,    s: CARD_STYLES.blue   },
+                    ] as const).map(({ label, count, s }) => (
+                      <Card key={label} className={s.card}>
+                        <p className={s.label}>{label}</p>
+                        <p className={s.value}>{count}</p>
+                        <p className={s.sub}>secciones</p>
                       </Card>
                     ))}
                   </div>
-
-                  <TablaBrechas brechas={reporte.brechas_identificadas} />
+                  <TablaBrechasIQ brechas={reporte.brechas_identificadas} />
                 </div>
               )}
 
-              {/* ── ANÁLISIS ── */}
+              {/* ── DISTRIBUCIÓN ── */}
               {activeTab === 'analisis' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <GraficoPastelClasificacion
-                      clasificaciones={reporte.clasificaciones_gap}
-                      dimensiones={dimensionesParaGraficos}
-                    />
-                    <GraficoBarrasGap dimensiones={dimensionesParaGraficos} />
-                  </div>
 
+                  {/* Tarjetas resumen GAP */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 border-red-200">
                       <h3 className="text-sm font-medium text-red-800 mb-2">Críticos / Altos</h3>
@@ -547,13 +400,86 @@ export const ReporteEvaluacionIQ: React.FC = () => {
                     <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                       <h3 className="text-sm font-medium text-green-800 mb-2">Cumplidos</h3>
                       <p className="text-4xl font-bold text-green-600">{gapStats.cumplidos}</p>
-                      <p className="text-xs text-green-700 mt-2">Objetivos logrados</p>
+                      <p className="text-xs text-green-700 mt-2">Sin brecha</p>
                     </Card>
                   </div>
 
+                  {/* Distribución de respuestas */}
                   <GraficoPastelRespuestas distribucion={reporte.distribucion_respuestas} />
 
-                  <ProgresoUsuarios usuarios={usuariosAdaptados} />
+                  {/* Resumen por usuario */}
+                  <Card>
+                    <div className="px-6 py-4 border-b border-gray-200">
+                      <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                        <Users size={18} className="text-primary-600" />
+                        Resumen por Usuario
+                      </h3>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {reporte.por_usuario.map(u => (
+                        <div
+                          key={u.usuario.id}
+                          className="px-6 py-4 flex items-center gap-6 flex-wrap hover:bg-gray-50 transition-colors"
+                        >
+                          {/* Info usuario */}
+                          <div className="flex-1 min-w-[140px]">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {u.usuario.nombre_completo}
+                            </p>
+                            <p className="text-xs text-gray-400">{u.usuario.email}</p>
+                            {u.usuario.cargo && (
+                              <p className="text-xs text-gray-500 mt-0.5">{u.usuario.cargo}</p>
+                            )}
+                          </div>
+
+                          {/* Nivel actual */}
+                          <div className="text-center">
+                            <p className="text-xs text-gray-400 mb-0.5">Nivel actual</p>
+                            <p className="text-sm font-bold text-green-600">
+                              {u.nivel_actual_promedio.toFixed(1)}
+                            </p>
+                          </div>
+
+                          {/* GAP */}
+                          <div className="text-center">
+                            <p className="text-xs text-gray-400 mb-0.5">GAP</p>
+                            <p className={`text-sm font-bold ${
+                              u.gap_promedio >= 2 ? 'text-red-600' :
+                              u.gap_promedio >= 1 ? 'text-orange-600' : 'text-green-600'
+                            }`}>
+                              {u.gap_promedio.toFixed(1)}
+                            </p>
+                          </div>
+
+                          {/* Cumplimiento */}
+                          <div className="text-center">
+                            <p className="text-xs text-gray-400 mb-0.5">Cumplimiento</p>
+                            <p className="text-sm font-bold text-blue-600">
+                              {u.porcentaje_cumplimiento_promedio.toFixed(0)}%
+                            </p>
+                          </div>
+
+                          {/* Barra */}
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className="bg-primary-600 h-1.5 rounded-full transition-all"
+                                style={{ width: `${u.porcentaje_cumplimiento_promedio}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Secciones */}
+                          <div className="text-center">
+                            <p className="text-xs text-gray-400 mb-0.5">Secciones</p>
+                            <p className="text-sm font-bold text-gray-700">
+                              {u.total_dimensiones_evaluadas}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
                 </div>
               )}
 

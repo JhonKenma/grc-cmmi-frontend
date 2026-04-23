@@ -2,54 +2,43 @@
 
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   FileText, 
   Target, 
   Users, 
-  Activity 
+  Activity,
+  Shield,
 } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
 import { evaluacionesApi, reportesApi } from '@/api/endpoints';
 import { ReporteEvaluacion as ReporteEvaluacionType } from '@/api/endpoints/reportes.api';
 import toast from 'react-hot-toast';
 
-// Importar el Modal de GAP (Lo mantenemos estático para evitar parpadeos al abrirlo)
 import { ModalCrearDesdeGAP } from '@/pages/proyectos-remediacion/ModalCrearDesdeGAP';
 
-// ═══════════════════════════════════════════════════════════════
-// OPTIMIZACIÓN: Lazy Loading (Corregido para export default)
-// ═══════════════════════════════════════════════════════════════
-
-// Nota: Asegúrate de que en estos archivos tengas "export default function..." o "export default const..."
 const ResumenGeneral = lazy(() => 
   import('./components/ResumenGeneral').then(module => ({ default: module.ResumenGeneral }))
 );
-
 const GraficoRadar = lazy(() => 
   import('./components/GraficoRadar').then(module => ({ default: module.GraficoRadar }))
 );
-
 const GraficoBarrasGap = lazy(() => 
   import('./components/GraficoBarrasGap').then(module => ({ default: module.GraficoBarrasGap }))
 );
-
 const GraficoPastelClasificacion = lazy(() => 
   import('./components/GraficoPastelClasificacion').then(module => ({ default: module.GraficoPastelClasificacion }))
 );
-
 const GraficoPastelRespuestas = lazy(() => 
   import('./components/GraficoPastelRespuestas').then(module => ({ default: module.GraficoPastelRespuestas }))
 );
-
 const TablaDetalleDimensiones = lazy(() => 
   import('./components/TablaDetalleDimensiones').then(module => ({ default: module.TablaDetalleDimensiones }))
 );
-
 const ProgresoUsuarios = lazy(() => 
   import('./components/ProgresoUsuarios').then(module => ({ default: module.ProgresoUsuarios }))
 );
-
 const ExportButtons = lazy(() => 
   import('./components/ExportButtons').then(module => ({ default: module.ExportButtons }))
 );
@@ -63,13 +52,12 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'resumen', name: 'Resumen General', icon: <BarChart3 size={18} /> },
+  { id: 'resumen',     name: 'Resumen General',        icon: <BarChart3 size={18} /> },
   { id: 'dimensiones', name: 'Análisis de Dimensiones', icon: <Target size={18} /> },
-  { id: 'usuarios', name: 'Progreso por Usuario', icon: <Users size={18} /> },
-  { id: 'analisis', name: 'Análisis de Brechas', icon: <Activity size={18} /> },
+  { id: 'usuarios',    name: 'Progreso por Usuario',    icon: <Users size={18} /> },
+  { id: 'analisis',    name: 'Análisis de Brechas',     icon: <Activity size={18} /> },
 ];
 
-// Componente pequeño (Skeleton) para que no se vea blanco mientras carga el gráfico
 const SectionLoader = () => (
   <div className="w-full h-64 bg-gray-50 border border-gray-100 rounded-lg flex flex-col items-center justify-center text-gray-400 animate-pulse">
     <Activity className="mb-2 opacity-20" size={32} />
@@ -78,29 +66,26 @@ const SectionLoader = () => (
 );
 
 export const ReporteEvaluacion: React.FC = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [evaluaciones, setEvaluaciones] = useState<any[]>([]);
+  const { user }    = useAuth();
+  const navigate    = useNavigate();
+  const [loading, setLoading]                           = useState(true);
+  const [evaluaciones, setEvaluaciones]                 = useState<any[]>([]);
   const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<string>('');
-  const [reporte, setReporte] = useState<ReporteEvaluacionType | null>(null);
-  const [loadingReporte, setLoadingReporte] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('resumen');
+  const [reporte, setReporte]                           = useState<ReporteEvaluacionType | null>(null);
+  const [loadingReporte, setLoadingReporte]             = useState(false);
+  const [activeTab, setActiveTab]                       = useState<TabType>('resumen');
 
-  // Estados Modal GAP
-  const [modalGAPOpen, setModalGAPOpen] = useState(false);
-  const [selectedGAP, setSelectedGAP] = useState<any>(null);
+  const [modalGAPOpen, setModalGAPOpen]   = useState(false);
+  const [selectedGAP, setSelectedGAP]     = useState<any>(null);
 
-  useEffect(() => {
-    loadEvaluaciones();
-  }, []);
+  useEffect(() => { loadEvaluaciones(); }, []);
 
   const loadEvaluaciones = async () => {
     try {
       setLoading(true);
-      const data = await evaluacionesApi.getMisEvaluaciones();
+      const data  = await evaluacionesApi.getMisEvaluaciones();
       const lista = data.results || [];
       setEvaluaciones(lista);
-
       if (lista.length > 0) {
         setEvaluacionSeleccionada(lista[0].id);
         loadReporte(lista[0].id);
@@ -126,28 +111,23 @@ export const ReporteEvaluacion: React.FC = () => {
     }
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // OPTIMIZACIÓN: Memoización de cálculos estadísticos
-  // ═══════════════════════════════════════════════════════════════
   const gapStats = useMemo(() => {
     if (!reporte?.clasificaciones_gap) return { criticos: 0, medios: 0, cumplidos: 0 };
     return {
-      criticos: (reporte.clasificaciones_gap.critico || 0) + (reporte.clasificaciones_gap.alto || 0),
-      medios: (reporte.clasificaciones_gap.medio || 0) + (reporte.clasificaciones_gap.bajo || 0),
+      criticos:  (reporte.clasificaciones_gap.critico || 0) + (reporte.clasificaciones_gap.alto   || 0),
+      medios:    (reporte.clasificaciones_gap.medio   || 0) + (reporte.clasificaciones_gap.bajo   || 0),
       cumplidos: (reporte.clasificaciones_gap.cumplido || 0) + (reporte.clasificaciones_gap.superado || 0),
     };
   }, [reporte]);
 
   const handleCrearProyectoDesdeBrecha = (gapData: any) => {
-    console.log('🔍 gapData recibido:', gapData); // ← agrega esto
     setSelectedGAP({
       calculoNivelId: gapData.calculoNivelId,
-      asignacionId: gapData.asignacionId,
-      gapInfo: { ...gapData }
+      asignacionId:   gapData.asignacionId,
+      gapInfo:        { ...gapData },
     });
     setModalGAPOpen(true);
   };
-
 
   const handleChangeEvaluacion = (evaluacionId: string) => {
     setEvaluacionSeleccionada(evaluacionId);
@@ -192,7 +172,17 @@ export const ReporteEvaluacion: React.FC = () => {
                 ))}
               </select>
 
-              {/* Suspense para el botón de exportar que carga bajo demanda */}
+              {/* ⭐ BOTÓN DASHBOARD DE CUMPLIMIENTO */}
+              {evaluacionSeleccionada && (
+                <button
+                  onClick={() => navigate(`/proyectos-remediacion/dashboard?evaluacion_id=${evaluacionSeleccionada}`)}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-semibold shadow-sm shadow-primary-600/20"
+                >
+                  <Shield size={16} />
+                  Dashboard de Cumplimiento
+                </button>
+              )}
+
               {evaluacionSeleccionada && (
                 <Suspense fallback={<div className="w-24 h-10 bg-gray-100 rounded animate-pulse" />}>
                   <ExportButtons evaluacionId={evaluacionSeleccionada} />
@@ -252,14 +242,16 @@ export const ReporteEvaluacion: React.FC = () => {
               >
                 {tab.icon}
                 <span>{tab.name}</span>
-                {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                )}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* CONTENIDO DE TABS - CON SUSPENSE */}
+      {/* CONTENIDO DE TABS */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           {loadingReporte ? (
@@ -268,7 +260,9 @@ export const ReporteEvaluacion: React.FC = () => {
             </div>
           ) : !reporte ? (
             <Card>
-              <div className="text-center py-12"><p className="text-gray-600">No hay datos disponibles</p></div>
+              <div className="text-center py-12">
+                <p className="text-gray-600">No hay datos disponibles</p>
+              </div>
             </Card>
           ) : (
             <Suspense fallback={<SectionLoader />}>
@@ -288,9 +282,9 @@ export const ReporteEvaluacion: React.FC = () => {
                     <GraficoRadar dimensiones={reporte.por_dimension} />
                     <GraficoBarrasGap dimensiones={reporte.por_dimension} />
                   </div>
-                  <TablaDetalleDimensiones 
-                    dimensiones={reporte.por_dimension} 
-                    onCrearProyecto={handleCrearProyectoDesdeBrecha} 
+                  <TablaDetalleDimensiones
+                    dimensiones={reporte.por_dimension}
+                    onCrearProyecto={handleCrearProyectoDesdeBrecha}
                   />
                 </div>
               )}
@@ -308,7 +302,6 @@ export const ReporteEvaluacion: React.FC = () => {
                     <GraficoBarrasGap dimensiones={reporte.por_dimension} />
                   </div>
 
-                  {/* Tarjetas optimizadas con useMemo */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="p-6 bg-gradient-to-br from-red-50 to-red-100 border-red-200">
                       <h3 className="text-sm font-medium text-red-800 mb-2">Críticos/Altos</h3>
@@ -328,6 +321,7 @@ export const ReporteEvaluacion: React.FC = () => {
                       <p className="text-xs text-green-700 mt-2">Objetivos logrados</p>
                     </Card>
                   </div>
+
                   <GraficoPastelRespuestas distribucion={reporte.distribucion_respuestas} />
                 </div>
               )}
@@ -340,10 +334,7 @@ export const ReporteEvaluacion: React.FC = () => {
       {selectedGAP && (
         <ModalCrearDesdeGAP
           isOpen={modalGAPOpen}
-          onClose={() => {
-            setModalGAPOpen(false);
-            setSelectedGAP(null);
-          }}
+          onClose={() => { setModalGAPOpen(false); setSelectedGAP(null); }}
           onSuccess={() => {
             loadReporte(evaluacionSeleccionada);
             setModalGAPOpen(false);
@@ -351,7 +342,7 @@ export const ReporteEvaluacion: React.FC = () => {
             toast.success('Proyecto creado exitosamente');
           }}
           calculoNivelId={selectedGAP.calculoNivelId}
-          asignacionId={selectedGAP.asignacionId}   // ⭐ NUEVO
+          asignacionId={selectedGAP.asignacionId}
           gapInfo={selectedGAP.gapInfo}
         />
       )}
