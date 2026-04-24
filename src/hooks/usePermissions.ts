@@ -13,7 +13,9 @@ export const usePermissions = () => {
         isAdmin: false,
         isUser: false,
         isAuditor: false,
+        isRiskAnalyst: false,
         canManageEncuestas: false,
+        canOperateRiesgos: false,
       };
     }
 
@@ -21,13 +23,16 @@ export const usePermissions = () => {
     const isAdmin = user.rol === 'administrador';
     const isUser = user.rol === 'usuario';
     const isAuditor = user.rol === 'auditor';
+    const isRiskAnalyst = user.rol === 'analista_riesgos';
 
     return {
       isSuperuser,
       isAdmin,
       isUser,
       isAuditor,
+      isRiskAnalyst,
       canManageEncuestas: isSuperuser || isAdmin,
+      canOperateRiesgos: isSuperuser || isAdmin || isRiskAnalyst,
     };
   }, [user]);
 
