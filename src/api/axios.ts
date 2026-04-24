@@ -1,4 +1,5 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios from 'axios';
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_URL } from '@/utils/constants';
 
 const axiosInstance = axios.create({
