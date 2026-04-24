@@ -15,12 +15,12 @@ import {
   User,
   Upload,
   Bell,
-  BarChart3,  
+  BarChart3,
   Truck,
   CheckSquare,
   Brain,
   Package,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -35,6 +35,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { user, logout, isSuperAdmin, isAdmin } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -46,7 +47,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       name: 'Dashboard',
       icon: LayoutDashboard,
       path: '/dashboard',
-      roles: ['superadmin', 'administrador', 'usuario', 'auditor'],
+      roles: ['superadmin', 'administrador', 'usuario', 'auditor', 'analista_riesgos'],
     },
     {
       name: 'Usuarios',
@@ -74,7 +75,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/proveedores',
       roles: ['superadmin', 'administrador'],
     },
-
     {
       name: 'Evaluaciones',
       icon: FileText,
@@ -122,6 +122,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       roles: ['superadmin', 'administrador', 'usuario'],
     },
     
+    // ⭐ NUEVO: Gestión de Riesgos
+    {
+      name: 'Gestión de Riesgos',
+      icon: ShieldCheck,
+      path: '/riesgos/dashboard',
+      roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'],
+    },
+    
     // ⭐ ACTUALIZADO: Evaluaciones IQ (Admin/SuperAdmin)
     {
       name: 'Evaluaciones IQ',
@@ -163,7 +171,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return item.roles.includes(user.rol);
   });
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path?: string) => {
+    if (!path) return false;
+    if (path === '/riesgos/dashboard') {
+      return location.pathname.startsWith('/riesgos');
+    }
+    return location.pathname === path;
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -209,25 +223,30 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
 
         {/* Navegación */}
-        <nav className="p-4 space-y-2">
-          {visibleMenuItems.map((item) => {
+        <nav className="p-4 space-y-2 overflow-y-auto flex-1">
+          {visibleMenuItems.map((item: any, idx: number) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const itemKey = item.path || `menu-${item.name}-${idx}`;
+
+            // Dividers
+            if (item.name === 'divider') {
+              return <div key={`divider-${idx}`} className="border-t border-gray-200 my-2" />;
+            }
 
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                  active
-                    ? 'bg-primary-50 text-primary-600 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
-                } ${!sidebarOpen && 'justify-center'}`}
-                title={!sidebarOpen ? item.name : ''}
-              >
-                <Icon size={20} />
-                {sidebarOpen && <span>{item.name}</span>}
-              </Link>
+              <div key={itemKey}>
+                <Link
+                  to={item.path}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                    active ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                  } ${!sidebarOpen && 'justify-center'}`}
+                  title={!sidebarOpen ? item.name : ''}
+                >
+                  <Icon size={20} />
+                  {sidebarOpen && <span>{item.name}</span>}
+                </Link>
+              </div>
             );
           })}
         </nav>
@@ -272,7 +291,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     {user?.nombre_completo}
                   </p>
                   <p className="text-xs text-gray-500 capitalize">
-                    {user?.rol === 'superadmin' ? 'Super Admin' : user?.rol}
+                    {user?.rol === 'superadmin'
+                      ? 'Super Admin'
+                      : user?.rol === 'analista_riesgos'
+                        ? 'Analista de Riesgos'
+                        : user?.rol}
                   </p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
