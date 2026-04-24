@@ -30,6 +30,7 @@ export const ROLES = {
   ADMINISTRADOR: 'administrador',
   USUARIO: 'usuario',
   AUDITOR: 'auditor',
+  ANALISTA_RIESGOS: 'analista_riesgos',
 } as const;
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -37,6 +38,7 @@ export const ROLE_LABELS: Record<string, string> = {
   administrador: 'Administrador',
   usuario: 'Usuario',
   auditor: 'Auditor',
+  analista_riesgos: 'Analista de Riesgos',
 };
 
 /**
@@ -47,6 +49,7 @@ export const ROLE_COLORS: Record<string, string> = {
   administrador: 'blue',
   usuario: 'green',
   auditor: 'yellow',
+  analista_riesgos: 'orange',
 };
 
 /**
