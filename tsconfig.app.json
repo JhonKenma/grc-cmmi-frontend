@@ -26,6 +26,7 @@
 
     /* 🚀 Aquí agregamos la parte que te falta */
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["src/*"]
     }
