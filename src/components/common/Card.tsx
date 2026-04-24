@@ -18,6 +18,7 @@ export const Card: React.FC<CardProps> = ({
   padding = 'md',
   ...props
 }) => {
+  const hasCustomBackground = /(?:^|\s)!?bg-[^\s]+/.test(className ?? '');
   const paddings = {
     none: '',
     sm: 'p-3',
@@ -29,7 +30,8 @@ export const Card: React.FC<CardProps> = ({
     <div
       {...props}
       className={cn(
-        'bg-white rounded-lg shadow-sm border border-gray-200',
+        'rounded-lg shadow-sm border border-gray-200',
+        !hasCustomBackground && 'bg-white',
         paddings[padding],
         className
       )}

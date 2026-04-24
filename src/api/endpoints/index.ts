@@ -23,3 +23,4 @@ export * from './documentos.api';
 export * from './auditor-iq.api';
 export * from './dashboard.service';
 export { reportesIQApi } from './reportes-iq.api';
+export { riesgosApi } from './riesgos.api';

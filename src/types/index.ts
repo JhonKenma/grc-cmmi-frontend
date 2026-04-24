@@ -3,7 +3,7 @@
 // ==========================================
 // TIPOS DE USUARIO
 // ==========================================
-export type Rol = 'superadmin' | 'administrador' | 'usuario' | 'auditor';  // <-- AGREGADO superadmin
+export type Rol = 'superadmin' | 'administrador' | 'usuario' | 'auditor' | 'analista_riesgos';
 
 export interface Usuario {
   id: number;
@@ -129,3 +129,4 @@ export * as respuestaIQ from './respuesta-iq.types';
 export * as proyectoRemediacion from './proyecto-remediacion.types';
 export * from './proveedor';
 export * from './reporte-iq.types';
+export * from './riesgos.types';

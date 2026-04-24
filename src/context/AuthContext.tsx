@@ -15,6 +15,15 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout de autenticacion (${timeoutMs}ms)`)), timeoutMs);
+    }),
+  ]);
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,23 +34,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ==========================================
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('access_token');
-      const savedUser = localStorage.getItem('user');
+      try {
+        const token = localStorage.getItem('access_token');
+        const savedUser = localStorage.getItem('user');
 
-      if (token && savedUser) {
-        try {
-          // Intentar obtener datos actualizados del usuario
-          const userData = await authService.getMe();
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-        } catch (error) {
-          console.error('Error al cargar usuario:', error);
-          // Si falla, usar los datos guardados
-          setUser(JSON.parse(savedUser));
+        if (token && savedUser) {
+          // Mostrar usuario cacheado de inmediato para evitar pantalla en blanco
+          try {
+            const parsedUser = JSON.parse(savedUser) as Usuario;
+            setUser(parsedUser);
+          } catch {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user');
+            setUser(null);
+            return;
+          }
+
+          try {
+            // Intentar obtener datos actualizados del usuario
+            const userData = await withTimeout(authService.getMe(), 7000);
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+          } catch (error) {
+            console.error('Error al cargar usuario:', error);
+            // Si falla, se conserva el usuario cacheado.
+          }
         }
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     initAuth();

@@ -18,8 +18,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Mostrar loading mientras se carga el usuario
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-300 border-t-cyan-600" />
+          <p className="text-sm font-medium text-slate-600">Cargando sesion...</p>
+        </div>
       </div>
     );
   }
