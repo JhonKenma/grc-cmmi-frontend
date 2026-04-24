@@ -92,6 +92,20 @@ import { PlanExpirado } from '@/pages/PlanExpirado';
 import { GestionarAsignacionesDetalle } from './pages/EvaluacionesInteligentes/Asignaciones/GestionarAsignacionesDetalle';
 import { VerRespuestasAdmin } from './pages/EvaluacionesInteligentes/Asignaciones/VerRespuestasAdmin';
 import { ReporteEvaluacionIQ } from './pages/reportes/ReporteEvaluacionIQ';
+import { RiesgosDashboardPage } from '@/pages/riesgos/RiesgosDashboardPage';
+import { RiesgosListPage } from '@/pages/riesgos/RiesgosListPage';
+import { RiesgoDetailPage } from '@/pages/riesgos/RiesgoDetailPage';
+import { PlanesPage } from '@/pages/riesgos/PlanesPage';
+import { KrisPage } from '@/pages/riesgos/KrisPage';
+import { MonitoreoPage } from '@/pages/riesgos/MonitoreoPage';
+import { CategoriasRiesgoPage } from '@/pages/riesgos/CategoriasRiesgoPage';
+import { ActivosPage } from '@/pages/riesgos/ActivosPage';
+import { RiesgoActivosPage } from '@/pages/riesgos/RiesgoActivosPage';
+import { EvaluacionesCuantitativasPage } from '@/pages/riesgos/EvaluacionesCuantitativasPage';
+import { ReporteSimpleRiesgosPage } from '@/pages/riesgos/ReporteSimpleRiesgosPage';
+import { ControlesPage } from '@/pages/riesgos/ControlesPage';
+import { ConfiguracionRevisionPage } from '@/pages/riesgos/ConfiguracionRevisionPage';
+import { ConfiguracionFormulasPage } from '@/pages/riesgos/config/ConfiguracionFormulasPage';
 
 function App() {
   return (
@@ -497,6 +511,150 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* ========================================
+                RUTAS DE GESTION DE RIESGOS
+                ======================================== */}
+            <Route
+              path="/riesgos/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos', 'auditor']}>
+                  <MainLayout>
+                    <RiesgosDashboardPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos', 'auditor']}>
+                  <MainLayout>
+                    <RiesgosListPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/:id"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos', 'auditor']}>
+                  <MainLayout>
+                    <RiesgoDetailPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/planes"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <PlanesPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/kris"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <KrisPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/monitoreo"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos', 'auditor']}>
+                  <MainLayout>
+                    <MonitoreoPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/categorias"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <CategoriasRiesgoPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/activos"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <ActivosPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/riesgo-activos"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <RiesgoActivosPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/evaluaciones-cuantitativas"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <EvaluacionesCuantitativasPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/reporte-simple"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos', 'auditor']}>
+                  <MainLayout>
+                    <ReporteSimpleRiesgosPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/controles"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <ControlesPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/configuracion-revision"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'analista_riesgos']}>
+                  <MainLayout>
+                    <ConfiguracionRevisionPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/riesgos/config/formulas"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                  <MainLayout>
+                    <ConfiguracionFormulasPage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
             {/* ========================================
                 RUTAS DE PROYECTOS DE REMEDIACIÓN
                 ======================================== */}
@@ -514,7 +672,7 @@ function App() {
             <Route
               path="/proyectos-remediacion/:id"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'administrador']}>
+                <ProtectedRoute allowedRoles={['superadmin', 'administrador', 'usuario']}>
                   <MainLayout>
                     <DetalleProyecto />
                   </MainLayout>
