@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LoaderCircle, MessageCircle, Paperclip, SendHorizontal, Sparkles, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -13,6 +13,49 @@ type ChatRole = 'assistant' | 'user';
 type ChatResponseMode = 'auto' | 'evaluation_plan' | 'context_summary' | 'risk_recommendations';
 
 const ALLOWED_UPLOAD_EXTENSIONS_HINT = 'pdf, txt, md, csv, json, log, yaml, yml, xml';
+const CHAT_LAUNCHER_POSITION_STORAGE_KEY = 'chat_launcher_position';
+
+interface FloatingPosition {
+  x: number;
+  y: number;
+}
+
+function getDefaultLauncherPosition(): FloatingPosition {
+  if (typeof window === 'undefined') {
+    return { x: 16, y: 16 };
+  }
+
+  const margin = 16;
+  const estimatedWidth = 180;
+  const estimatedHeight = 52;
+
+  return {
+    x: Math.max(margin, window.innerWidth - estimatedWidth - margin),
+    y: Math.max(margin, window.innerHeight - estimatedHeight - margin),
+  };
+}
+
+function getStoredLauncherPosition(): FloatingPosition | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const rawPosition = localStorage.getItem(CHAT_LAUNCHER_POSITION_STORAGE_KEY);
+  if (!rawPosition) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawPosition) as { x?: number; y?: number };
+    if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+      return { x: parsed.x, y: parsed.y };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
 
 interface ChatMessage {
   id: string;
@@ -171,6 +214,7 @@ function inferResponseMode(message: string): ChatResponseMode {
 export const GlobalCopilotChat: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
+  const isLoginRoute = location.pathname.startsWith('/login');
 
   const [isOpen, setIsOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -187,7 +231,7 @@ export const GlobalCopilotChat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     createMessage(
       'assistant',
-      'Hola, soy tu asistente, Shielly. Preguntame por riesgos, brechas o recomendaciones segun la vista actual.'
+      'Hola, soy tu asistente, Shielby. Preguntame por riesgos, brechas o recomendaciones segun la vista actual.'
     ),
   ]);
   const [pendingCompanyContext, setPendingCompanyContext] = useState<{
@@ -196,9 +240,40 @@ export const GlobalCopilotChat: React.FC = () => {
     originalQuestion: string;
     responseMode: ChatResponseMode;
   } | null>(null);
+  const [launcherPosition, setLauncherPosition] = useState<FloatingPosition>(() => {
+    return getStoredLauncherPosition() ?? getDefaultLauncherPosition();
+  });
+  const [isDraggingLauncher, setIsDraggingLauncher] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const launcherButtonRef = useRef<HTMLButtonElement | null>(null);
+  const launcherDragRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    offsetX: number;
+    offsetY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressLauncherClickRef = useRef(false);
+
+  const clampLauncherPosition = useCallback((nextX: number, nextY: number): FloatingPosition => {
+    if (typeof window === 'undefined') {
+      return { x: nextX, y: nextY };
+    }
+
+    const margin = 12;
+    const buttonWidth = launcherButtonRef.current?.offsetWidth ?? 180;
+    const buttonHeight = launcherButtonRef.current?.offsetHeight ?? 52;
+    const maxX = Math.max(margin, window.innerWidth - buttonWidth - margin);
+    const maxY = Math.max(margin, window.innerHeight - buttonHeight - margin);
+
+    return {
+      x: Math.min(Math.max(nextX, margin), maxX),
+      y: Math.min(Math.max(nextY, margin), maxY),
+    };
+  }, []);
 
   const pageContext = useMemo(() => {
     const label = resolvePageLabel(location.pathname);
@@ -235,6 +310,12 @@ export const GlobalCopilotChat: React.FC = () => {
 
   const sessionEmpresaId = getEmpresaIdFromSession();
   const showEmpresaSelector = user?.rol === 'superadmin' && !sessionEmpresaId;
+
+  useEffect(() => {
+    if (isLoginRoute && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isLoginRoute, isOpen]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -280,6 +361,36 @@ export const GlobalCopilotChat: React.FC = () => {
     }
     setEmpresaSearchInput(selectedEmpresa.nombre);
   }, [selectedEmpresa, showEmpresaSelector]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const syncPosition = () => {
+      setLauncherPosition((prev) => {
+        const clamped = clampLauncherPosition(prev.x, prev.y);
+        if (clamped.x === prev.x && clamped.y === prev.y) {
+          return prev;
+        }
+        return clamped;
+      });
+    };
+
+    syncPosition();
+    window.addEventListener('resize', syncPosition);
+
+    return () => {
+      window.removeEventListener('resize', syncPosition);
+    };
+  }, [clampLauncherPosition]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    localStorage.setItem(CHAT_LAUNCHER_POSITION_STORAGE_KEY, JSON.stringify(launcherPosition));
+  }, [launcherPosition]);
 
   const resolveTargetEmpresaId = (): number | null => {
     const empresaIdFromSession = getEmpresaIdFromSession();
@@ -580,269 +691,349 @@ export const GlobalCopilotChat: React.FC = () => {
     }
   };
 
+  const handleLauncherPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== 'touch' && event.button !== 0) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    launcherDragRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      moved: false,
+    };
+    suppressLauncherClickRef.current = false;
+    setIsDraggingLauncher(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleLauncherPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const dragState = launcherDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = Math.abs(event.clientX - dragState.startClientX);
+    const deltaY = Math.abs(event.clientY - dragState.startClientY);
+    if (deltaX > 3 || deltaY > 3) {
+      dragState.moved = true;
+      event.preventDefault();
+    }
+
+    const nextPosition = clampLauncherPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY);
+    setLauncherPosition((prev) => {
+      if (prev.x === nextPosition.x && prev.y === nextPosition.y) {
+        return prev;
+      }
+      return nextPosition;
+    });
+  };
+
+  const handleLauncherPointerRelease = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const dragState = launcherDragRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    suppressLauncherClickRef.current = dragState.moved;
+    launcherDragRef.current = null;
+    setIsDraggingLauncher(false);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const handleLauncherClick = () => {
+    if (suppressLauncherClickRef.current) {
+      suppressLauncherClickRef.current = false;
+      return;
+    }
+    setIsOpen(true);
+  };
+
+  if (isLoginRoute) {
+    return null;
+  }
+
   return (
-    <div className="fixed bottom-3 left-3 right-3 z-[1000] sm:bottom-5 sm:left-auto sm:right-5">
+    <>
       {!isOpen && (
         <button
+          ref={launcherButtonRef}
           type="button"
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-emerald-700"
+          onClick={handleLauncherClick}
+          onPointerDown={handleLauncherPointerDown}
+          onPointerMove={handleLauncherPointerMove}
+          onPointerUp={handleLauncherPointerRelease}
+          onPointerCancel={handleLauncherPointerRelease}
+          className="fixed z-[1000] flex touch-none select-none items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-emerald-700"
+          style={{
+            left: `${launcherPosition.x}px`,
+            top: `${launcherPosition.y}px`,
+            cursor: isDraggingLauncher ? 'grabbing' : 'grab',
+          }}
           aria-label="Abrir chat de asistente"
         >
           <MessageCircle size={18} />
-          Chat con Copilot
+          Chat con Shielby
         </button>
       )}
 
       {isOpen && (
-        <section className="flex h-[min(82vh,620px)] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-2xl sm:w-[380px]">
-          <header className="bg-emerald-600 px-4 py-3 text-white">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="flex items-center gap-2 text-sm opacity-90">
-                  <Sparkles size={14} />
-                  Asistente IA
-                </p>
-                <h3 className="text-xl font-semibold leading-tight">Chat de cumplimiento</h3>
+        <div className="fixed bottom-3 left-3 right-3 z-[1000] sm:bottom-5 sm:left-auto sm:right-5">
+          <section className="flex h-[min(82vh,620px)] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-2xl sm:w-[380px]">
+            <header className="bg-emerald-600 px-4 py-3 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-2 text-sm opacity-90">
+                    <Sparkles size={14} />
+                    Asistente IA
+                  </p>
+                  <h3 className="text-xl font-semibold leading-tight">Chat de cumplimiento</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded p-1 transition hover:bg-emerald-700"
+                  aria-label="Cerrar chat"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="rounded p-1 transition hover:bg-emerald-700"
-                aria-label="Cerrar chat"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p className="mt-2 rounded-full bg-emerald-700/70 px-3 py-1 text-xs">
-              Contexto activo: {resolvePageLabel(location.pathname)}
-            </p>
-            {showEmpresaSelector && (
-              <div className="relative mt-2 rounded-lg bg-emerald-700/70 p-2">
-                <label htmlFor="chat-target-empresa" className="mb-1 block text-xs opacity-90">
-                  Empresa objetivo (por nombre) para respuestas RAG
-                </label>
-                <input
-                  id="chat-target-empresa"
-                  value={empresaSearchInput}
-                  onChange={handleEmpresaSearchChange}
-                  onFocus={() => setIsEmpresaDropdownOpen(true)}
-                  onBlur={handleEmpresaSearchBlur}
-                  placeholder="Buscar empresa por nombre o RUC"
-                  className="h-8 w-full rounded border border-emerald-300 bg-white px-2 text-xs text-slate-700 outline-none"
-                />
+              <p className="mt-2 rounded-full bg-emerald-700/70 px-3 py-1 text-xs">
+                Contexto activo: {resolvePageLabel(location.pathname)}
+              </p>
+              {showEmpresaSelector && (
+                <div className="relative mt-2 rounded-lg bg-emerald-700/70 p-2">
+                  <label htmlFor="chat-target-empresa" className="mb-1 block text-xs opacity-90">
+                    Empresa objetivo (por nombre) para respuestas RAG
+                  </label>
+                  <input
+                    id="chat-target-empresa"
+                    value={empresaSearchInput}
+                    onChange={handleEmpresaSearchChange}
+                    onFocus={() => setIsEmpresaDropdownOpen(true)}
+                    onBlur={handleEmpresaSearchBlur}
+                    placeholder="Buscar empresa por nombre o RUC"
+                    className="h-8 w-full rounded border border-emerald-300 bg-white px-2 text-xs text-slate-700 outline-none"
+                  />
 
-                {isEmpresaDropdownOpen && filteredEmpresas.length > 0 && (
-                  <div className="absolute left-2 right-2 top-[72px] z-20 max-h-36 overflow-y-auto rounded-md border border-emerald-300 bg-white shadow-lg">
-                    {filteredEmpresas.map((empresa) => (
-                      <button
-                        key={empresa.id}
-                        type="button"
-                        onMouseDown={() => handleTargetEmpresaChange(empresa)}
-                        className="block w-full border-b border-slate-100 px-2 py-2 text-left text-xs text-slate-700 hover:bg-emerald-50"
-                      >
-                        <div className="font-medium">{empresa.nombre}</div>
-                        <div className="text-[11px] text-slate-500">
-                          ID {empresa.id}
-                          {empresa.ruc ? ` · RUC ${empresa.ruc}` : ''}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {isEmpresaDropdownOpen &&
-                  !isLoadingEmpresas &&
-                  empresaSearchInput.trim() &&
-                  filteredEmpresas.length === 0 && (
-                    <div className="absolute left-2 right-2 top-[72px] z-20 rounded-md border border-emerald-300 bg-white px-2 py-2 text-xs text-slate-600 shadow-lg">
-                      No se encontraron empresas con ese criterio.
+                  {isEmpresaDropdownOpen && filteredEmpresas.length > 0 && (
+                    <div className="absolute left-2 right-2 top-[72px] z-20 max-h-36 overflow-y-auto rounded-md border border-emerald-300 bg-white shadow-lg">
+                      {filteredEmpresas.map((empresa) => (
+                        <button
+                          key={empresa.id}
+                          type="button"
+                          onMouseDown={() => handleTargetEmpresaChange(empresa)}
+                          className="block w-full border-b border-slate-100 px-2 py-2 text-left text-xs text-slate-700 hover:bg-emerald-50"
+                        >
+                          <div className="font-medium">{empresa.nombre}</div>
+                          <div className="text-[11px] text-slate-500">
+                            ID {empresa.id}
+                            {empresa.ruc ? ` · RUC ${empresa.ruc}` : ''}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
 
-                <p className="mt-1 text-[11px] opacity-90">
-                  {isLoadingEmpresas
-                    ? 'Cargando empresas...'
-                    : targetEmpresaInput
-                      ? `Empresa seleccionada ID: ${targetEmpresaInput}`
-                      : 'Selecciona una empresa para activar respuestas con contexto RAG.'}
-                </p>
-              </div>
-            )}
-          </header>
-
-          <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
-            <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
-              {messages.map((message) => (
-                <article
-                  key={message.id}
-                  className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    message.role === 'assistant'
-                      ? 'mr-auto bg-white text-slate-700 shadow-sm'
-                      : 'ml-auto bg-emerald-500 text-white'
-                  }`}
-                >
-                  {message.role === 'assistant' ? (
-                    (() => {
-                      const parsed = parseAssistantContent(message.content);
-
-                      return (
-                        <>
-                          {parsed.reasoning && (
-                            <details className="mb-3 rounded-lg border border-slate-200 bg-slate-50/70 p-2">
-                              <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                                Ver razonamiento
-                              </summary>
-                              <div className="mt-2 rounded-md border border-slate-200 bg-white px-2 py-2 text-xs text-slate-600">
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
-                                    ul: ({ children }) => (
-                                      <ul className="mb-1.5 list-disc space-y-1 pl-4 last:mb-0">{children}</ul>
-                                    ),
-                                    ol: ({ children }) => (
-                                      <ol className="mb-1.5 list-decimal space-y-1 pl-4 last:mb-0">{children}</ol>
-                                    ),
-                                    li: ({ children }) => <li>{children}</li>,
-                                    code: ({ children }) => (
-                                      <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px] text-slate-800">
-                                        {children}
-                                      </code>
-                                    ),
-                                  }}
-                                >
-                                  {parsed.reasoning}
-                                </ReactMarkdown>
-                              </div>
-                            </details>
-                          )}
-
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                              ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
-                              ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
-                              li: ({ children }) => <li>{children}</li>,
-                              code: ({ children }) => (
-                                <code className="rounded bg-slate-100 px-1 py-0.5 text-[12px] text-slate-800">{children}</code>
-                              ),
-                              h1: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
-                              h2: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
-                              h3: ({ children }) => <h4 className="mb-2 text-sm font-semibold">{children}</h4>,
-                              blockquote: ({ children }) => (
-                                <blockquote className="mb-2 border-l-2 border-emerald-300 pl-3 italic text-slate-600">
-                                  {children}
-                                </blockquote>
-                              ),
-                            }}
-                          >
-                            {parsed.answer}
-                          </ReactMarkdown>
-                        </>
-                      );
-                    })()
-                  ) : (
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  )}
-                </article>
-              ))}
-
-              {isUploadingFiles && (
-                <article className="mr-auto flex max-w-[88%] items-center gap-2 rounded-2xl bg-white px-3 py-2 text-sm text-slate-500 shadow-sm">
-                  <LoaderCircle size={14} className="animate-spin" />
-                  Procesando archivos y vectorizando chunks...
-                </article>
-              )}
-
-              {isSending && (
-                <article className="max-w-[88%] rounded-2xl bg-white px-3 py-2 text-sm text-slate-500 shadow-sm">
-                  Pensando respuesta...
-                </article>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="border-t border-slate-200 bg-white p-3">
-              {pendingCompanyContext && (
-                <p className="mb-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                  Pendiente: comparte datos de la empresa (giro, procesos criticos, activos de informacion, riesgos y objetivos de cumplimiento). Guardare ese contexto y continuare la respuesta.
-                </p>
-              )}
-              {selectedFiles.length > 0 && (
-                <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2">
-                  <p className="mb-1 text-[11px] text-emerald-800">
-                    Archivos listos para ingesta ({selectedFiles.length})
-                  </p>
-                  <div className="max-h-20 space-y-1 overflow-y-auto">
-                    {selectedFiles.map((file) => (
-                      <div
-                        key={`${file.name}-${file.lastModified}-${file.size}`}
-                        className="flex items-center justify-between rounded bg-white px-2 py-1 text-[11px] text-slate-700"
-                      >
-                        <span className="truncate pr-2">{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFile(file)}
-                          className="rounded px-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                          aria-label={`Quitar archivo ${file.name}`}
-                        >
-                          <X size={12} />
-                        </button>
+                  {isEmpresaDropdownOpen &&
+                    !isLoadingEmpresas &&
+                    empresaSearchInput.trim() &&
+                    filteredEmpresas.length === 0 && (
+                      <div className="absolute left-2 right-2 top-[72px] z-20 rounded-md border border-emerald-300 bg-white px-2 py-2 text-xs text-slate-600 shadow-lg">
+                        No se encontraron empresas con ese criterio.
                       </div>
-                    ))}
-                  </div>
+                    )}
+
+                  <p className="mt-1 text-[11px] opacity-90">
+                    {isLoadingEmpresas
+                      ? 'Cargando empresas...'
+                      : targetEmpresaInput
+                        ? `Empresa seleccionada ID: ${targetEmpresaInput}`
+                        : 'Selecciona una empresa para activar respuestas con contexto RAG.'}
+                  </p>
                 </div>
               )}
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-2 py-1">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.txt,.md,.csv,.json,.log,.yaml,.yml,.xml"
-                  className="hidden"
-                  onChange={handleFileSelection}
-                />
-                <button
-                  type="button"
-                  onClick={openFilePicker}
-                  disabled={isSending || isUploadingFiles}
-                  className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
-                  aria-label="Adjuntar archivos"
-                >
-                  <Paperclip size={16} />
-                </button>
-                <input
-                  value={inputValue}
-                  onChange={(event) => setInputValue(event.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder={
-                    pendingCompanyContext
-                      ? 'Escribe el contexto de tu empresa o adjunta documentos...'
-                      : 'Escribe tu mensaje o adjunta documentos'
-                  }
-                  className="h-9 flex-1 border-none bg-transparent px-2 text-sm text-slate-700 outline-none"
-                  disabled={isSending || isUploadingFiles}
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleSendMessage()}
-                  disabled={isSending || isUploadingFiles || (!inputValue.trim() && selectedFiles.length === 0)}
-                  className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                  aria-label="Enviar mensaje"
-                >
-                  <SendHorizontal size={16} />
-                </button>
+            </header>
+
+            <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
+              <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
+                {messages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      message.role === 'assistant'
+                        ? 'mr-auto bg-white text-slate-700 shadow-sm'
+                        : 'ml-auto bg-emerald-500 text-white'
+                    }`}
+                  >
+                    {message.role === 'assistant' ? (
+                      (() => {
+                        const parsed = parseAssistantContent(message.content);
+
+                        return (
+                          <>
+                            {parsed.reasoning && (
+                              <details className="mb-3 rounded-lg border border-slate-200 bg-slate-50/70 p-2">
+                                <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                                  Ver razonamiento
+                                </summary>
+                                <div className="mt-2 rounded-md border border-slate-200 bg-white px-2 py-2 text-xs text-slate-600">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                                      ul: ({ children }) => (
+                                        <ul className="mb-1.5 list-disc space-y-1 pl-4 last:mb-0">{children}</ul>
+                                      ),
+                                      ol: ({ children }) => (
+                                        <ol className="mb-1.5 list-decimal space-y-1 pl-4 last:mb-0">{children}</ol>
+                                      ),
+                                      li: ({ children }) => <li>{children}</li>,
+                                      code: ({ children }) => (
+                                        <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px] text-slate-800">
+                                          {children}
+                                        </code>
+                                      ),
+                                    }}
+                                  >
+                                    {parsed.reasoning}
+                                  </ReactMarkdown>
+                                </div>
+                              </details>
+                            )}
+
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+                                ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+                                li: ({ children }) => <li>{children}</li>,
+                                code: ({ children }) => (
+                                  <code className="rounded bg-slate-100 px-1 py-0.5 text-[12px] text-slate-800">{children}</code>
+                                ),
+                                h1: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
+                                h2: ({ children }) => <h4 className="mb-2 text-base font-semibold">{children}</h4>,
+                                h3: ({ children }) => <h4 className="mb-2 text-sm font-semibold">{children}</h4>,
+                                blockquote: ({ children }) => (
+                                  <blockquote className="mb-2 border-l-2 border-emerald-300 pl-3 italic text-slate-600">
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {parsed.answer}
+                            </ReactMarkdown>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    )}
+                  </article>
+                ))}
+
+                {isUploadingFiles && (
+                  <article className="mr-auto flex max-w-[88%] items-center gap-2 rounded-2xl bg-white px-3 py-2 text-sm text-slate-500 shadow-sm">
+                    <LoaderCircle size={14} className="animate-spin" />
+                    Procesando archivos y vectorizando chunks...
+                  </article>
+                )}
+
+                {isSending && (
+                  <article className="max-w-[88%] rounded-2xl bg-white px-3 py-2 text-sm text-slate-500 shadow-sm">
+                    Pensando respuesta...
+                  </article>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Formatos permitidos: {ALLOWED_UPLOAD_EXTENSIONS_HINT}.
-              </p>
+
+              <div className="border-t border-slate-200 bg-white p-3">
+                {pendingCompanyContext && (
+                  <p className="mb-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                    Pendiente: comparte datos de la empresa (giro, procesos criticos, activos de informacion, riesgos y objetivos de cumplimiento). Guardare ese contexto y continuare la respuesta.
+                  </p>
+                )}
+                {selectedFiles.length > 0 && (
+                  <div className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-2">
+                    <p className="mb-1 text-[11px] text-emerald-800">
+                      Archivos listos para ingesta ({selectedFiles.length})
+                    </p>
+                    <div className="max-h-20 space-y-1 overflow-y-auto">
+                      {selectedFiles.map((file) => (
+                        <div
+                          key={`${file.name}-${file.lastModified}-${file.size}`}
+                          className="flex items-center justify-between rounded bg-white px-2 py-1 text-[11px] text-slate-700"
+                        >
+                          <span className="truncate pr-2">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile(file)}
+                            className="rounded px-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                            aria-label={`Quitar archivo ${file.name}`}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-2 py-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.txt,.md,.csv,.json,.log,.yaml,.yml,.xml"
+                    className="hidden"
+                    onChange={handleFileSelection}
+                  />
+                  <button
+                    type="button"
+                    onClick={openFilePicker}
+                    disabled={isSending || isUploadingFiles}
+                    className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                    aria-label="Adjuntar archivos"
+                  >
+                    <Paperclip size={16} />
+                  </button>
+                  <input
+                    value={inputValue}
+                    onChange={(event) => setInputValue(event.target.value)}
+                    onKeyDown={handleInputKeyDown}
+                    placeholder={
+                      pendingCompanyContext
+                        ? 'Escribe el contexto de tu empresa o adjunta documentos...'
+                        : 'Escribe tu mensaje o adjunta documentos'
+                    }
+                    className="h-9 flex-1 border-none bg-transparent px-2 text-sm text-slate-700 outline-none"
+                    disabled={isSending || isUploadingFiles}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleSendMessage()}
+                    disabled={isSending || isUploadingFiles || (!inputValue.trim() && selectedFiles.length === 0)}
+                    className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                    aria-label="Enviar mensaje"
+                  >
+                    <SendHorizontal size={16} />
+                  </button>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Formatos permitidos: {ALLOWED_UPLOAD_EXTENSIONS_HINT}.
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       )}
-    </div>
+    </>
   );
 };
