@@ -1,186 +1,25 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { usuarioService } from '@/api/usuario.service';
-import { empresaService } from '@/api/empresa.service';
-import { Empresa } from '@/types';
+// src/pages/Usuarios/UsuarioEdit.tsx
 import { ArrowLeft, Save } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { UsuarioFormFields } from './components/UsuarioFormFields';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { manejarErrorCrearUsuario } from '@/utils/errorHandler';
+import { useUsuarioEdit } from './hooks';
 
 export const UsuarioEdit = () => {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const { isSuperAdmin, user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(true);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-    empresa: '',
-    rol: 'usuario',
-    cargo: '',
-    departamento: '',
-    telefono: '',
-  });
+  const {
+    formData, errors, empresas,
+    loading, loadingData,
+    handleChange, handleSubmit, goToLista,
+    isSuperAdmin, user,
+  } = useUsuarioEdit();
 
-  // ==========================================
-  // CARGAR DATOS DEL USUARIO Y EMPRESAS
-  // ==========================================
-  useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
-      
-      try {
-        setLoadingData(true);
-        
-        // Cargar usuario
-        const usuario = await usuarioService.getById(parseInt(id));
-        
-        // Cargar empresas
-        let empresasData: Empresa[] = [];
-        if (isSuperAdmin) {
-          empresasData = await empresaService.getAll();
-        } else if (user?.empresa_info) {
-          empresasData = [user.empresa_info];
-        }
-        
-        setEmpresas(empresasData);
-        
-        // Llenar formulario
-        setFormData({
-          email: usuario.email || '',
-          password: '', // No se carga la contraseña
-          first_name: usuario.first_name || '',
-          last_name: usuario.last_name || '',
-          empresa: usuario.empresa?.toString() || '',
-          rol: usuario.rol || 'usuario',
-          cargo: usuario.cargo || '',
-          departamento: usuario.departamento || '',
-          telefono: usuario.telefono || '',
-        });
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
-        toast.error('Error al cargar los datos del usuario');
-        navigate('/usuarios');
-      } finally {
-        setLoadingData(false);
-      }
-    };
-
-    loadData();
-  }, [id, navigate, isSuperAdmin, user]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    
-    // Si cambia el rol a superadmin, limpiar empresa
-    if (name === 'rol' && value === 'superadmin') {
-      setFormData((prev) => ({ ...prev, [name]: value, empresa: '' }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-    
-    if (errors[name]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = 'El nombre es requerido';
-    }
-
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = 'El apellido es requerido';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'El email es requerido';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
-    }
-
-    if (!formData.rol) {
-      newErrors.rol = 'El rol es requerido';
-    }
-
-    // Validar empresa (excepto para superadmin)
-    if (formData.rol !== 'superadmin' && !formData.empresa) {
-      newErrors.empresa = 'La empresa es requerida';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      toast.error('Por favor, complete todos los campos requeridos');
-      return;
-    }
-
-    if (!id) return;
-
-    try {
-      setLoading(true);
-
-      const dataToSend: any = {
-        email:        formData.email,
-        first_name:   formData.first_name,
-        last_name:    formData.last_name,
-        rol:          formData.rol,
-        cargo:        formData.cargo,
-        departamento: formData.departamento,
-        telefono:     formData.telefono,
-      };
-
-      if (formData.rol !== 'superadmin') {
-        dataToSend.empresa = parseInt(formData.empresa);
-      } else {
-        dataToSend.empresa = null;
-      }
-
-      await usuarioService.update(parseInt(id), dataToSend);
-      toast.success('Usuario actualizado correctamente');
-      navigate('/usuarios');
-
-    } catch (error: any) {
-      // En edición también pueden haber errores de plan
-      manejarErrorCrearUsuario(error, setErrors, toast);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loadingData) {
-    return <LoadingSpinner fullScreen />;
-  }
+  if (loadingData) return <LoadingSpinner fullScreen />;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/usuarios')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={goToLista} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <ArrowLeft size={20} />
           </button>
           <div>
@@ -202,39 +41,22 @@ export const UsuarioEdit = () => {
           userEmpresaId={user?.empresa}
         />
 
-        {/* Nota sobre contraseña */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
           <p className="text-sm text-yellow-800">
-            <strong>Nota:</strong> La contraseña no se puede cambiar desde aquí. 
+            <strong>Nota:</strong> La contraseña no se puede cambiar desde aquí.
             Si el usuario necesita cambiarla, debe usar la opción "Cambiar contraseña" en su perfil.
           </p>
         </div>
 
-        {/* Botones de Acción */}
         <div className="flex justify-end gap-3 mt-6">
-          <button
-            type="button"
-            onClick={() => navigate('/usuarios')}
-            className="btn-secondary"
-            disabled={loading}
-          >
+          <button type="button" onClick={goToLista} className="btn-secondary" disabled={loading}>
             Cancelar
           </button>
-          <button
-            type="submit"
-            className="btn-primary flex items-center gap-2"
-            disabled={loading}
-          >
+          <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
             {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                Actualizando...
-              </>
+              <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" /> Actualizando...</>
             ) : (
-              <>
-                <Save size={20} />
-                Actualizar Usuario
-              </>
+              <><Save size={20} /> Actualizar Usuario</>
             )}
           </button>
         </div>
