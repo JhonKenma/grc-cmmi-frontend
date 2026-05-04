@@ -1,53 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Eye, EyeOff, Mail, Lock, ShieldCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/login/Login.tsx
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { useLogin } from './hooks/useLogin';
 
 export const Login = () => {
-  const { login, loading, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
-  useEffect(() => {
-    if (isAuthenticated) navigate('/dashboard', { replace: true });
-  }, [isAuthenticated, navigate]);
-
-  const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {};
-    if (!formData.email) newErrors.email = 'El email es requerido';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email inválido';
-    if (!formData.password) newErrors.password = 'La contraseña es requerida';
-    else if (formData.password.length < 4) newErrors.password = 'Mínimo 4 caracteres';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    try {
-      await login(formData);
-    } catch (error: any) {
-      const msg =
-        error?.response?.data?.detail ||
-        error?.response?.data?.non_field_errors?.[0] ||
-        'Error al iniciar sesión. Verifica tus credenciales.';
-
-      setErrors({ password: msg });
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name as keyof typeof errors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
+  const {
+    formData,
+    showPassword,
+    errors,
+    loading,
+    handleSubmit,
+    handleChange,
+    togglePassword,
+  } = useLogin();
 
   return (
     <>
@@ -357,7 +321,6 @@ export const Login = () => {
           </div>
 
           <div className="login-card">
-
             <div className="logo-area">
               <div className="logo-box">
                 <img
@@ -405,11 +368,7 @@ export const Login = () => {
                     placeholder="••••••••"
                     className={`field field-pr ${errors.password ? 'has-error' : ''}`}
                   />
-                  <button
-                    type="button"
-                    className="toggle-pw"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
+                  <button type="button" className="toggle-pw" onClick={togglePassword}>
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
