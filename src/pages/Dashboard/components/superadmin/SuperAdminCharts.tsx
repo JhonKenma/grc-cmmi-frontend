@@ -1,15 +1,21 @@
 // src/pages/Dashboard/components/superadmin/SuperAdminCharts.tsx
 import { DashboardSuperAdmin } from '@/api/endpoints/dashboard.service';
+import { ESTADO_LABELS, GAP_COLORS_BG } from '../../constants/dashboardColors';
 
-// Etiquetas legibles para estados y roles
-const ESTADO_LABELS: Record<string, string> = {
-  activa: 'Activa', en_progreso: 'En Progreso', completada: 'Completada',
-  vencida: 'Vencida', cancelada: 'Cancelada', pendiente: 'Pendiente',
-  auditada: 'Auditada', aprobada: 'Aprobada', rechazada: 'Rechazada',
-};
+// ── Constantes propias del superadmin ────────────────────────────────────────
+// Solo las que NO están en dashboardColors (plan, riesgo, rol son específicas de este rol)
 
 const PLAN_LABELS: Record<string, string> = {
   demo: 'Demo', basico: 'Básico', profesional: 'Profesional', enterprise: 'Enterprise',
+};
+
+const PLAN_COLORS_BG: Record<string, string> = {
+  demo: 'bg-gray-400', basico: 'bg-blue-400',
+  profesional: 'bg-purple-500', enterprise: 'bg-violet-600',
+};
+
+const RIESGO_COLORS_BG: Record<string, string> = {
+  alto: 'bg-red-500', medio: 'bg-orange-400', bajo: 'bg-green-500',
 };
 
 const ROL_LABELS: Record<string, string> = {
@@ -17,21 +23,19 @@ const ROL_LABELS: Record<string, string> = {
   auditor: 'Auditor', analista_riesgos: 'Analista',
 };
 
-const RIESGO_COLORS: Record<string, string> = {
-  alto: 'bg-red-500', medio: 'bg-orange-400', bajo: 'bg-green-500',
+// ── Helpers locales de color para evaluaciones ───────────────────────────────
+
+const evalColorClass = (estado: string): string => {
+  if (estado === 'vencida') return 'bg-red-500';
+  if (estado === 'completada') return 'bg-green-500';
+  return 'bg-blue-500';
 };
 
-const PLAN_COLORS: Record<string, string> = {
-  demo: 'bg-gray-400', basico: 'bg-blue-400',
-  profesional: 'bg-purple-500', enterprise: 'bg-violet-600',
-};
+// ── Sub-componente barra horizontal ─────────────────────────────────────────
 
-interface Props {
-  charts: DashboardSuperAdmin['charts'];
-}
+interface BarItem { label: string; value: number; colorClass: string }
 
-// Barra horizontal simple reutilizable
-const BarChart: React.FC<{ items: { label: string; value: number; colorClass: string }[] }> = ({ items }) => {
+const HorizontalBarList: React.FC<{ items: BarItem[] }> = ({ items }) => {
   const max = Math.max(...items.map((i) => i.value), 1);
   return (
     <div className="space-y-3">
@@ -53,23 +57,27 @@ const BarChart: React.FC<{ items: { label: string; value: number; colorClass: st
   );
 };
 
+// ── Componente principal ─────────────────────────────────────────────────────
+
+interface Props { charts: DashboardSuperAdmin['charts'] }
+
 export const SuperAdminCharts: React.FC<Props> = ({ charts }) => {
   const empresasPorPlan = charts.empresas_por_plan.map((d) => ({
     label: PLAN_LABELS[d.plan] ?? d.plan,
     value: d.total,
-    colorClass: PLAN_COLORS[d.plan] ?? 'bg-gray-400',
+    colorClass: PLAN_COLORS_BG[d.plan] ?? 'bg-gray-400',
   }));
 
   const evalsPorEstado = charts.evaluaciones_por_estado.map((d) => ({
     label: ESTADO_LABELS[d.estado] ?? d.estado,
     value: d.total,
-    colorClass: d.estado === 'vencida' ? 'bg-red-500' : d.estado === 'completada' ? 'bg-green-500' : 'bg-blue-500',
+    colorClass: evalColorClass(d.estado),
   }));
 
   const proveedoresPorRiesgo = charts.proveedores_por_riesgo.map((d) => ({
     label: d.nivel_riesgo.charAt(0).toUpperCase() + d.nivel_riesgo.slice(1),
     value: d.total,
-    colorClass: RIESGO_COLORS[d.nivel_riesgo] ?? 'bg-gray-400',
+    colorClass: RIESGO_COLORS_BG[d.nivel_riesgo] ?? 'bg-gray-400',
   }));
 
   const usuariosPorRol = charts.usuarios_por_rol.map((d) => ({
@@ -82,19 +90,19 @@ export const SuperAdminCharts: React.FC<Props> = ({ charts }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="card">
         <h3 className="text-base font-semibold text-gray-900 mb-4">Empresas por Plan</h3>
-        <BarChart items={empresasPorPlan} />
+        <HorizontalBarList items={empresasPorPlan} />
       </div>
       <div className="card">
         <h3 className="text-base font-semibold text-gray-900 mb-4">Evaluaciones por Estado</h3>
-        <BarChart items={evalsPorEstado} />
+        <HorizontalBarList items={evalsPorEstado} />
       </div>
       <div className="card">
         <h3 className="text-base font-semibold text-gray-900 mb-4">Proveedores por Riesgo</h3>
-        <BarChart items={proveedoresPorRiesgo} />
+        <HorizontalBarList items={proveedoresPorRiesgo} />
       </div>
       <div className="card">
         <h3 className="text-base font-semibold text-gray-900 mb-4">Usuarios por Rol</h3>
-        <BarChart items={usuariosPorRol} />
+        <HorizontalBarList items={usuariosPorRol} />
       </div>
     </div>
   );

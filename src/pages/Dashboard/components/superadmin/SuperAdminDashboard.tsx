@@ -1,9 +1,7 @@
 // src/pages/Dashboard/components/superadmin/SuperAdminDashboard.tsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Building2, Users, Truck, FileText, Brain,
-  Clock, AlertCircle, CheckCircle, TrendingUp,
+  Clock, AlertCircle, CheckCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -15,25 +13,9 @@ import { KpiCard } from '../shared/KpiCard';
 import { ChartCard } from '../shared/ChartCard';
 import { SectionTabs } from '../shared/SectionTabs';
 import { AlertasList } from '../shared/AlertasList';
+import { useSuperAdminDashboard } from '../../hooks/superadmin';
 
-const PLAN_COLORS: Record<string, string> = {
-  demo: '#94a3b8', basico: '#3b82f6', profesional: '#8b5cf6', enterprise: '#6366f1',
-};
-const RIESGO_COLORS: Record<string, string> = {
-  alto: '#ef4444', medio: '#f59e0b', bajo: '#22c55e',
-};
-const ROL_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
-const PLAN_LABELS: Record<string, string> = {
-  demo: 'Demo', basico: 'Básico', profesional: 'Profesional', enterprise: 'Enterprise',
-};
-const ESTADO_LABELS: Record<string, string> = {
-  activa: 'Activa', en_progreso: 'En Progreso', completada: 'Completada',
-  vencida: 'Vencida', pendiente: 'Pendiente', auditada: 'Auditada', aprobada: 'Aprobada',
-};
-const ESTADO_COLORS: Record<string, string> = {
-  activa: '#3b82f6', en_progreso: '#8b5cf6', completada: '#10b981',
-  vencida: '#ef4444', pendiente: '#f59e0b', auditada: '#06b6d4', aprobada: '#22c55e',
-};
+// ── Tooltip ──────────────────────────────────────────────────────────────────
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -50,43 +32,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+// ── Componente ───────────────────────────────────────────────────────────────
+
 interface Props { data: DashboardSuperAdmin }
 
 export const SuperAdminDashboard: React.FC<Props> = ({ data }) => {
-  const { kpis, alertas, charts } = data;
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('resumen');
-
-  const tabs = [
-    { id: 'resumen',    label: 'Resumen' },
-    { id: 'empresas',   label: 'Empresas',   count: kpis.total_empresas },
-    { id: 'evals',      label: 'Evaluaciones', count: kpis.evaluaciones_encuesta_total + kpis.evaluaciones_iq_total },
-    { id: 'usuarios',   label: 'Usuarios',   count: kpis.total_usuarios },
-  ];
-
-  const empresasPorPlanData = charts.empresas_por_plan.map((d) => ({
-    name: PLAN_LABELS[d.plan] ?? d.plan,
-    value: d.total,
-    fill: PLAN_COLORS[d.plan] ?? '#94a3b8',
-  }));
-
-  const evalsPorEstadoData = charts.evaluaciones_por_estado.map((d) => ({
-    name: ESTADO_LABELS[d.estado] ?? d.estado,
-    value: d.total,
-    fill: ESTADO_COLORS[d.estado] ?? '#94a3b8',
-  }));
-
-  const proveedoresData = charts.proveedores_por_riesgo.map((d) => ({
-    name: d.nivel_riesgo.charAt(0).toUpperCase() + d.nivel_riesgo.slice(1),
-    value: d.total,
-    fill: RIESGO_COLORS[d.nivel_riesgo] ?? '#94a3b8',
-  }));
-
-  const usuariosPorRolData = charts.usuarios_por_rol.map((d, i) => ({
-    name: d.rol.charAt(0).toUpperCase() + d.rol.slice(1),
-    value: d.total,
-    fill: ROL_COLORS[i % ROL_COLORS.length],
-  }));
+  const {
+    activeTab, setActiveTab, tabs, navigate,
+    kpis, alertas,
+    empresasPorPlanData, evalsPorEstadoData, proveedoresData, usuariosPorRolData,
+    planesVencidosBadge, encuestasVencidasBadge, iqCompletadasBadge,
+    planesVencidosIconBg, planesPorVencerIconBg, encuestasVencidasIconBg,
+  } = useSuperAdminDashboard(data);
 
   return (
     <div className="space-y-5">
@@ -102,8 +59,8 @@ export const SuperAdminDashboard: React.FC<Props> = ({ data }) => {
               label="Planes por Vencer"
               value={kpis.planes_por_vencer_30d}
               icon={Clock}
-              iconBg={kpis.planes_por_vencer_30d > 0 ? 'bg-amber-500' : 'bg-gray-400'}
-              badge={kpis.planes_vencidos > 0 ? { text: `${kpis.planes_vencidos} ya vencidos`, variant: 'danger' } : undefined}
+              iconBg={planesPorVencerIconBg}
+              badge={planesVencidosBadge}
               href="/empresas"
             />
             <KpiCard label="Proveedores" value={kpis.total_proveedores} icon={Truck} iconBg="bg-teal-500" href="/proveedores" />
@@ -115,7 +72,7 @@ export const SuperAdminDashboard: React.FC<Props> = ({ data }) => {
               value={kpis.evaluaciones_encuesta_total}
               icon={FileText}
               iconBg="bg-indigo-500"
-              badge={kpis.evaluaciones_encuesta_vencidas > 0 ? { text: `${kpis.evaluaciones_encuesta_vencidas} vencidas`, variant: 'danger' } : undefined}
+              badge={encuestasVencidasBadge}
               href="/encuestas"
             />
             <KpiCard
@@ -123,10 +80,10 @@ export const SuperAdminDashboard: React.FC<Props> = ({ data }) => {
               value={kpis.evaluaciones_iq_total}
               icon={Brain}
               iconBg="bg-violet-500"
-              badge={kpis.evaluaciones_iq_completadas > 0 ? { text: `${kpis.evaluaciones_iq_completadas} completadas`, variant: 'success' } : undefined}
+              badge={iqCompletadasBadge}
               href="/evaluaciones-inteligentes"
             />
-            <KpiCard label="Planes Vencidos" value={kpis.planes_vencidos} icon={AlertCircle} iconBg={kpis.planes_vencidos > 0 ? 'bg-red-500' : 'bg-gray-400'} href="/empresas" />
+            <KpiCard label="Planes Vencidos" value={kpis.planes_vencidos} icon={AlertCircle} iconBg={planesVencidosIconBg} href="/empresas" />
             <KpiCard label="IQ Completadas" value={kpis.evaluaciones_iq_completadas} icon={CheckCircle} iconBg="bg-emerald-500" href="/evaluaciones-inteligentes" />
           </div>
 
@@ -167,7 +124,7 @@ export const SuperAdminDashboard: React.FC<Props> = ({ data }) => {
         <div className="space-y-5">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <KpiCard label="Total Empresas" value={kpis.total_empresas} icon={Building2} iconBg="bg-purple-500" href="/empresas" />
-            <KpiCard label="Planes Vencidos" value={kpis.planes_vencidos} icon={AlertCircle} iconBg={kpis.planes_vencidos > 0 ? 'bg-red-500' : 'bg-gray-400'} href="/empresas" />
+            <KpiCard label="Planes Vencidos" value={kpis.planes_vencidos} icon={AlertCircle} iconBg={planesVencidosIconBg} href="/empresas" />
             <KpiCard label="Por Vencer (30d)" value={kpis.planes_por_vencer_30d} icon={Clock} iconBg="bg-amber-500" href="/empresas" />
           </div>
           <ChartCard title="Empresas por Plan" subtitle="Qué planes tienen contratados las empresas" height="h-72" action={{ label: 'Gestionar', onClick: () => navigate('/empresas') }}>
@@ -191,7 +148,7 @@ export const SuperAdminDashboard: React.FC<Props> = ({ data }) => {
         <div className="space-y-5">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard label="Encuestas Total" value={kpis.evaluaciones_encuesta_total} icon={FileText} iconBg="bg-indigo-500" href="/encuestas" />
-            <KpiCard label="Encuestas Vencidas" value={kpis.evaluaciones_encuesta_vencidas} icon={AlertCircle} iconBg={kpis.evaluaciones_encuesta_vencidas > 0 ? 'bg-red-500' : 'bg-gray-400'} href="/encuestas" />
+            <KpiCard label="Encuestas Vencidas" value={kpis.evaluaciones_encuesta_vencidas} icon={AlertCircle} iconBg={encuestasVencidasIconBg} href="/encuestas" />
             <KpiCard label="IQ Total" value={kpis.evaluaciones_iq_total} icon={Brain} iconBg="bg-violet-500" href="/evaluaciones-inteligentes" />
             <KpiCard label="IQ Completadas" value={kpis.evaluaciones_iq_completadas} icon={CheckCircle} iconBg="bg-emerald-500" href="/evaluaciones-inteligentes" />
           </div>
