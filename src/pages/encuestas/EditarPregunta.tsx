@@ -1,116 +1,23 @@
 // src/pages/encuestas/EditarPregunta.tsx
-
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import React from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { preguntasApi } from '@/api/endpoints';
-import { useNotification } from '@/hooks/useNotification';
+import { useEditarPregunta } from './hooks';
 
-/**
- * Schema de validación
- */
-const editarPreguntaSchema = z.object({
-  codigo: z.string().min(1, 'El código es requerido').max(50),
-  titulo: z.string().min(5, 'El título debe tener al menos 5 caracteres').max(500),
-  texto: z.string().min(10, 'El texto debe tener al menos 10 caracteres'),
-  peso: z.coerce.number().min(0.1, 'El peso debe ser mayor a 0'),
-  orden: z.coerce.number().min(0, 'El orden debe ser mayor o igual a 0'),
-  obligatoria: z.boolean().optional(),
-});
-
-// 👈 ESTA ES LA CORRECCIÓN
-type EditarPreguntaFormData = z.input<typeof editarPreguntaSchema>;
-
-/**
- * Página para editar una pregunta
- */
 export const EditarPregunta: React.FC = () => {
-  const { encuestaId, preguntaId } = useParams<{
-    encuestaId: string;
-    preguntaId: string;
-  }>();
+  const { isLoading, form, onSubmit, goToDetalle } = useEditarPregunta();
+  const { register, formState: { errors, isSubmitting } } = form;
 
-  const navigate = useNavigate();
-  const { success, error: showError } = useNotification();
-  const [isLoading, setIsLoading] = useState(true);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<EditarPreguntaFormData>({
-    resolver: zodResolver(editarPreguntaSchema),
-  });
-
-  useEffect(() => {
-    if (preguntaId) loadPregunta();
-  }, [preguntaId]);
-
-  const loadPregunta = async () => {
-    if (!preguntaId) return;
-
-    try {
-      setIsLoading(true);
-      const data = await preguntasApi.get(preguntaId);
-
-      reset({
-        codigo: data.codigo,
-        titulo: data.titulo,
-        texto: data.texto,
-        peso: data.peso,
-        orden: data.orden,
-        obligatoria: data.obligatoria,
-      });
-    } catch (err: any) {
-      showError(err?.message || 'Error al cargar la pregunta');
-      navigate(`/encuestas/${encuestaId}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSubmit = async (data: EditarPreguntaFormData) => {
-    if (!preguntaId) return;
-
-    try {
-      const payload = {
-        ...data,
-        peso: Number(data.peso),
-        orden: Number(data.orden),
-      };
-
-      await preguntasApi.update(preguntaId, payload);
-
-      success('Pregunta actualizada exitosamente');
-      navigate(`/encuestas/${encuestaId}`);
-    } catch (err: any) {
-      const errorMessage =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Error al actualizar la pregunta';
-
-      showError(errorMessage);
-    }
-  };
-
-  if (isLoading) {
-    return <LoadingScreen message="Cargando pregunta..." />;
-  }
+  if (isLoading) return <LoadingScreen message="Cargando pregunta..." />;
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => navigate(`/encuestas/${encuestaId}`)}
+          onClick={goToDetalle}
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft size={20} className="mr-2" />
@@ -120,14 +27,12 @@ export const EditarPregunta: React.FC = () => {
         <p className="text-gray-600 mt-2">Actualiza los datos de la pregunta</p>
       </div>
 
-      {/* Formulario */}
       <Card>
         <CardHeader>
           <CardTitle>Información de la Pregunta</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Código */}
+          <form onSubmit={onSubmit} className="space-y-6">
             <Input
               {...register('codigo')}
               label="Código"
@@ -137,7 +42,6 @@ export const EditarPregunta: React.FC = () => {
               helperText="Código único de la pregunta dentro de su dimensión"
             />
 
-            {/* Título */}
             <Input
               {...register('titulo')}
               label="Título"
@@ -146,7 +50,6 @@ export const EditarPregunta: React.FC = () => {
               required
             />
 
-            {/* Texto completo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Texto de la Pregunta *
@@ -162,19 +65,16 @@ export const EditarPregunta: React.FC = () => {
               )}
             </div>
 
-            {/* Grid para peso y orden */}
             <div className="grid grid-cols-2 gap-4">
               <Input
                 {...register('peso')}
                 type="text"
-                step="0.1"
                 label="Peso"
                 placeholder="1.0"
                 error={errors.peso?.message}
                 required
                 helperText="Ponderación de la pregunta"
               />
-
               <Input
                 {...register('orden')}
                 type="text"
@@ -186,7 +86,6 @@ export const EditarPregunta: React.FC = () => {
               />
             </div>
 
-            {/* Obligatoria */}
             <div className="flex items-center gap-2">
               <input
                 {...register('obligatoria')}
@@ -199,16 +98,10 @@ export const EditarPregunta: React.FC = () => {
               </label>
             </div>
 
-            {/* Botones */}
             <div className="flex items-center justify-end space-x-3 pt-4 border-t">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => navigate(`/encuestas/${encuestaId}`)}
-              >
+              <Button type="button" variant="ghost" onClick={goToDetalle}>
                 Cancelar
               </Button>
-
               <Button type="submit" variant="primary" isLoading={isSubmitting}>
                 <Save size={18} className="mr-2" />
                 Guardar Cambios
