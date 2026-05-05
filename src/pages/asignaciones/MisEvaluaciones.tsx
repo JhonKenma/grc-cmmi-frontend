@@ -1,94 +1,17 @@
-// src/pages/asignaciones/MisEvaluaciones.tsx - BOTONES REORDENADOS
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/asignaciones/MisEvaluaciones.tsx
+import React from 'react';
 import { Eye, Plus, Calendar, Filter, Target, BarChart3 } from 'lucide-react';
-import { Button, Card, LoadingScreen } from '@/components/common';
-import { useAuth } from '@/context/AuthContext';
-import { evaluacionesApi } from '@/api/endpoints/evaluaciones.api';
-import toast from 'react-hot-toast';
-
-interface EvaluacionEmpresa {
-  id: string;
-  empresa: number;
-  empresa_info: {
-    id: number;
-    nombre: string;
-    ruc: string;
-  };
-  encuesta: string;
-  encuesta_info: {
-    id: string;
-    nombre: string;
-    version: string;
-    total_dimensiones: number;
-  };
-  administrador: number;
-  administrador_info: {
-    id: number;
-    nombre_completo: string;
-    email: string;
-    cargo: string;
-  } | null;
-  asignado_por: number;
-  asignado_por_nombre: string;
-  fecha_asignacion: string;
-  fecha_limite: string;
-  fecha_completado: string | null;
-  estado: 'activa' | 'en_progreso' | 'completada' | 'vencida' | 'cancelada';
-  estado_display: string;
-  dias_restantes: number;
-  esta_vencida: boolean;
-  observaciones: string;
-  total_dimensiones: number;
-  dimensiones_asignadas: number;
-  dimensiones_completadas: number;
-  porcentaje_avance: number;
-  activo: boolean;
-  fecha_creacion: string;
-  fecha_actualizacion: string;
-}
+import { Button, LoadingScreen } from '@/components/common';
+import { useMisEvaluaciones } from './hooks';
 
 export const MisEvaluaciones: React.FC = () => {
-  const navigate = useNavigate();
-  const { isSuperAdmin, user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [evaluaciones, setEvaluaciones] = useState<EvaluacionEmpresa[]>([]);
-  const [filtroEstado, setFiltroEstado] = useState<string>('');
-
-  useEffect(() => {
-    loadData();
-  }, [filtroEstado]);
-
-    const loadData = async () => {
-    try {
-        setLoading(true);
-        const response = await evaluacionesApi.getMisEvaluaciones(filtroEstado || undefined);
-        
-        console.log('📦 Response completo:', response);
-        console.log('📋 Evaluaciones:', response.results);
-        console.log('🔢 Total:', response.results?.length || 0);
-        
-        setEvaluaciones(response.results || []);
-    } catch (error: any) {
-        console.error('❌ Error completo:', error);
-        console.error('❌ Response:', error.response?.data);
-        toast.error('Error al cargar evaluaciones');
-    } finally {
-        setLoading(false);
-    }
-    };
-
-  const getEstadoStyles = (estado: string) => {
-    const styles = {
-      activa: 'bg-blue-50 text-blue-700 border-blue-200',
-      en_progreso: 'bg-amber-50 text-amber-700 border-amber-200',
-      completada: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      vencida: 'bg-rose-50 text-rose-700 border-rose-200',
-      cancelada: 'bg-slate-50 text-slate-700 border-slate-200',
-    };
-    return styles[estado as keyof typeof styles] || 'bg-gray-50 text-gray-700 border-gray-200';
-  };
+  const {
+    loading, evaluaciones, filtroEstado, setFiltroEstado,
+    isSuperAdmin, user,
+    getEstadoStyles,
+    goToAsignarEvaluacion, goToConfigurarNiveles,
+    goToAsignarDimensiones, goToProgreso, goToDetalle,
+  } = useMisEvaluaciones();
 
   if (loading) return <LoadingScreen message="Cargando evaluaciones..." />;
 
@@ -100,26 +23,18 @@ export const MisEvaluaciones: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Evaluaciones</h1>
           <p className="text-sm text-slate-500">Monitorea y gestiona el progreso de las evaluaciones asignadas.</p>
         </div>
-        
         <div className="flex items-center gap-3">
-          {/* Botón para SuperAdmin */}
           {isSuperAdmin && (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => navigate('/asignaciones/asignar-evaluacion')}
-            >
-              <Plus size={18} className="mr-2" />
-              Asignar Evaluación
+            <Button variant="primary" size="md" onClick={goToAsignarEvaluacion}>
+              <Plus size={18} className="mr-2" /> Asignar Evaluación
             </Button>
           )}
-
           <div className="relative">
             <Filter size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <select
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none min-w-[160px]"
+              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all appearance-none min-w-[160px]"
             >
               <option value="">Todos los estados</option>
               <option value="activa">Activa</option>
@@ -137,11 +52,11 @@ export const MisEvaluaciones: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Evaluación / Empresa</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Progreso</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Dimensiones</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
+                {['Evaluación / Empresa', 'Estado', 'Progreso', 'Dimensiones', 'Acciones'].map(h => (
+                  <th key={h} className={`px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider ${h === 'Acciones' ? 'text-right' : ''}`}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -175,10 +90,8 @@ export const MisEvaluaciones: React.FC = () => {
                           <span className="text-xs font-bold text-slate-700">{Math.round(ev.porcentaje_avance)}%</span>
                         </div>
                         <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              ev.porcentaje_avance === 100 ? 'bg-emerald-500' : 'bg-primary-600'
-                            }`}
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${ev.porcentaje_avance === 100 ? 'bg-emerald-500' : 'bg-primary-600'}`}
                             style={{ width: `${ev.porcentaje_avance}%` }}
                           />
                         </div>
@@ -194,66 +107,39 @@ export const MisEvaluaciones: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end items-center gap-2">
-                        {/* 1. Configurar Niveles (solo admin) */}
                         {(user?.rol === 'administrador' || user?.rol === 'superadmin') && (
                           <button
-                            onClick={() => navigate(`/evaluaciones/${ev.id}/configurar-niveles`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 hover:text-amber-700 border border-amber-200 rounded-lg transition-all"
-                            title="Configurar niveles deseados"
+                            onClick={() => goToConfigurarNiveles(ev.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-all"
                           >
-                            <Target size={14} />
-                            <span>Niveles</span>
+                            <Target size={14} /> <span>Niveles</span>
                           </button>
                         )}
-
-                        {/* 2. Asignar Dimensiones (condicional) */}
                         {(() => {
-                          // Mostrar si:
-                          // 1. Hay dimensiones pendientes de asignar (dimensiones_asignadas < total_dimensiones)
-                          // 2. O hay dimensiones asignadas pero no completadas (dimensiones_asignadas > dimensiones_completadas)
-                          const dimensionesPendientes = ev.total_dimensiones - ev.dimensiones_asignadas;
+                          const dimensionesPendientes  = ev.total_dimensiones - ev.dimensiones_asignadas;
                           const dimensionesIncompletas = ev.dimensiones_asignadas - ev.dimensiones_completadas;
-                          const mostrarBoton = dimensionesPendientes > 0 || dimensionesIncompletas > 0;
-                          
-                          if (!mostrarBoton) return null;
-                          
+                          if (dimensionesPendientes <= 0 && dimensionesIncompletas <= 0) return null;
                           return (
                             <button
-                              onClick={() => navigate(`/evaluaciones/${ev.id}/asignar-dimensiones`)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700 border border-emerald-200 rounded-lg transition-all"
-                              title={
-                                dimensionesPendientes > 0 
-                                  ? `${dimensionesPendientes} dimensión(es) sin asignar` 
-                                  : `${dimensionesIncompletas} dimensión(es) en progreso`
-                              }
+                              onClick={() => goToAsignarDimensiones(ev.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-all"
                             >
                               <Plus size={14} />
-                              <span>
-                                Asignar
-                                {dimensionesPendientes > 0 && ` (${dimensionesPendientes})`}
-                              </span>
+                              <span>Asignar{dimensionesPendientes > 0 && ` (${dimensionesPendientes})`}</span>
                             </button>
                           );
                         })()}
-
-                        {/* 3. Ver Progreso */}
                         <button
-                          onClick={() => navigate(`/evaluaciones/${ev.id}/progreso`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 border border-blue-200 rounded-lg transition-all"
-                          title="Ver progreso de evaluación"
+                          onClick={() => goToProgreso(ev.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all"
                         >
-                          <BarChart3 size={14} />
-                          <span>Progreso</span>
+                          <BarChart3 size={14} /> <span>Progreso</span>
                         </button>
-
-                        {/* 4. Ver Detalle */}
                         <button
-                          onClick={() => navigate(`/evaluaciones/${ev.id}/detalle`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 rounded-lg transition-all"
-                          title="Ver información detallada"
+                          onClick={() => goToDetalle(ev.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all"
                         >
-                          <Eye size={14} />
-                          <span>Detalle</span>
+                          <Eye size={14} /> <span>Detalle</span>
                         </button>
                       </div>
                     </td>

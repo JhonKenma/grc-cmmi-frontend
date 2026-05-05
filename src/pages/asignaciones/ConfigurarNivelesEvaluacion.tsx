@@ -1,148 +1,16 @@
-// src/pages/evaluaciones/ConfigurarNivelesEvaluacion.tsx - VERSIÓN LIMPIA
-
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+// src/pages/evaluaciones/ConfigurarNivelesEvaluacion.tsx
+import React from 'react';
 import { ArrowLeft, Target, Save, AlertCircle } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
-import { evaluacionesApi } from '@/api/endpoints/evaluaciones.api';
-import { configNivelesApi, ConfiguracionMultiple } from '@/api/endpoints/config-niveles.api';
-import toast from 'react-hot-toast';
-import axiosInstance from '@/api/axios';
+import { useConfigurarNiveles, getNivelColor, getNivelNombre } from '../asignaciones/hooks';
 
 export const ConfigurarNivelesEvaluacion: React.FC = () => {
-  const { evaluacionId } = useParams<{ evaluacionId: string }>();
-  const navigate = useNavigate();
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [evaluacion, setEvaluacion] = useState<any>(null);
-  const [dimensiones, setDimensiones] = useState<any[]>([]);
-  const [niveles, setNiveles] = useState<Record<string, number>>({});
-  const [motivos, setMotivos] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (evaluacionId) {
-      loadData();
-    }
-  }, [evaluacionId]);
-
-  const loadData = async () => {
-    if (!evaluacionId) return;
-
-    try {
-      setLoading(true);
-
-      // 1. Cargar evaluación
-      const evaluacionData = await evaluacionesApi.get(evaluacionId);
-      setEvaluacion(evaluacionData);
-
-      // 2. Cargar dimensiones usando axiosInstance ⭐
-      const dimResponse = await axiosInstance.get('/encuestas/dimensiones/', {
-        params: { encuesta: evaluacionData.encuesta }
-      });
-
-      const dims = Array.isArray(dimResponse.data) 
-        ? dimResponse.data 
-        : dimResponse.data.results || [];
-      setDimensiones(dims);
-
-      // 3. Cargar configuraciones existentes
-      try {
-        const configsData = await configNivelesApi.getPorEvaluacion(evaluacionId);
-        
-        const nivelesMap: Record<string, number> = {};
-        const motivosMap: Record<string, string> = {};
-
-        configsData.configuraciones.forEach((config: any) => {
-          nivelesMap[config.dimension] = config.nivel_deseado;
-          if (config.motivo_cambio) {
-            motivosMap[config.dimension] = config.motivo_cambio;
-          }
-        });
-
-        setNiveles(nivelesMap);
-        setMotivos(motivosMap);
-      } catch (error) {
-        // No hay configuraciones previas - esto es normal
-      }
-    } catch (error: any) {
-      console.error('Error al cargar datos:', error);
-      toast.error('Error al cargar datos');
-      navigate('/evaluaciones/mis-evaluaciones');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!evaluacionId) return;
-
-    // Validar que todas las dimensiones tengan nivel
-    const dimensionesSinNivel = dimensiones.filter((dim) => !niveles[dim.id]);
-
-    if (dimensionesSinNivel.length > 0) {
-      toast.error(
-        `Debes configurar el nivel deseado para todas las dimensiones (${dimensionesSinNivel.length} pendientes)`
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      // Preparar configuraciones
-      const configuraciones: ConfiguracionMultiple[] = dimensiones.map((dim) => ({
-        dimension_id: dim.id,
-        nivel_deseado: niveles[dim.id] as 1 | 2 | 3 | 4 | 5,
-        motivo_cambio: motivos[dim.id] || undefined,
-      }));
-
-      // Guardar configuraciones
-      const resultado = await configNivelesApi.configurarMultiple(
-        evaluacionId,
-        configuraciones
-      );
-
-      if (resultado.errores > 0) {
-        toast.error(
-          `Se guardaron ${resultado.exitosos} configuraciones, pero ${resultado.errores} tuvieron errores`
-        );
-        console.error('Errores:', resultado.errores_detalle);
-      } else {
-        toast.success('Niveles deseados configurados correctamente');
-        navigate(`/evaluaciones/${evaluacionId}/asignar-dimensiones`);
-      }
-    } catch (error: any) {
-      toast.error('Error al guardar configuraciones');
-      console.error(error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const getNivelColor = (nivel: number) => {
-    const colores = {
-      1: 'bg-red-500',
-      2: 'bg-orange-500',
-      3: 'bg-yellow-500',
-      4: 'bg-blue-500',
-      5: 'bg-green-500',
-    };
-    return colores[nivel as keyof typeof colores] || 'bg-gray-500';
-  };
-
-  const getNivelNombre = (nivel: number) => {
-    const nombres = {
-      1: 'Inicial',
-      2: 'Gestionado',
-      3: 'Definido',
-      4: 'Cuantitativamente Gestionado',
-      5: 'Optimizado',
-    };
-    return nombres[nivel as keyof typeof nombres] || '';
-  };
+  const {
+    evaluacion, loading, saving,
+    dimensiones, niveles, setNiveles, motivos, setMotivos,
+    progreso, todasConfiguradas,
+    handleSubmit, goToLista,
+  } = useConfigurarNiveles();
 
   if (loading) return <LoadingScreen message="Cargando evaluación..." />;
 
@@ -150,12 +18,8 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
     return (
       <div className="text-center py-12">
         <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          Evaluación no encontrada
-        </h3>
-        <Button variant="secondary" onClick={() => navigate('/evaluaciones/mis-evaluaciones')}>
-          Volver
-        </Button>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Evaluación no encontrada</h3>
+        <Button variant="secondary" onClick={goToLista}>Volver</Button>
       </div>
     );
   }
@@ -164,11 +28,7 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => navigate('/evaluaciones/mis-evaluaciones')}
-        >
+        <Button variant="secondary" size="sm" onClick={goToLista}>
           <ArrowLeft size={18} />
         </Button>
         <div>
@@ -194,7 +54,6 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
         </div>
       </Card>
 
-      {/* Formulario */}
       <form onSubmit={handleSubmit} className="space-y-4">
         {dimensiones.map((dimension, index) => (
           <Card
@@ -237,11 +96,7 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <div
-                        className={`w-10 h-10 ${getNivelColor(
-                          nivel
-                        )} text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto mb-2`}
-                      >
+                      <div className={`w-10 h-10 ${getNivelColor(nivel)} text-white rounded-lg flex items-center justify-center font-bold text-lg mx-auto mb-2`}>
                         {nivel}
                       </div>
                       <p className="text-xs text-gray-900 font-medium text-center">
@@ -277,44 +132,24 @@ export const ConfigurarNivelesEvaluacion: React.FC = () => {
                 {Object.keys(niveles).length} de {dimensiones.length} dimensiones configuradas
               </p>
             </div>
-            <p className="text-2xl font-bold text-primary-600">
-              {Math.round((Object.keys(niveles).length / dimensiones.length) * 100)}%
-            </p>
+            <p className="text-2xl font-bold text-primary-600">{progreso}%</p>
           </div>
           <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-primary-600 h-2 rounded-full transition-all"
-              style={{
-                width: `${(Object.keys(niveles).length / dimensiones.length) * 100}%`,
-              }}
+              style={{ width: `${progreso}%` }}
             />
           </div>
         </Card>
 
         {/* Botones */}
         <div className="flex items-center gap-3">
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            disabled={saving || Object.keys(niveles).length !== dimensiones.length}
-          >
-            {saving ? (
-              'Guardando...'
-            ) : (
-              <>
-                <Save size={18} className="mr-2" />
-                Guardar y Continuar
-              </>
+          <Button type="submit" variant="primary" size="lg" disabled={saving || !todasConfiguradas}>
+            {saving ? 'Guardando...' : (
+              <><Save size={18} className="mr-2" /> Guardar y Continuar</>
             )}
           </Button>
-
-          <Button
-            type="button"
-            variant="secondary"
-            size="lg"
-            onClick={() => navigate('/asignaciones/mis-evaluaciones')}
-          >
+          <Button type="button" variant="secondary" size="lg" onClick={goToLista}>
             Cancelar
           </Button>
         </div>

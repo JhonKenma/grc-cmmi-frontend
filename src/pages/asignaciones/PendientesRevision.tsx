@@ -1,76 +1,26 @@
 // src/pages/asignaciones/PendientesRevision.tsx
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Eye, Clock } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
 import { ModalRevisarAsignacion } from '@/components/asignaciones/ModalRevisarAsignacion';
-import { asignacionesApi } from '@/api/endpoints/asignaciones.api';
-import { Asignacion, AsignacionListItem } from '@/types';
-import toast from 'react-hot-toast';
+import { usePendientesRevision } from './hooks';
 
 export const PendientesRevision: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [asignaciones, setAsignaciones] = useState<AsignacionListItem[]>([]);
-  const [asignacionSeleccionada, setAsignacionSeleccionada] = useState<Asignacion | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const {
+    loading, asignaciones,
+    asignacionSeleccionada, modalOpen,
+    handleRevisar, handleSuccess, handleCloseModal,
+  } = usePendientesRevision();
 
-  useEffect(() => {
-    loadPendientes();
-  }, []);
-
-  const loadPendientes = async () => {
-    try {
-      console.log('🔄 Iniciando recarga de pendientes...');
-      setLoading(true);
-      
-      const data = await asignacionesApi.getPendientesRevision();
-      
-      console.log('✅ Datos recibidos:', data);
-      console.log('📊 Total pendientes:', data.count);
-      console.log('📋 Asignaciones:', data.results);
-      
-      setAsignaciones(data.results);
-    } catch (error: any) {
-      console.error('❌ Error al cargar:', error);
-      toast.error('Error al cargar asignaciones pendientes');
-    } finally {
-      setLoading(false);
-      console.log('🏁 Recarga completada');
-    }
-  };
-
-
-  const handleRevisar = async (id: string) => {
-    try {
-      const asignacion = await asignacionesApi.get(id);
-      setAsignacionSeleccionada(asignacion);
-      setModalOpen(true);
-    } catch (error: any) {
-      toast.error('Error al cargar detalle de asignación');
-    }
-  };
-
-  const handleSuccess = async () => {
-    console.log('🎯 handleSuccess llamado');
-    await loadPendientes();
-    console.log('✅ handleSuccess completado');
-  };
-
-  if (loading) {
-    return <LoadingScreen message="Cargando asignaciones..." />;
-  }
+  if (loading) return <LoadingScreen message="Cargando asignaciones..." />;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Pendientes de Revisión</h1>
-        <p className="text-gray-600 mt-1">
-          Asignaciones que requieren tu aprobación
-        </p>
+        <p className="text-gray-600 mt-1">Asignaciones que requieren tu aprobación</p>
       </div>
 
-      {/* Lista */}
       {asignaciones.length === 0 ? (
         <Card>
           <div className="text-center py-12">
@@ -89,21 +39,9 @@ export const PendientesRevision: React.FC = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Usuario
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Dimensión
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Fecha Límite
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Progreso
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Acciones
-                  </th>
+                  {['Usuario', 'Dimensión', 'Fecha Límite', 'Progreso', 'Acciones'].map(h => (
+                    <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -114,27 +52,20 @@ export const PendientesRevision: React.FC = () => {
                         {asignacion.usuario_asignado_nombre || 'Sin nombre'}
                       </div>
                       {asignacion.usuario_asignado_email && (
-                        <div className="text-xs text-gray-500">
-                          {asignacion.usuario_asignado_email}
-                        </div>
+                        <div className="text-xs text-gray-500">{asignacion.usuario_asignado_email}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {asignacion.dimension_nombre || 'Sin dimensión'}
-                      </div>
+                      <div className="text-sm text-gray-900">{asignacion.dimension_nombre || 'Sin dimensión'}</div>
                       {asignacion.dimension_codigo && (
-                        <div className="text-xs text-gray-500">
-                          {asignacion.dimension_codigo}
-                        </div>
+                        <div className="text-xs text-gray-500">{asignacion.dimension_codigo}</div>
                       )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-600">
-                        {asignacion.fecha_limite 
+                        {asignacion.fecha_limite
                           ? new Date(asignacion.fecha_limite).toLocaleDateString('es-ES')
-                          : 'Sin fecha'
-                        }
+                          : 'Sin fecha'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -151,13 +82,8 @@ export const PendientesRevision: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleRevisar(asignacion.id)}
-                      >
-                        <Eye size={16} className="mr-2" />
-                        Revisar
+                      <Button variant="primary" size="sm" onClick={() => handleRevisar(asignacion.id)}>
+                        <Eye size={16} className="mr-2" /> Revisar
                       </Button>
                     </td>
                   </tr>
@@ -168,15 +94,11 @@ export const PendientesRevision: React.FC = () => {
         </Card>
       )}
 
-      {/* Modal de Revisión */}
       {asignacionSeleccionada && (
         <ModalRevisarAsignacion
           asignacion={asignacionSeleccionada}
           isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false);
-            setAsignacionSeleccionada(null);
-          }}
+          onClose={handleCloseModal}
           onSuccess={handleSuccess}
         />
       )}

@@ -1,162 +1,40 @@
-// src/pages/asignaciones/AsignarEvaluacion.tsx - VERSIÓN CORREGIDA
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// src/pages/asignaciones/AsignarEvaluacion.tsx
+import React from 'react';
 import { ArrowLeft, Send } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
-import { encuestasApi } from '@/api/endpoints/encuestas.api';
-import { evaluacionesApi } from '@/api/endpoints/evaluaciones.api';
-import { empresaService } from '@/api/empresa.service'; // ⭐ USAR ESTE
-import { usuarioService } from '@/api/usuario.service';
-import { EncuestaListItem, Usuario, Empresa } from '@/types';
-import toast from 'react-hot-toast';
+import { useAsignarEvaluacion } from './hooks';
 
 export const AsignarEvaluacion: React.FC = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const {
+    loading, submitting,
+    encuestas, empresas, administradores,
+    encuestaId, setEncuestaId,
+    empresaId, setEmpresaId,
+    administradorId, setAdministradorId,
+    fechaLimite, setFechaLimite,
+    handleSubmit, goToLista,
+  } = useAsignarEvaluacion();
 
-  // Datos
-  const [encuestas, setEncuestas] = useState<EncuestaListItem[]>([]);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [administradores, setAdministradores] = useState<Usuario[]>([]);
-
-  // Formulario
-  const [encuestaId, setEncuestaId] = useState('');
-  const [empresaId, setEmpresaId] = useState('');
-  const [administradorId, setAdministradorId] = useState('');
-  const [fechaLimite, setFechaLimite] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-
-  // ==========================================
-  // CARGAR DATOS
-  // ==========================================
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    if (empresaId) {
-      loadAdministradoresPorEmpresa(parseInt(empresaId));
-    } else {
-      setAdministradores([]);
-      setAdministradorId('');
-    }
-  }, [empresaId]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-
-      // Cargar encuestas activas
-      const encuestasData = await encuestasApi.list();
-      const encuestasArray = Array.isArray(encuestasData) 
-        ? encuestasData 
-        : (encuestasData as any).results || [];
-      setEncuestas(encuestasArray.filter((e: EncuestaListItem) => e.activo));
-
-      // ⭐ Cargar empresas usando empresaService
-      const empresasData = await empresaService.getAll();
-      setEmpresas(empresasData.filter((e: Empresa) => e.activo));
-
-    } catch (error: any) {
-      toast.error('Error al cargar datos');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  const loadAdministradoresPorEmpresa = async (empresaIdNum: number) => {
-    try {
-      const adminsDeLaEmpresa = await usuarioService.getByEmpresa(empresaIdNum, 'administrador');
-      console.log('✅ Administradores filtrados:', adminsDeLaEmpresa);
-      setAdministradores(adminsDeLaEmpresa);
-    } catch (error: any) {
-      toast.error('Error al cargar administradores');
-      console.error(error);
-      setAdministradores([]);
-    }
-  };
-
-  // ==========================================
-  // SUBMIT
-  // ==========================================
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!encuestaId || !empresaId || !administradorId || !fechaLimite) {
-      toast.error('Completa todos los campos obligatorios');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      const payload = {
-        encuesta_id: encuestaId,
-        empresa_id: parseInt(empresaId),
-        administrador_id: parseInt(administradorId),
-        fecha_limite: fechaLimite,
-        observaciones: observaciones || undefined,
-      };
-      
-      console.log('📤 Payload enviado:', payload);
-
-      const response = await evaluacionesApi.asignar(payload);
-
-      console.log('✅ Respuesta:', response);
-      toast.success(response.message || 'Evaluación asignada exitosamente');
-      navigate('/asignaciones/mis-evaluaciones');
-      
-    } catch (error: any) {
-      console.error('❌ Error completo:', error);
-      console.error('❌ Response data:', error.response?.data);
-      
-      const errorMsg = error.response?.data?.message || 
-                       error.response?.data?.error ||
-                       error.response?.data?.encuesta_id?.[0] ||
-                       error.response?.data?.empresa_id?.[0] ||
-                       error.response?.data?.administrador_id?.[0] ||
-                       Object.values(error.response?.data || {}).flat().join(', ') ||
-                       'Error al asignar evaluación';
-      toast.error(errorMsg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
-    return <LoadingScreen message="Cargando datos..." />;
-  }
+  if (loading) return <LoadingScreen message="Cargando datos..." />;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => navigate('/asignaciones/mis-evaluaciones')}
-        >
+        <Button variant="secondary" size="sm" onClick={goToLista}>
           <ArrowLeft size={18} />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Asignar Evaluación a Empresa
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Asignar Evaluación a Empresa</h1>
           <p className="text-gray-600 mt-1">
             Asigna una evaluación completa a una empresa y su administrador responsable
           </p>
         </div>
       </div>
 
-      {/* Formulario */}
       <Card>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Seleccionar Evaluación */}
+          {/* Evaluación */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Evaluación <span className="text-red-500">*</span>
@@ -176,7 +54,7 @@ export const AsignarEvaluacion: React.FC = () => {
             </select>
           </div>
 
-          {/* Seleccionar Empresa */}
+          {/* Empresa */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Empresa <span className="text-red-500">*</span>
@@ -196,7 +74,7 @@ export const AsignarEvaluacion: React.FC = () => {
             </select>
           </div>
 
-          {/* Seleccionar Administrador */}
+          {/* Administrador */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Administrador Responsable <span className="text-red-500">*</span>
@@ -209,9 +87,7 @@ export const AsignarEvaluacion: React.FC = () => {
               disabled={!empresaId}
             >
               <option value="">
-                {empresaId 
-                  ? 'Selecciona un administrador' 
-                  : 'Primero selecciona una empresa'}
+                {empresaId ? 'Selecciona un administrador' : 'Primero selecciona una empresa'}
               </option>
               {administradores.map((admin) => (
                 <option key={admin.id} value={admin.id}>
@@ -243,35 +119,19 @@ export const AsignarEvaluacion: React.FC = () => {
 
           {/* Botones */}
           <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              disabled={submitting}
-            >
-              {submitting ? (
-                <>Asignando...</>
-              ) : (
-                <>
-                  <Send size={18} className="mr-2" />
-                  Asignar Evaluación
-                </>
+            <Button type="submit" variant="primary" size="lg" disabled={submitting}>
+              {submitting ? 'Asignando...' : (
+                <><Send size={18} className="mr-2" /> Asignar Evaluación</>
               )}
             </Button>
-
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              onClick={() => navigate('/asignaciones/mis-evaluaciones')}
-            >
+            <Button type="button" variant="secondary" size="lg" onClick={goToLista}>
               Cancelar
             </Button>
           </div>
         </form>
       </Card>
 
-      {/* Información */}
+      {/* Info */}
       <Card className="bg-blue-50 border-blue-200">
         <div className="flex gap-3">
           <div className="flex-shrink-0">
@@ -280,9 +140,7 @@ export const AsignarEvaluacion: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="font-medium text-blue-900 mb-1">
-              ¿Qué sucede al asignar?
-            </h3>
+            <h3 className="font-medium text-blue-900 mb-1">¿Qué sucede al asignar?</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• El administrador recibirá una notificación por email</li>
               <li>• Podrá ver la evaluación en su panel con todas las dimensiones</li>
