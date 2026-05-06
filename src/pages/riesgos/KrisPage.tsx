@@ -1,37 +1,24 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/common';
-import {
-  useCreateKri,
-  useDeleteKri,
-  useKrisList,
-  useRegistrarMedicionKri,
-  useRiesgosList,
-} from '@/hooks/useRiesgosModule';
-import type { CreateKRIPayload, Id } from '@/types';
+import { useKrisPage } from '@/pages/riesgos/hooks/useKrisPage';
+import type { Id } from '@/types';
 
 export function KrisPage() {
-  const navigate = useNavigate();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState<CreateKRIPayload>({
-    riesgo: '',
-    nombre: '',
-    descripcion: '',
-    unidad_medida: '%',
-    umbral_verde: 5,
-    umbral_amarillo: 10,
-    umbral_rojo: 15,
-    frecuencia: 'mensual',
-  });
-
-  const [mediciones, setMediciones] = useState<Record<string, string>>({});
-
-  const riesgosQuery = useRiesgosList({ page_size: 200 });
-  const krisQuery = useKrisList();
-  const createMutation = useCreateKri();
-  const deleteMutation = useDeleteKri();
-  const registrarMutation = useRegistrarMedicionKri();
+  const {
+    navigate,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    mediciones,
+    setMediciones,
+    riesgosQuery,
+    krisQuery,
+    createMutation,
+    deleteMutation,
+    registrarMutation,
+    submitCreate,
+  } = useKrisPage();
 
   return (
     <div className="space-y-5">
@@ -94,24 +81,7 @@ export function KrisPage() {
 
               <form
                 className="space-y-6 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  createMutation.mutate(formData, {
-                    onSuccess: () => {
-                      setFormData({
-                        riesgo: '',
-                        nombre: '',
-                        descripcion: '',
-                        unidad_medida: '%',
-                        umbral_verde: 5,
-                        umbral_amarillo: 10,
-                        umbral_rojo: 15,
-                        frecuencia: 'mensual',
-                      });
-                      setShowCreateForm(false);
-                    },
-                  });
-                }}
+                onSubmit={submitCreate}
               >
                 {/* Información Básica */}
                 <div className="space-y-4">
@@ -292,7 +262,7 @@ export function KrisPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => deleteMutation.mutate(kri.id as Id)}
+                      onClick={() => deleteMutation.mutate(kri.id as never)}
                       className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
                     >
                       Eliminar

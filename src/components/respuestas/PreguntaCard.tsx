@@ -1,15 +1,9 @@
-// src/components/respuestas/PreguntaCard.tsx
-
-import React, { useState, useEffect } from 'react';
-import {
-  CheckCircle, Save, Send, FileText, AlertCircle, Ban, XCircle,
-} from 'lucide-react';
+import { Save, Send, AlertCircle } from 'lucide-react';
 import { Button, Card } from '@/components/common';
-import { respuestasApi } from '@/api/endpoints/respuestas.api';
-import { Pregunta, RespuestaListItem, Evidencia } from '@/types';
+import type { Pregunta, RespuestaListItem } from '@/types';
 import { ModalEvidencia } from './ModalEvidencia';
 import { SeccionEvidencias } from './SeccionEvidencias';
-import toast from 'react-hot-toast';
+import { usePreguntaCard } from './hooks/usePreguntaCard';
 
 interface PreguntaCardProps {
   pregunta: Pregunta;
@@ -19,296 +13,46 @@ interface PreguntaCardProps {
   onRespuestaChange: (respuesta: RespuestaListItem) => void;
 }
 
-// ── Opciones que puede elegir el usuario ────────────────────────────────────
-// SI        → cumple, sube evidencias, auditor califica
-// NO        → no cumple, nivel 0, sin evidencias
-// NO_APLICA → excluida del cálculo GAP completamente
-type ModoUsuario = 'SI' | 'NO' | 'NO_APLICA' | '';
-
-export const PreguntaCard: React.FC<PreguntaCardProps> = ({
+export const PreguntaCard = ({
   pregunta,
   numero,
   asignacionId,
   respuestaExistente,
   onRespuestaChange,
-}) => {
-  const getApiErrorMessage = (error: any, fallback: string) => {
-    const data = error?.response?.data;
-    if (!data) return fallback;
-
-    if (data.errors && typeof data.errors === 'object') {
-      if (typeof data.errors.detalle === 'string' && data.errors.detalle.trim()) {
-        return data.errors.detalle;
-      }
-
-      if (Array.isArray(data.errors.respuesta) && data.errors.respuesta.length > 0) {
-        return String(data.errors.respuesta[0]);
-      }
-
-      if (typeof data.errors.respuesta === 'string' && data.errors.respuesta.trim()) {
-        return data.errors.respuesta;
-      }
-
-      const firstKey = Object.keys(data.errors)[0];
-      const firstValue = data.errors[firstKey];
-      if (Array.isArray(firstValue) && firstValue.length > 0) {
-        return String(firstValue[0]);
-      }
-      if (typeof firstValue === 'string') {
-        return firstValue;
-      }
-    }
-
-    if (typeof data.detail === 'string' && data.detail.trim()) {
-      return data.detail;
-    }
-
-    if (typeof data.message === 'string' && data.message.trim()) {
-      return data.message;
-    }
-
-    return fallback;
-  };
-
-  const [modoSeleccionado, setModoSeleccionado] = useState<ModoUsuario>('');
-  const [justificacion, setJustificacion]       = useState('');
-  const [comentarios, setComentarios]           = useState('');
-  const [evidencias, setEvidencias]             = useState<Evidencia[]>([]);
-  const [respuestaId, setRespuestaId]           = useState<string | null>(null);
-  const [estado, setEstado]                     = useState<RespuestaListItem['estado']>('borrador');
-  const [saving, setSaving]                     = useState(false);
-  const [mostrarModalEvidencia, setMostrarModalEvidencia] = useState(false);
-
-  const puedeEditar = estado === 'borrador';
-  const yaEnviada   = estado !== 'borrador';
-
-  // ── Cargar datos existentes ───────────────────────────────────────────────
-  useEffect(() => {
-    if (respuestaExistente) {
-      setRespuestaId(respuestaExistente.id);
-      setEstado(respuestaExistente.estado);
-      setJustificacion(respuestaExistente.justificacion || '');
-      setComentarios(respuestaExistente.comentarios_adicionales || '');
-
-      // Determinar modo según respuesta guardada
-      if (respuestaExistente.respuesta === 'NO_APLICA') {
-        setModoSeleccionado('NO_APLICA');
-      } else if (respuestaExistente.respuesta === 'NO_CUMPLE') {
-        setModoSeleccionado('NO');
-      } else if (respuestaExistente.respuesta === null) {
-        setModoSeleccionado('SI');
-      }
-
-      if (respuestaExistente.id) {
-        loadEvidencias(respuestaExistente.id);
-      }
-    }
-  }, [respuestaExistente]);
-
-  const loadEvidencias = async (id: string) => {
-    try {
-      const detalle = await respuestasApi.get(id);
-      const data = (detalle as any).data || detalle;
-      if (data?.evidencias) setEvidencias(data.evidencias);
-    } catch (error) {
-      console.error('Error al cargar evidencias:', error);
-    }
-  };
-
-  // ── Cambiar modo ──────────────────────────────────────────────────────────
-  const handleCambiarModo = (modo: ModoUsuario) => {
-    setModoSeleccionado(modo);
-    if (modo === 'NO' || modo === 'NO_APLICA') {
-      setEvidencias([]);
-    }
-  };
-
-  // ── Guardar borrador ──────────────────────────────────────────────────────
-  const handleGuardarBorrador = async () => {
-    if (!modoSeleccionado) {
-      toast.error('Selecciona una opción primero');
-      return;
-    }
-    if (justificacion.trim().length < 10) {
-      toast.error('La justificación debe tener al menos 10 caracteres');
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      // Mapear modo → valor para el backend
-      // SI        → null  (auditor calificará con evidencias)
-      // NO        → 'NO_CUMPLE' (pre-marcado, nivel 0)
-      // NO_APLICA → 'NO_APLICA'
-      const respuestaValor =
-        modoSeleccionado === 'NO_APLICA' ? ('NO_APLICA' as const)
-        : modoSeleccionado === 'NO'      ? ('NO_CUMPLE' as const)
-        : null;
-
-      const payload = {
-        respuesta: respuestaValor,
-        justificacion,
-        comentarios_adicionales: comentarios,
-      };
-
-      if (respuestaId) {
-        await respuestasApi.update(respuestaId, payload);
-        const actualizada = await respuestasApi.get(respuestaId);
-        sincronizarEstado(actualizada);
-        onRespuestaChange(mapToListItem(actualizada));
-        toast.success('Borrador guardado');
-      } else {
-        const res = await respuestasApi.create({
-          asignacion: asignacionId,
-          pregunta: pregunta.id,
-          ...payload,
-        });
-
-        let creada = (res as any).data || res;
-        if (creada && 'data' in creada) creada = creada.data;
-        if (!creada?.id) throw new Error('El servidor no devolvió una respuesta válida');
-
-        setRespuestaId(creada.id);
-        const completa = await respuestasApi.get(creada.id);
-        sincronizarEstado(completa);
-        onRespuestaChange(mapToListItem(completa));
-        toast.success('Respuesta creada como borrador');
-      }
-    } catch (error: any) {
-      console.error('Error al guardar:', error);
-      toast.error(getApiErrorMessage(error, 'Error al guardar la respuesta'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ── Enviar respuesta ──────────────────────────────────────────────────────
-  const handleEnviar = async () => {
-    if (!respuestaId) {
-      toast.error('Primero guarda la respuesta como borrador');
-      return;
-    }
-    if (modoSeleccionado === 'SI' && evidencias.filter(e => e.activo).length === 0) {
-      toast.error('Debes subir al menos una evidencia antes de enviar');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const res = await respuestasApi.enviar(respuestaId);
-      const data = (res as any).data || res;
-      const asignacionCompleta = data?.asignacion_completa || false;
-
-      setEstado('enviado');
-
-      if (asignacionCompleta) {
-        toast.success('¡Evaluación completada! Se notificó al auditor para revisión.', { duration: 5000 });
-      } else {
-        toast.success('Respuesta enviada exitosamente');
-      }
-
-      const actualizada = await respuestasApi.get(respuestaId);
-      onRespuestaChange(mapToListItem(actualizada));
-    } catch (error: any) {
-      console.error('Error al enviar:', error);
-      toast.error(getApiErrorMessage(error, 'Error al enviar la respuesta'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEliminarEvidencia = async (evidenciaId: string) => {
-    if (!confirm('¿Eliminar esta evidencia?')) return;
-    try {
-      await respuestasApi.eliminarEvidencia(evidenciaId);
-      setEvidencias(prev => prev.filter(e => e.id !== evidenciaId));
-      toast.success('Evidencia eliminada');
-    } catch {
-      toast.error('Error al eliminar la evidencia');
-    }
-  };
-
-  const sincronizarEstado = (data: any) => {
-    setJustificacion(data.justificacion || '');
-    setComentarios(data.comentarios_adicionales || '');
-    setEstado(data.estado || 'borrador');
-    if (data.evidencias) setEvidencias(data.evidencias);
-
-    // ⭐ Sincronizar modo según respuesta guardada en BD
-    if (data.respuesta === 'NO_APLICA') {
-      setModoSeleccionado('NO_APLICA');
-    } else if (data.respuesta === 'NO_CUMPLE') {
-      setModoSeleccionado('NO');
-    } else if (data.respuesta === null || data.respuesta === undefined) {
-      setModoSeleccionado('SI');
-    }
-  };
-
-  const mapToListItem = (data: any): RespuestaListItem => ({
-    id: data?.id || '',
-    asignacion: data?.asignacion || '',
-    pregunta: data?.pregunta || '',
-    pregunta_codigo: data?.pregunta_codigo || '',
-    pregunta_texto: data?.pregunta_texto || '',
-    respuesta: data?.respuesta ?? null,
-    justificacion: data?.justificacion || '',
-    comentarios_adicionales: data?.comentarios_adicionales || '',
-    calificacion_auditor: data?.calificacion_auditor || null,
-    calificacion_display: data?.calificacion_display || '',
-    nivel_madurez: Number(data?.nivel_madurez) || 0,
-    estado: data?.estado || 'borrador',
-    estado_display: data?.estado_display || '',
-    respondido_por: Number(data?.respondido_por) || 0,
-    respondido_por_nombre: data?.respondido_por_nombre || '',
-    respondido_at: data?.respondido_at || '',
-    total_evidencias: data?.evidencias?.length ?? data?.total_evidencias ?? 0,
-    version: data?.version || 0,
+}: PreguntaCardProps) => {
+  const {
+    modoSeleccionado,
+    justificacion,
+    setJustificacion,
+    comentarios,
+    setComentarios,
+    evidencias,
+    respuestaId,
+    estado,
+    saving,
+    mostrarModalEvidencia,
+    setMostrarModalEvidencia,
+    puedeEditar,
+    yaEnviada,
+    handleCambiarModo,
+    handleGuardarBorrador,
+    handleEnviar,
+    handleEliminarEvidencia,
+    reloadEvidencias,
+    getEstadoBadge,
+    getModoLecturaInfo,
+    cardBorder,
+  } = usePreguntaCard({
+    pregunta,
+    asignacionId,
+    respuestaExistente,
+    onRespuestaChange,
   });
-
-  // ── Helpers de UI ─────────────────────────────────────────────────────────
-  const getEstadoBadge = () => {
-    switch (estado) {
-      case 'enviado':
-      case 'pendiente_auditoria':
-        return (
-          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium flex items-center gap-1">
-            <CheckCircle size={11} /> Enviada — Esperando auditor
-          </span>
-        );
-      case 'auditado':
-        return (
-          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
-            <CheckCircle size={11} /> Auditada
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
-            Borrador
-          </span>
-        );
-    }
-  };
-
-  const getModoLecturaInfo = () => {
-    const r = respuestaExistente?.respuesta;
-    if (r === 'NO_APLICA')  return { icon: <Ban size={15} className="text-gray-500" />,       texto: 'Marcada como No Aplica',        color: 'bg-gray-100 border-gray-200 text-gray-700' };
-    if (r === 'NO_CUMPLE')  return { icon: <XCircle size={15} className="text-red-500" />,    texto: 'Respondida como No',   color: 'bg-red-50 border-red-200 text-red-700' };
-    return                         { icon: <FileText size={15} className="text-primary-500" />, texto: 'Enviada con evidencias', color: 'bg-blue-50 border-blue-200 text-blue-700' };
-  };
-
-  const cardBorder =
-    estado === 'auditado' ? 'border-green-300 bg-green-50/40'
-    : yaEnviada           ? 'border-blue-200 bg-blue-50/30'
-    : '';
 
   return (
     <>
       <Card className={cardBorder}>
         <div className="space-y-5">
-
-          {/* ── Header ── */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -325,7 +69,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </div>
           </div>
 
-          {/* ── Selector de modo (solo en borrador) ── */}
           {puedeEditar && (
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-3">
@@ -333,8 +76,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                 <span className="text-red-500 ml-1">*</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-                {/* Sí */}
                 <button
                   type="button"
                   onClick={() => handleCambiarModo('SI')}
@@ -356,7 +97,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   {modoSeleccionado === 'SI' && <CheckCircle size={16} className="text-primary-500 shrink-0 mt-0.5" />}
                 </button>
 
-                {/* No */}
                 <button
                   type="button"
                   onClick={() => handleCambiarModo('NO')}
@@ -378,7 +118,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   {modoSeleccionado === 'NO' && <CheckCircle size={16} className="text-red-400 shrink-0 mt-0.5" />}
                 </button>
 
-                {/* No Aplica */}
                 <button
                   type="button"
                   onClick={() => handleCambiarModo('NO_APLICA')}
@@ -399,12 +138,10 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                   </div>
                   {modoSeleccionado === 'NO_APLICA' && <CheckCircle size={16} className="text-gray-500 shrink-0 mt-0.5" />}
                 </button>
-
               </div>
             </div>
           )}
 
-          {/* ── Vista solo lectura ── */}
           {yaEnviada && (() => {
             const { icon, texto, color } = getModoLecturaInfo();
             return (
@@ -415,24 +152,23 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             );
           })()}
 
-          {/* ── Justificación ── */}
           {(modoSeleccionado || yaEnviada) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Justificación <span className="text-red-500">*</span>
                 {modoSeleccionado === 'NO_APLICA' && <span className="text-gray-500 font-normal ml-2 text-xs">— Explica por qué no aplica</span>}
-                {modoSeleccionado === 'NO'        && <span className="text-gray-500 font-normal ml-2 text-xs">— Explica por qué no cumple</span>}
+                {modoSeleccionado === 'NO' && <span className="text-gray-500 font-normal ml-2 text-xs">— Explica por qué no cumple</span>}
                 <span className="text-gray-400 font-normal ml-2 text-xs">(mín. 10 caracteres)</span>
               </label>
               <textarea
                 value={justificacion}
-                onChange={e => setJustificacion(e.target.value)}
+                onChange={(event) => setJustificacion(event.target.value)}
                 disabled={!puedeEditar}
                 rows={4}
                 placeholder={
                   modoSeleccionado === 'NO_APLICA' ? 'Explica por qué esta pregunta no aplica a tu organización...'
-                  : modoSeleccionado === 'NO'      ? 'Explica por qué tu organización no cumple con este requisito...'
-                  : 'Describe brevemente el contexto de las evidencias adjuntas...'
+                    : modoSeleccionado === 'NO' ? 'Explica por qué tu organización no cumple con este requisito...'
+                    : 'Describe brevemente el contexto de las evidencias adjuntas...'
                 }
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
               />
@@ -442,7 +178,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </div>
           )}
 
-          {/* ── Evidencias (solo si eligió SI) ── */}
           {(modoSeleccionado === 'SI' || (yaEnviada && respuestaExistente?.respuesta === null)) && (
             <SeccionEvidencias
               evidencias={evidencias}
@@ -453,8 +188,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             />
           )}
 
-          {/* ── Aviso sin evidencias ── */}
-          {modoSeleccionado === 'SI' && puedeEditar && evidencias.filter(e => e.activo).length === 0 && (
+          {modoSeleccionado === 'SI' && puedeEditar && evidencias.filter((evidencia) => evidencia.activo).length === 0 && (
             <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertCircle size={16} className="text-amber-500 shrink-0" />
               <p className="text-xs text-amber-700">
@@ -463,7 +197,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </div>
           )}
 
-          {/* ── Comentarios adicionales ── */}
           {(modoSeleccionado || yaEnviada) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -471,7 +204,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
               </label>
               <textarea
                 value={comentarios}
-                onChange={e => setComentarios(e.target.value)}
+                onChange={(event) => setComentarios(event.target.value)}
                 disabled={!puedeEditar}
                 rows={2}
                 placeholder="Observaciones o notas adicionales..."
@@ -480,7 +213,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </div>
           )}
 
-          {/* ── Calificación del auditor ── */}
           {estado === 'auditado' && respuestaExistente?.calificacion_auditor && (
             <div className="p-4 rounded-xl border border-green-200 bg-green-50 space-y-2">
               <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Calificación del Auditor</p>
@@ -503,7 +235,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
             </div>
           )}
 
-          {/* ── Botones ── */}
           {puedeEditar && modoSeleccionado && (
             <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
               <Button
@@ -520,11 +251,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
                 variant="primary"
                 size="sm"
                 onClick={handleEnviar}
-                disabled={
-                  saving ||
-                  !respuestaId ||
-                  (modoSeleccionado === 'SI' && evidencias.filter(e => e.activo).length === 0)
-                }
+                disabled={saving || !respuestaId || (modoSeleccionado === 'SI' && evidencias.filter((evidencia) => evidencia.activo).length === 0)}
                 type="button"
               >
                 <Send size={15} className="mr-1.5" />
@@ -532,7 +259,6 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
               </Button>
             </div>
           )}
-
         </div>
       </Card>
 
@@ -540,7 +266,7 @@ export const PreguntaCard: React.FC<PreguntaCardProps> = ({
         <ModalEvidencia
           respuestaId={respuestaId}
           onClose={() => setMostrarModalEvidencia(false)}
-          onSuccess={() => loadEvidencias(respuestaId)}
+          onSuccess={() => void reloadEvidencias()}
         />
       )}
     </>

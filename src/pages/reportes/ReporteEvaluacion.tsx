@@ -1,22 +1,19 @@
 // src/pages/reportes/ReporteEvaluacion.tsx
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { 
-  BarChart3, 
-  FileText, 
-  Target, 
-  Users, 
+import {
+  BarChart3,
+  FileText,
+  Target,
+  Users,
   Activity,
   Shield,
 } from 'lucide-react';
 import { Button, Card, LoadingScreen } from '@/components/common';
-import { evaluacionesApi, reportesApi } from '@/api/endpoints';
-import { ReporteEvaluacion as ReporteEvaluacionType } from '@/api/endpoints/reportes.api';
-import toast from 'react-hot-toast';
-
 import { ModalCrearDesdeGAP } from '@/pages/proyectos-remediacion/ModalCrearDesdeGAP';
+import { useReporteEvaluacion } from './hooks/useReporteEvaluacion';
 
 const ResumenGeneral = lazy(() => 
   import('./components/ResumenGeneral').then(module => ({ default: module.ResumenGeneral }))
@@ -66,73 +63,25 @@ const SectionLoader = () => (
 );
 
 export const ReporteEvaluacion: React.FC = () => {
-  const { user }    = useAuth();
-  const navigate    = useNavigate();
-  const [loading, setLoading]                           = useState(true);
-  const [evaluaciones, setEvaluaciones]                 = useState<any[]>([]);
-  const [evaluacionSeleccionada, setEvaluacionSeleccionada] = useState<string>('');
-  const [reporte, setReporte]                           = useState<ReporteEvaluacionType | null>(null);
-  const [loadingReporte, setLoadingReporte]             = useState(false);
-  const [activeTab, setActiveTab]                       = useState<TabType>('resumen');
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabType>('resumen');
 
-  const [modalGAPOpen, setModalGAPOpen]   = useState(false);
-  const [selectedGAP, setSelectedGAP]     = useState<any>(null);
-
-  useEffect(() => { loadEvaluaciones(); }, []);
-
-  const loadEvaluaciones = async () => {
-    try {
-      setLoading(true);
-      const data  = await evaluacionesApi.getMisEvaluaciones();
-      const lista = data.results || [];
-      setEvaluaciones(lista);
-      if (lista.length > 0) {
-        setEvaluacionSeleccionada(lista[0].id);
-        loadReporte(lista[0].id);
-      }
-    } catch (error: any) {
-      console.error('Error al cargar evaluaciones:', error);
-      toast.error('Error al cargar evaluaciones');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadReporte = async (evaluacionId: string) => {
-    try {
-      setLoadingReporte(true);
-      const data = await reportesApi.getReporteEvaluacion(evaluacionId);
-      setReporte(data);
-    } catch (error: any) {
-      console.error('Error al cargar reporte:', error);
-      toast.error('Error al cargar reporte de evaluación');
-    } finally {
-      setLoadingReporte(false);
-    }
-  };
-
-  const gapStats = useMemo(() => {
-    if (!reporte?.clasificaciones_gap) return { criticos: 0, medios: 0, cumplidos: 0 };
-    return {
-      criticos:  (reporte.clasificaciones_gap.critico || 0) + (reporte.clasificaciones_gap.alto   || 0),
-      medios:    (reporte.clasificaciones_gap.medio   || 0) + (reporte.clasificaciones_gap.bajo   || 0),
-      cumplidos: (reporte.clasificaciones_gap.cumplido || 0) + (reporte.clasificaciones_gap.superado || 0),
-    };
-  }, [reporte]);
-
-  const handleCrearProyectoDesdeBrecha = (gapData: any) => {
-    setSelectedGAP({
-      calculoNivelId: gapData.calculoNivelId,
-      asignacionId:   gapData.asignacionId,
-      gapInfo:        { ...gapData },
-    });
-    setModalGAPOpen(true);
-  };
-
-  const handleChangeEvaluacion = (evaluacionId: string) => {
-    setEvaluacionSeleccionada(evaluacionId);
-    loadReporte(evaluacionId);
-  };
+  const {
+    loading,
+    evaluaciones,
+    evaluacionSeleccionada,
+    reporte,
+    loadingReporte,
+    modalGAPOpen,
+    selectedGAP,
+    gapStats,
+    loadReporte,
+    handleCrearProyectoDesdeBrecha,
+    handleChangeEvaluacion,
+    closeModalGAP,
+    onProyectoCreado,
+  } = useReporteEvaluacion();
 
   if (loading) return <LoadingScreen message="Cargando evaluaciones..." />;
 
@@ -334,13 +283,8 @@ export const ReporteEvaluacion: React.FC = () => {
       {selectedGAP && (
         <ModalCrearDesdeGAP
           isOpen={modalGAPOpen}
-          onClose={() => { setModalGAPOpen(false); setSelectedGAP(null); }}
-          onSuccess={() => {
-            loadReporte(evaluacionSeleccionada);
-            setModalGAPOpen(false);
-            setSelectedGAP(null);
-            toast.success('Proyecto creado exitosamente');
-          }}
+          onClose={closeModalGAP}
+          onSuccess={onProyectoCreado}
           calculoNivelId={selectedGAP.calculoNivelId}
           asignacionId={selectedGAP.asignacionId}
           gapInfo={selectedGAP.gapInfo}

@@ -1,6 +1,6 @@
 // src/pages/reportes/components/GraficoRadar.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/common';
 import {
   RadarChart,
@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useModalState } from '../hooks/useModalState';
 import { ModalDetalleDimensiones } from './ModalDetalleDimensiones';
 
 interface GraficoRadarProps {
@@ -30,8 +31,11 @@ interface GraficoRadarProps {
 }
 
 export const GraficoRadar: React.FC<GraficoRadarProps> = ({ dimensiones }) => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedDimension, setSelectedDimension] = useState<string | null>(null);
+  const { isOpen, selectedData, openModal, closeModal } = useModalState<{
+    dimensionId: string;
+    dimensionNombre: string;
+    dimensiones: typeof dimensiones;
+  }>();
 
   const data = dimensiones.map((d) => ({
     dimension: d.dimension.codigo,
@@ -45,18 +49,17 @@ export const GraficoRadar: React.FC<GraficoRadarProps> = ({ dimensiones }) => {
   // ⭐ Manejar clic en cualquier punto del radar
   const handleRadarClick = (data: any) => {
     console.log('🔍 Click en radar:', data);
-    
     if (data && data.payload) {
       const dimensionId = data.payload.dimensionId;
-      setSelectedDimension(dimensionId);
-      setModalOpen(true);
+      const filtered = dimensiones.filter((dim) => dim.dimension.id === dimensionId);
+      if (filtered.length > 0) {
+        openModal({
+          dimensionId,
+          dimensionNombre: filtered[0].dimension.nombre,
+          dimensiones: filtered,
+        });
+      }
     }
-  };
-
-  // ⭐ Filtrar la dimensión seleccionada
-  const getSelectedDimension = () => {
-    if (!selectedDimension) return [];
-    return dimensiones.filter((dim) => dim.dimension.id === selectedDimension);
   };
 
   // ⭐ Tooltip personalizado para mostrar hint de interactividad
@@ -137,17 +140,10 @@ export const GraficoRadar: React.FC<GraficoRadarProps> = ({ dimensiones }) => {
 
       {/* Modal */}
       <ModalDetalleDimensiones
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setSelectedDimension(null);
-        }}
-        title={
-          selectedDimension
-            ? `Detalle de ${getSelectedDimension()[0]?.dimension.nombre || 'Dimensión'}`
-            : 'Detalle de Dimensión'
-        }
-        dimensiones={getSelectedDimension()}
+        isOpen={isOpen}
+        onClose={closeModal}
+        title={selectedData ? `Detalle de ${selectedData.dimensionNombre}` : 'Detalle de Dimensión'}
+        dimensiones={selectedData?.dimensiones || []}
         tipo="nivel"
       />
     </>

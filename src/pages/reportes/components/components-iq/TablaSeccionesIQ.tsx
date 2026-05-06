@@ -1,11 +1,12 @@
 // src/pages/reportes/components-iq/TablaSeccionesIQ.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/common';
 import {
   ChevronDown, ChevronRight, CheckCircle, AlertCircle,
   Tag, Users,
 } from 'lucide-react';
+import { useExpandableRow } from '../../hooks/useExpandableRow';
 import type { SeccionGAPData, UsuarioEnSeccionIQ } from '@/types/reporte-iq.types';
 
 interface TablaSeccionesIQProps {
@@ -30,19 +31,7 @@ const FW_COLORS = [
 ];
 
 export const TablaSeccionesIQ: React.FC<TablaSeccionesIQProps> = ({ secciones }) => {
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  // Color por framework_id
-  const fwColorMap: Record<number, string> = {};
-  let colorIdx = 0;
-  secciones.forEach(s => {
-    if (!(s.seccion.framework_id in fwColorMap)) {
-      fwColorMap[s.seccion.framework_id] = FW_COLORS[colorIdx % FW_COLORS.length];
-      colorIdx++;
-    }
-  });
-
-  const toggle = (id: string) => setExpanded(expanded === id ? null : id);
+  const { expandedId, toggle, isExpanded } = useExpandableRow();
 
   return (
     <Card className="overflow-hidden">
@@ -66,8 +55,8 @@ export const TablaSeccionesIQ: React.FC<TablaSeccionesIQProps> = ({ secciones })
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {secciones.map(sec => {
-              const isExpanded = expanded === sec.seccion.id;
-              const fwColor    = fwColorMap[sec.seccion.framework_id] || FW_COLORS[0];
+              const seccionIsExpanded = isExpanded(sec.seccion.id);
+              const fwColor    = FW_COLORS[(secciones.indexOf(sec)) % FW_COLORS.length];
 
               return (
                 <React.Fragment key={sec.seccion.id}>
@@ -80,7 +69,7 @@ export const TablaSeccionesIQ: React.FC<TablaSeccionesIQProps> = ({ secciones })
                     <td className="px-5 py-4">
                       <div className="flex items-start gap-2">
                         <button className="text-gray-400 mt-0.5 shrink-0">
-                          {isExpanded
+                          {seccionIsExpanded
                             ? <ChevronDown size={17} />
                             : <ChevronRight size={17} />
                           }
@@ -143,7 +132,7 @@ export const TablaSeccionesIQ: React.FC<TablaSeccionesIQProps> = ({ secciones })
                   </tr>
 
                   {/* Detalle expandible */}
-                  {isExpanded && (
+                  {seccionIsExpanded && (
                     <tr>
                       <td colSpan={6} className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                         {sec.usuarios.length === 0 ? (

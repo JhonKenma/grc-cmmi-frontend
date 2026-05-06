@@ -1,48 +1,23 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/common';
-import {
-  useActivosList,
-  useCreateRiesgoActivo,
-  useDeleteRiesgoActivo,
-  useRiesgoActivosList,
-  useRiesgosList,
-} from '@/hooks/useRiesgosModule';
-import type { CreateRiesgoActivoPayload, Id } from '@/types';
+import { useRiesgoActivosPage } from '@/pages/riesgos/hooks/useRiesgoActivosPage';
 
 export function RiesgoActivosPage() {
-  const navigate = useNavigate();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState<CreateRiesgoActivoPayload>({
-    riesgo: '',
-    activo_informacion: '',
-    tipo_afectacion: 'operacional',
-    nivel_afectacion: 'medio',
-    impacto_especifico: '',
-  });
-
-  const riesgosQuery = useRiesgosList({ page_size: 200 });
-  const activosQuery = useActivosList({ page_size: 200 });
-  const relacionesQuery = useRiesgoActivosList();
-  const createMutation = useCreateRiesgoActivo();
-  const deleteMutation = useDeleteRiesgoActivo();
-
-  const riesgosLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    (riesgosQuery.data?.results ?? []).forEach((riesgo) => {
-      map.set(String(riesgo.id), `${riesgo.codigo} - ${riesgo.titulo ?? riesgo.nombre}`);
-    });
-    return map;
-  }, [riesgosQuery.data]);
-
-  const activosLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    (activosQuery.data?.results ?? []).forEach((activo) => {
-      map.set(String(activo.id), `${activo.codigo} - ${activo.nombre}`);
-    });
-    return map;
-  }, [activosQuery.data]);
+  const {
+    navigate,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    riesgosQuery,
+    activosQuery,
+    relacionesQuery,
+    createMutation,
+    deleteMutation,
+    riesgosLookup,
+    activosLookup,
+    submitCreate,
+  } = useRiesgoActivosPage();
 
   return (
     <div className="space-y-5">
@@ -95,21 +70,7 @@ export function RiesgoActivosPage() {
 
               <form
                 className="space-y-6 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  createMutation.mutate(formData, {
-                    onSuccess: () => {
-                      setFormData({
-                        riesgo: '',
-                        activo_informacion: '',
-                        tipo_afectacion: 'operacional',
-                        nivel_afectacion: 'medio',
-                        impacto_especifico: '',
-                      });
-                      setShowCreateForm(false);
-                    },
-                  });
-                }}
+                onSubmit={submitCreate}
               >
                 {/* Selección de Riesgo y Activo */}
                 <div className="space-y-4">
@@ -235,7 +196,7 @@ export function RiesgoActivosPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => deleteMutation.mutate(relacion.id as Id)}
+                    onClick={() => deleteMutation.mutate(relacion.id as never)}
                     className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
                   >
                     Eliminar

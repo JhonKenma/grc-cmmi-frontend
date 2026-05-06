@@ -1,6 +1,6 @@
 // src/pages/reportes/components/ModalRespuestasAuditadas.tsx
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   X,
   CheckCircle,
@@ -13,27 +13,9 @@ import {
   ClipboardList,
   Loader2,
 } from 'lucide-react';
-import axiosInstance from '@/api/axios';
+import { useAuditedResponses } from '../hooks/useAuditedResponses';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-
-interface RespuestaDetalle {
-  id: string;
-  pregunta: string;
-  pregunta_codigo: string;
-  pregunta_texto: string;
-  respuesta: string | null;
-  justificacion: string;
-  calificacion_auditor: string | null;
-  calificacion_display: string;
-  comentarios_auditor: string | null;
-  recomendaciones_auditor: string | null;
-  fecha_auditoria: string | null;
-  auditado_por_nombre: string | null;
-  nivel_madurez: number | null;
-  estado: string;
-  estado_display: string;
-}
 
 interface ModalRespuestasAuditadasProps {
   /** ID de la asignación a consultar */
@@ -100,40 +82,7 @@ export const ModalRespuestasAuditadas: React.FC<ModalRespuestasAuditadasProps> =
   dimensionNombre,
   onClose,
 }) => {
-  const [respuestas, setRespuestas] = useState<RespuestaDetalle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchRespuestas = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await axiosInstance.get('/respuestas/revision/', {
-          params: { asignacion: asignacionId },
-        });
-        setRespuestas(response.data.results ?? []);
-      } catch (err: any) {
-        setError(
-          err?.response?.data?.message ?? 'Error al cargar las respuestas auditadas.'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRespuestas();
-  }, [asignacionId]);
-
-  // Conteo rápido de calificaciones
-  const conteo = respuestas.reduce(
-    (acc, r) => {
-      const k = r.calificacion_auditor ?? 'sin_calificar';
-      acc[k] = (acc[k] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const { respuestas, loading, error, conteo } = useAuditedResponses(asignacionId);
 
   return (
     // Backdrop

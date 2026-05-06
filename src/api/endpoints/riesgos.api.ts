@@ -118,7 +118,16 @@ const getApiErrorMessage = (error: unknown, fallback: string): string => {
   if (status === 401) return 'Sesion expirada o no autenticada. Inicia sesion nuevamente.';
   if (status === 403) return 'Permiso denegado para esta accion.';
 
-  if (typeof data === 'string') return data;
+  if (typeof data === 'string') {
+    // Evita exponer páginas HTML de error de Django en toasts del frontend.
+    if (data.includes('<!DOCTYPE html') || data.includes('<html')) {
+      if (status && status >= 500) {
+        return 'Error interno del servidor al procesar la solicitud. Verifique la validación en backend.';
+      }
+      return fallback;
+    }
+    return data;
+  }
 
   if (isRecord(data)) {
     if (typeof data.message === 'string') return data.message;
@@ -302,7 +311,15 @@ const mapRiesgoPayload = (payload: Partial<CreateRiesgoPayload>, isUpdate = fals
   const impactoReputacional = withNumericIfValid(payload.impacto_reputacional);
   if (impactoReputacional !== undefined) mapped.impacto_reputacional = impactoReputacional;
 
+  // Campo de uso UI que no existe en el modelo backend.
+  delete mapped.contexto;
+
   return mapped;
+};
+
+const sanitizeRiesgoRequest = (payload: Record<string, unknown>): Record<string, unknown> => {
+  const { contexto, ...safePayload } = payload as Record<string, unknown> & { contexto?: unknown };
+  return safePayload;
 };
 
 const buildQuery = (filters?: Record<string, unknown>): string => {
@@ -787,11 +804,12 @@ export const riesgosApi = {
   },
   getRiesgo: async (id: Id): Promise<Riesgo> => toRiesgo(await getResource<Riesgo>('/riesgos/', id)),
   createRiesgo: async (payload: CreateRiesgoPayload): Promise<Riesgo> => {
-    const created = await createResource<Riesgo, Record<string, unknown>>('/riesgos/', mapRiesgoPayload(payload));
+    const mapped = sanitizeRiesgoRequest(mapRiesgoPayload(payload));
+    const created = await createResource<Riesgo, Record<string, unknown>>('/riesgos/', mapped);
     return toRiesgo(created);
   },
   updateRiesgo: async (id: Id, payload: UpdateRiesgoPayload): Promise<Riesgo> => {
-    const mapped = mapRiesgoPayload(payload, true);
+    const mapped = sanitizeRiesgoRequest(mapRiesgoPayload(payload, true));
     const updated = await updateResource<Riesgo, Record<string, unknown>>('/riesgos/', id, mapped);
     return toRiesgo(updated);
   },

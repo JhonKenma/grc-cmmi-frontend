@@ -1,15 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  X, Upload, FileText, AlertTriangle, 
-  Link as LinkIcon, Search, Trash2, CheckCircle, ChevronDown
-} from 'lucide-react';
+import { X, Upload, FileText, AlertTriangle, Link as LinkIcon, Search, Trash2, CheckCircle, ChevronDown } from 'lucide-react';
 import { Button, Card } from '@/components/common';
-import { respuestasApi } from '@/api/endpoints/respuestas.api'; 
-import { documentosApi } from '@/api/endpoints/documentos.api'; 
-import { TipoDocumento, Documento, Proceso } from '@/types/documentos.types';
-import { VerificacionCodigoResponse } from '@/types/respuestas.types'; 
-import { deriveTipoDocumentoEnum, extractApiErrorMessage } from '@/utils/evidencias';
-import toast from 'react-hot-toast';
+import { useModalEvidencia } from './hooks/useModalEvidencia';
 
 interface ModalEvidenciaProps {
   respuestaId: string;
@@ -17,193 +8,52 @@ interface ModalEvidenciaProps {
   onSuccess: () => void;
 }
 
-export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
-  respuestaId,
-  onClose,
-  onSuccess
-}) => {
-  // --- Estados de Control ---
-  const [modo, setModo] = useState<'subir' | 'vincular'>('subir');
-  const [uploading, setUploading] = useState(false);
-  const [verificando, setVerificando] = useState(false);
-  const [cargandoCatalogos, setCargandoCatalogos] = useState(false);
-
-  // --- Estado para Dropdowns Personalizados ---
-  const [openDropdown, setOpenDropdown] = useState<'tipo' | 'proceso' | null>(null);
-
-  // --- Datos Dinámicos ---
-  const [tiposDoc, setTiposDoc] = useState<TipoDocumento[]>([]);
-  const [procesosDoc, setProcesosDoc] = useState<Proceso[]>([]);
-  const [documentosMaestros, setDocumentosMaestros] = useState<Documento[]>([]);
-
-  // --- Estado para Modo: Vincular ---
-  const [documentoSeleccionado, setDocumentoSeleccionado] = useState<string>('');
-  const [busquedaDoc, setBusquedaDoc] = useState<string>('');
-  const [filtroTipoVincular, setFiltroTipoVincular] = useState<string>('');
-  const [filtroProcesoVincular, setFiltroProcesoVincular] = useState<string>('');
-  const [paginaDocumentos, setPaginaDocumentos] = useState(1);
-
-  // --- Estado para Modo: Subir Nuevo ---
-  const [evidenciasExistentes, setEvidenciasExistentes] = useState<VerificacionCodigoResponse | null>(null);
-  const [formData, setFormData] = useState({
-    codigo_documento: '',
-    tipo_id: '',
-    titulo_documento: '',
-    objetivo_documento: '',
-    archivo: null as File | null,
-  });
-
-  // 1. CARGA DE DATOS según el modo
-  useEffect(() => {
-    const cargarDatos = async () => {
-      setCargandoCatalogos(true);
-      try {
-        if (modo === 'subir') {
-          const datosTipos = await documentosApi.getTipos();
-          setTiposDoc(datosTipos);
-        } else {
-          const [tipos, procesos, docsResponse] = await Promise.all([
-            documentosApi.getTipos(),
-            documentosApi.getProcesos(),
-            documentosApi.getAll()
-          ]);
-          setTiposDoc(tipos);
-          setProcesosDoc(procesos);
-          const vigentes = docsResponse.filter(doc => doc.estado === 'vigente');
-          setDocumentosMaestros(vigentes);
-        }
-      } catch (error) {
-        console.error("❌ Error cargando datos:", error);
-        toast.error("No se pudieron cargar los catálogos");
-      } finally {
-        setCargandoCatalogos(false);
-      }
-    };
-    cargarDatos();
-  }, [modo]);
-
-  // 2. VERIFICACIÓN DE CÓDIGO (Solo modo subir)
-  useEffect(() => {
-    if (modo === 'subir' && formData.codigo_documento.length >= 3) {
-      const timer = setTimeout(() => verificarCodigo(), 800);
-      return () => clearTimeout(timer);
-    } else {
-      setEvidenciasExistentes(null);
-    }
-  }, [formData.codigo_documento, modo]);
-
-  const verificarCodigo = async () => {
-    try {
-      setVerificando(true);
-      const result = await respuestasApi.verificarCodigoDocumento(formData.codigo_documento.trim());
-      if (result && result.existe) {
-        setEvidenciasExistentes(result);
-      } else {
-        setEvidenciasExistentes(null);
-      }
-    } catch (error) {
-      console.error('Error verificación:', error);
-    } finally {
-      setVerificando(false);
-    }
-  };
-
-  // 3. MANEJO DE ARCHIVO
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('El archivo supera los 10MB');
-        return;
-      }
-      setFormData(prev => ({ ...prev, archivo: file }));
-    }
-  };
-
-  useEffect(() => {
-    setPaginaDocumentos(1);
-  }, [busquedaDoc, filtroTipoVincular, filtroProcesoVincular, modo]);
-
-  const PAGE_SIZE = 20;
-  const tieneCriteriosBusqueda =
-    busquedaDoc.trim().length >= 2 || !!filtroTipoVincular || !!filtroProcesoVincular;
-
-  // Filtrado combinado (búsqueda + tipo + proceso)
-  const documentosFiltrados = documentosMaestros.filter(doc => {
-    if (!tieneCriteriosBusqueda) return false;
-    const coincideBusqueda = 
-      doc.titulo.toLowerCase().includes(busquedaDoc.toLowerCase()) ||
-      doc.codigo.toLowerCase().includes(busquedaDoc.toLowerCase());
-    const coincideTipo = filtroTipoVincular ? doc.tipo === filtroTipoVincular : true;
-    const coincideProceso = filtroProcesoVincular ? doc.proceso === filtroProcesoVincular : true;
-    return coincideBusqueda && coincideTipo && coincideProceso;
-  });
-
-  const totalPaginas = Math.max(1, Math.ceil(documentosFiltrados.length / PAGE_SIZE));
-  const paginaActual = Math.min(paginaDocumentos, totalPaginas);
-  const inicio = (paginaActual - 1) * PAGE_SIZE;
-  const fin = inicio + PAGE_SIZE;
-  const documentosPaginados = documentosFiltrados.slice(inicio, fin);
-
-  // 4. ENVÍO DEL FORMULARIO
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (modo === 'vincular') {
-      if (!documentoSeleccionado) {
-        toast.error('Selecciona un documento maestro');
-        return;
-      }
-    } else {
-      if (!formData.codigo_documento) return toast.error('El código es obligatorio');
-      if (!formData.tipo_id) return toast.error('Selecciona el tipo de documento');
-      if (!formData.titulo_documento) return toast.error('El título es obligatorio');
-      if (!formData.objetivo_documento) return toast.error('El objetivo es obligatorio');
-      if (!formData.archivo) return toast.error('Debes adjuntar un archivo');
-    }
-
-    try {
-      setUploading(true);
-
-      const payload: any = {
-        respuesta_id: respuestaId
-      };
-
-      if (modo === 'vincular') {
-        payload.documento_id = documentoSeleccionado;
-      } else {
-        payload.codigo_documento = formData.codigo_documento.trim().toUpperCase();
-        payload.tipo_documento_enum = deriveTipoDocumentoEnum(formData.tipo_id, tiposDoc);
-        payload.titulo_documento = formData.titulo_documento.trim();
-        payload.objetivo_documento = formData.objetivo_documento.trim();
-        payload.archivo = formData.archivo;
-      }
-
-      await respuestasApi.subirEvidencia(payload);
-      
-      toast.success(modo === 'vincular' ? 'Documento vinculado con éxito' : 'Evidencia subida');
-      onSuccess();
-      onClose();
-    } catch (error: any) {
-      console.error('❌ Error:', error);
-      toast.error(extractApiErrorMessage(error));
-    } finally {
-      setUploading(false);
-    }
-  };
+export const ModalEvidencia = ({ respuestaId, onClose, onSuccess }: ModalEvidenciaProps) => {
+  const {
+    modo,
+    setModo,
+    uploading,
+    verificando,
+    cargandoCatalogos,
+    openDropdown,
+    setOpenDropdown,
+    tiposDoc,
+    procesosDoc,
+    documentosMaestros,
+    documentoSeleccionado,
+    setDocumentoSeleccionado,
+    busquedaDoc,
+    setBusquedaDoc,
+    filtroTipoVincular,
+    setFiltroTipoVincular,
+    filtroProcesoVincular,
+    setFiltroProcesoVincular,
+    paginaActual,
+    setPaginaDocumentos,
+    evidenciasExistentes,
+    formData,
+    setFormData,
+    handleFileChange,
+    PAGE_SIZE,
+    tieneCriteriosBusqueda,
+    documentosFiltrados,
+    totalPaginas,
+    inicio,
+    fin,
+    documentosPaginados,
+    handleSubmit,
+  } = useModalEvidencia({ respuestaId, onClose, onSuccess });
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <Card className="max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl relative">
-        
-        {/* HEADER */}
         <div className="p-5 border-b flex items-center justify-between bg-white rounded-t-xl sticky top-0 z-10">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Agregar Evidencia</h2>
             <p className="text-sm text-gray-500">Sustenta tu respuesta con documentación</p>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
             disabled={uploading}
           >
@@ -211,7 +61,6 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
           </button>
         </div>
 
-        {/* TABS */}
         <div className="px-6 pt-6">
           <div className="flex p-1 bg-gray-100 rounded-lg">
             <button
@@ -237,17 +86,14 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
           </div>
         </div>
 
-        {/* CONTENIDO FORMULARIO */}
         <div className="flex-1 p-6">
           {cargandoCatalogos ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
               <span className="ml-3 text-gray-600">Cargando catálogos...</span>
             </div>
           ) : (
             <form id="evidencia-form" onSubmit={handleSubmit} className="space-y-6">
-              
-              {/* --- MODO: VINCULAR --- */}
               {modo === 'vincular' && (
                 <div className="space-y-4 animate-in fade-in duration-300">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
@@ -262,9 +108,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                     </div>
                   </div>
 
-                  {/* === FILTROS ESTÁTICOS (FUERA DEL SCROLL) === */}
                   <div className="space-y-3">
-                    {/* Buscador */}
                     <div className="relative z-10">
                       <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                       <input
@@ -277,10 +121,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                       />
                     </div>
 
-                    {/* Filtros de tipo y proceso */}
                     <div className="flex flex-wrap items-end gap-3">
-                      
-                      {/* Custom Select para Tipo */}
                       <div className="flex-1 min-w-[180px] relative z-20">
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 ml-1">Tipo</label>
                         <div
@@ -288,9 +129,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                           onClick={() => !uploading && setOpenDropdown(openDropdown === 'tipo' ? null : 'tipo')}
                         >
                           <span className="truncate text-gray-700">
-                            {filtroTipoVincular
-                              ? tiposDoc.find(t => t.id === filtroTipoVincular)?.nombre
-                              : 'Todos los tipos'}
+                            {filtroTipoVincular ? tiposDoc.find((tipo) => tipo.id === filtroTipoVincular)?.nombre : 'Todos los tipos'}
                           </span>
                           <ChevronDown size={16} className={`text-gray-500 transition-transform ${openDropdown === 'tipo' ? 'rotate-180' : ''}`} />
                         </div>
@@ -305,13 +144,13 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                               >
                                 Todos los tipos
                               </div>
-                              {tiposDoc.map(t => (
+                              {tiposDoc.map((tipo) => (
                                 <div
-                                  key={t.id}
-                                  className={`p-2.5 text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 ${filtroTipoVincular === t.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
-                                  onClick={() => { setFiltroTipoVincular(t.id); setOpenDropdown(null); }}
+                                  key={tipo.id}
+                                  className={`p-2.5 text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 ${filtroTipoVincular === tipo.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+                                  onClick={() => { setFiltroTipoVincular(tipo.id); setOpenDropdown(null); }}
                                 >
-                                  {t.nombre}
+                                  {tipo.nombre}
                                 </div>
                               ))}
                             </div>
@@ -319,7 +158,6 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                         )}
                       </div>
 
-                      {/* Custom Select para Proceso */}
                       <div className="flex-1 min-w-[180px] relative z-20">
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 ml-1">Proceso</label>
                         <div
@@ -327,9 +165,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                           onClick={() => !uploading && setOpenDropdown(openDropdown === 'proceso' ? null : 'proceso')}
                         >
                           <span className="truncate text-gray-700">
-                            {filtroProcesoVincular
-                              ? procesosDoc.find(p => p.id === filtroProcesoVincular)?.nombre
-                              : 'Todos los procesos'}
+                            {filtroProcesoVincular ? procesosDoc.find((proceso) => proceso.id === filtroProcesoVincular)?.nombre : 'Todos los procesos'}
                           </span>
                           <ChevronDown size={16} className={`text-gray-500 transition-transform ${openDropdown === 'proceso' ? 'rotate-180' : ''}`} />
                         </div>
@@ -344,13 +180,13 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                               >
                                 Todos los procesos
                               </div>
-                              {procesosDoc.map(p => (
+                              {procesosDoc.map((proceso) => (
                                 <div
-                                  key={p.id}
-                                  className={`p-2.5 text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 ${filtroProcesoVincular === p.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
-                                  onClick={() => { setFiltroProcesoVincular(p.id); setOpenDropdown(null); }}
+                                  key={proceso.id}
+                                  className={`p-2.5 text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 ${filtroProcesoVincular === proceso.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+                                  onClick={() => { setFiltroProcesoVincular(proceso.id); setOpenDropdown(null); }}
                                 >
-                                  {p.nombre}
+                                  {proceso.nombre}
                                 </div>
                               ))}
                             </div>
@@ -373,7 +209,6 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                     </div>
                   </div>
 
-                  {/* Lista de documentos con scroll independiente */}
                   <div className="max-h-[300px] overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2 bg-gray-50 relative z-0">
                     {!tieneCriteriosBusqueda ? (
                       <p className="text-center text-gray-500 text-sm py-8">
@@ -381,18 +216,16 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                       </p>
                     ) : documentosFiltrados.length === 0 ? (
                       <p className="text-center text-gray-500 text-sm py-8">
-                        {documentosMaestros.length === 0 
-                          ? 'No hay documentos vigentes en el sistema.' 
-                          : 'No se encontraron documentos con esos filtros.'}
+                        {documentosMaestros.length === 0 ? 'No hay documentos vigentes en el sistema.' : 'No se encontraron documentos con esos filtros.'}
                       </p>
                     ) : (
-                      documentosPaginados.map(doc => (
+                      documentosPaginados.map((doc) => (
                         <div
                           key={doc.id}
                           onClick={() => setDocumentoSeleccionado(doc.id)}
                           className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                            documentoSeleccionado === doc.id 
-                              ? 'bg-blue-50 border-blue-500 shadow-sm' 
+                            documentoSeleccionado === doc.id
+                              ? 'bg-blue-50 border-blue-500 shadow-sm'
                               : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                           }`}
                         >
@@ -403,9 +236,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                                 Vigente
                               </span>
                             </div>
-                            {documentoSeleccionado === doc.id && (
-                              <CheckCircle size={18} className="text-blue-600" />
-                            )}
+                            {documentoSeleccionado === doc.id && <CheckCircle size={18} className="text-blue-600" />}
                           </div>
                           <p className="text-sm text-gray-600 mt-1 line-clamp-2">{doc.titulo}</p>
                           <p className="text-xs text-gray-400 mt-1 font-mono">v{doc.version}</p>
@@ -422,7 +253,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setPaginaDocumentos(prev => Math.max(1, prev - 1))}
+                          onClick={() => setPaginaDocumentos((prev) => Math.max(1, prev - 1))}
                           disabled={paginaActual === 1}
                           className="px-2 py-1 border rounded disabled:opacity-50 hover:bg-gray-100"
                         >
@@ -431,7 +262,7 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                         <span>Página {paginaActual} / {totalPaginas}</span>
                         <button
                           type="button"
-                          onClick={() => setPaginaDocumentos(prev => Math.min(totalPaginas, prev + 1))}
+                          onClick={() => setPaginaDocumentos((prev) => Math.min(totalPaginas, prev + 1))}
                           disabled={paginaActual === totalPaginas}
                           className="px-2 py-1 border rounded disabled:opacity-50 hover:bg-gray-100"
                         >
@@ -442,12 +273,9 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                   )}
                 </div>
               )}
-              
-              {/* --- MODO: SUBIR NUEVO --- */}
+
               {modo === 'subir' && (
                 <div className="space-y-5 animate-in fade-in duration-300">
-                  
-                  {/* Código y Tipo */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -457,18 +285,14 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                         <input
                           type="text"
                           value={formData.codigo_documento}
-                          onChange={(e) => setFormData(prev => ({ ...prev, codigo_documento: e.target.value.toUpperCase() }))}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, codigo_documento: e.target.value.toUpperCase() }))}
                           className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase"
                           placeholder="POL-SEG-001"
                           maxLength={50}
                           disabled={uploading}
                         />
                         <div className="absolute right-3 top-2.5 text-gray-400">
-                          {verificando ? (
-                            <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full" />
-                          ) : (
-                            <Search size={20} />
-                          )}
+                          {verificando ? <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full" /> : <Search size={20} />}
                         </div>
                       </div>
                     </div>
@@ -479,21 +303,20 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                       </label>
                       <select
                         value={formData.tipo_id}
-                        onChange={(e) => setFormData(prev => ({ ...prev, tipo_id: e.target.value }))}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, tipo_id: e.target.value }))}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
                         disabled={uploading}
                       >
                         <option value="">Seleccione...</option>
-                        {tiposDoc.map(t => (
-                          <option key={t.id} value={t.id}>
-                            {t.nombre} {t.abreviatura ? `(${t.abreviatura})` : ''}
+                        {tiposDoc.map((tipo) => (
+                          <option key={tipo.id} value={tipo.id}>
+                            {tipo.nombre} {tipo.abreviatura ? `(${tipo.abreviatura})` : ''}
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
 
-                  {/* Alerta Duplicados */}
                   {evidenciasExistentes?.existe && (
                     <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg shadow-sm">
                       <div className="flex items-start">
@@ -510,23 +333,21 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                     </div>
                   )}
 
-                  {/* Título */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Título del Documento <span className="text-red-500">*</span> 
+                      Título del Documento <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       maxLength={60}
                       value={formData.titulo_documento}
-                      onChange={(e) => setFormData(prev => ({ ...prev, titulo_documento: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, titulo_documento: e.target.value }))}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="Ej: Política de Seguridad de la Información"
                       disabled={uploading}
                     />
                   </div>
 
-                  {/* Objetivo */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Objetivo del Documento <span className="text-red-500">*</span>
@@ -535,19 +356,18 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                       rows={3}
                       maxLength={180}
                       value={formData.objetivo_documento}
-                      onChange={(e) => setFormData(prev => ({ ...prev, objetivo_documento: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, objetivo_documento: e.target.value }))}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                       placeholder="Describe el objetivo de este documento..."
                       disabled={uploading}
                     />
                   </div>
 
-                  {/* Archivo */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Archivo <span className="text-red-500">*</span>
                     </label>
-                    
+
                     {!formData.archivo ? (
                       <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer relative group">
                         <input
@@ -574,9 +394,9 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
                             <p className="text-xs text-gray-500">{(formData.archivo.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={() => setFormData(prev => ({ ...prev, archivo: null }))} 
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, archivo: null }))}
                           className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg"
                           disabled={uploading}
                         >
@@ -591,27 +411,21 @@ export const ModalEvidencia: React.FC<ModalEvidenciaProps> = ({
           )}
         </div>
 
-        {/* FOOTER */}
         <div className="p-5 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3 sticky bottom-0 z-10">
-          <Button 
-            variant="secondary" 
-            onClick={onClose} 
-            disabled={uploading || cargandoCatalogos}
-          >
+          <Button variant="secondary" onClick={onClose} disabled={uploading || cargandoCatalogos}>
             Cancelar
           </Button>
-          <Button 
-            type="submit" 
-            form="evidencia-form" 
-            variant="primary" 
-            disabled={uploading || verificando || cargandoCatalogos} 
-            isLoading={uploading} 
+          <Button
+            type="submit"
+            form="evidencia-form"
+            variant="primary"
+            disabled={uploading || verificando || cargandoCatalogos}
+            isLoading={uploading}
             className="min-w-[140px]"
           >
             {modo === 'vincular' ? 'Vincular' : 'Guardar Evidencia'}
           </Button>
         </div>
-
       </Card>
     </div>
   );

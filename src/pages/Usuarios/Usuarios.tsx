@@ -1,11 +1,4 @@
 // src/pages/Usuarios/Usuarios.tsx
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { usuarioService } from '@/api/usuario.service';
-import { empresaService } from '@/api/empresa.service';
-import { Usuario, Empresa } from '@/types';
-import { useLocation } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -22,183 +15,48 @@ import {
   UserCog,
   Clock,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { useUsuariosPage } from '@/pages/Usuarios/hooks/useUsuariosPage';
 
 export const Usuarios = () => {
-  const { isSuperAdmin, isAdmin, user } = useAuth();
-  const navigate = useNavigate();
-  const canManageUsers = isAdmin || isSuperAdmin;
-  const canViewUsers = canManageUsers || user?.rol === 'auditor';
+  const {
+    isSuperAdmin,
+    currentUserId,
+    usuarios,
+    empresas,
+    loading,
+    canManageUsers,
+    canViewUsers,
+    searchTerm,
+    setSearchTerm,
+    filterRol,
+    setFilterRol,
+    filterEmpresa,
+    setFilterEmpresa,
+    menuOpen,
+    setMenuOpen,
+    deleteConfirm,
+    setDeleteConfirm,
+    paginaActual,
+    setPaginaActual,
+    ITEMS_POR_PAGINA,
+    filteredUsuarios,
+    totalPaginas,
+    usuariosPaginados,
+    handleCreate,
+    handleEdit,
+    handleToggleStatus,
+    handleDelete,
+    getRolBadge,
+    plan,
+    planExpirado,
+    planPorVencer,
+    planBannerColor,
+    planIconColor,
+    countRol,
+    tableColSpan,
+  } = useUsuariosPage();
 
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRol, setFilterRol] = useState<string>('');
-  const [filterEmpresa, setFilterEmpresa] = useState<string>('');
-  const [menuOpen, setMenuOpen] = useState<number | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
-
-  const location = useLocation();
-
-  const [paginaActual, setPaginaActual] = useState(1);
-  const ITEMS_POR_PAGINA = 10;
-
-  useEffect(() => {
-    // Leer filtro de empresa desde query params (cuando viene de Empresas)
-    const params = new URLSearchParams(location.search);
-    const empresaParam = params.get('empresa');
-    if (empresaParam) {
-      setFilterEmpresa(empresaParam);
-    }
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [usuariosData, empresasData] = await Promise.all([
-        usuarioService.getAll(),
-        isSuperAdmin ? empresaService.getAll() : Promise.resolve([]),
-      ]);
-
-      const usuariosAdaptados = usuariosData.map((u: any) => ({
-        ...u,
-        empresa_info: u.empresa_info || { nombre: u.empresa_nombre || '' },
-      }));
-
-      setUsuarios(usuariosAdaptados);
-      setEmpresas(empresasData);
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
-      toast.error('Error al cargar usuarios');
-      setUsuarios([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Filtrado ───────────────────────────────────────────
-  const filteredUsuarios = usuarios.filter((usuario) => {
-    const matchSearch =
-      usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.cargo?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchRol = !filterRol || usuario.rol === filterRol;
-    const matchEmpresa =
-      !filterEmpresa || usuario.empresa_info?.nombre === filterEmpresa;
-
-    return matchSearch && matchRol && matchEmpresa;
-  });
-
-  const totalPaginas = Math.ceil(filteredUsuarios.length / ITEMS_POR_PAGINA);
-  const usuariosPaginados = filteredUsuarios.slice(
-    (paginaActual - 1) * ITEMS_POR_PAGINA,
-    paginaActual * ITEMS_POR_PAGINA
-  );
-
-  // Reset página cuando cambia el filtro
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [searchTerm, filterRol, filterEmpresa]);
-
-  // ── Acciones ───────────────────────────────────────────
-  const handleCreate = () => navigate('/usuarios/nuevo');
-
-  const handleEdit = (id: number) => {
-    navigate(`/usuarios/editar/${id}`);
-    setMenuOpen(null);
-  };
-
-  const handleToggleStatus = async (usuario: Usuario) => {
-    try {
-      await usuarioService.toggleStatus(usuario.id);
-      toast.success(
-        `Usuario ${usuario.activo ? 'desactivado' : 'activado'} correctamente`
-      );
-      loadData();
-      setMenuOpen(null);
-    } catch (error) {
-      toast.error('Error al cambiar estado del usuario');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await usuarioService.delete(id);
-      toast.success('Usuario eliminado correctamente');
-      loadData();
-      setDeleteConfirm(null);
-      setMenuOpen(null);
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || 'Error al eliminar el usuario'
-      );
-    }
-  };
-
-  // ── Helpers de UI ──────────────────────────────────────
-  const getRolIcon = (rol: string) => {
-    switch (rol) {
-      case 'superadmin':    return <Shield   className="w-4 h-4 text-purple-600" />;
-      case 'administrador': return <UserCog  className="w-4 h-4 text-blue-600"   />;
-      case 'auditor':       return <Eye      className="w-4 h-4 text-orange-600" />;
-      default:              return <User     className="w-4 h-4 text-gray-600"   />;
-    }
-  };
-
-  const getRolBadge = (rol: string) => {
-    const styles: Record<string, string> = {
-      superadmin:    'bg-purple-100 text-purple-800',
-      administrador: 'bg-blue-100   text-blue-800',
-      auditor:       'bg-orange-100 text-orange-800',
-      usuario:       'bg-gray-100   text-gray-800',
-    };
-    const labels: Record<string, string> = {
-      superadmin:    'Super Admin',
-      administrador: 'Admin',
-      auditor:       'Auditor',
-      usuario:       'Usuario',
-    };
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          styles[rol] ?? 'bg-gray-100 text-gray-800'
-        }`}
-      >
-        {getRolIcon(rol)}
-        {labels[rol] ?? rol}
-      </span>
-    );
-  };
-
-  // ── Info del plan para el admin ────────────────────────
-  const plan = user?.empresa_info?.plan;
-  const planExpirado  = plan && !plan.esta_activo;
-  const planPorVencer = plan && plan.dias_restantes !== null && plan.dias_restantes <= 15;
-
-  const planBannerColor = planExpirado
-    ? 'bg-red-50 border-red-300'
-    : planPorVencer
-    ? 'bg-yellow-50 border-yellow-300'
-    : 'bg-blue-50 border-blue-200';
-
-  const planIconColor = planExpirado
-    ? 'text-red-600'
-    : planPorVencer
-    ? 'text-yellow-600'
-    : 'text-blue-600';
-
-  // Contadores actuales por rol (de la lista de usuarios)
-  const countRol = (rol: string) =>
-    usuarios.filter((u) => u.rol === rol && u.activo).length;
-
-  const tableColSpan =
-    4 + (isSuperAdmin ? 1 : 0) + (canManageUsers ? 1 : 0);
-
-  // ── Guards ─────────────────────────────────────────────
   if (!canViewUsers) {
     return (
       <div className="card">
@@ -213,8 +71,6 @@ export const Usuarios = () => {
 
   return (
     <div className="space-y-6">
-
-      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
@@ -233,7 +89,6 @@ export const Usuarios = () => {
         )}
       </div>
 
-      {/* ── Banner de plan (solo para admin, no superadmin) ── */}
       {!isSuperAdmin && plan && (
         <div className={`rounded-lg border p-4 ${planBannerColor}`}>
           <div className="flex items-center justify-between gap-4">
@@ -256,7 +111,6 @@ export const Usuarios = () => {
                   )}
                 </p>
                 <div className="flex flex-wrap gap-3 mt-1">
-                  {/* Usuarios */}
                   <span className={`text-xs ${
                     countRol('usuario') >= plan.max_usuarios
                       ? 'text-red-600 font-medium'
@@ -264,7 +118,6 @@ export const Usuarios = () => {
                   }`}>
                     👤 Usuarios: {countRol('usuario')}/{plan.max_usuarios}
                   </span>
-                  {/* Administradores */}
                   <span className={`text-xs ${
                     countRol('administrador') >= plan.max_administradores
                       ? 'text-red-600 font-medium'
@@ -272,7 +125,6 @@ export const Usuarios = () => {
                   }`}>
                     🛡 Admins: {countRol('administrador')}/{plan.max_administradores}
                   </span>
-                  {/* Auditores */}
                   <span className={`text-xs ${
                     countRol('auditor') >= plan.max_auditores
                       ? 'text-red-600 font-medium'
@@ -284,7 +136,6 @@ export const Usuarios = () => {
               </div>
             </div>
 
-            {/* Botón renovar si expira pronto o ya expiró */}
             {(planExpirado || planPorVencer) && (
               <a
                 href="mailto:soporte@shieldgrid365.com"
@@ -297,7 +148,6 @@ export const Usuarios = () => {
         </div>
       )}
 
-      {/* ── Filtros ── */}
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
@@ -341,72 +191,64 @@ export const Usuarios = () => {
             </select>
           )}
         </div>
-      
-      {/* Paginación */}
-      {totalPaginas > 1 && (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            Mostrando {(paginaActual - 1) * ITEMS_POR_PAGINA + 1}–
-            {Math.min(paginaActual * ITEMS_POR_PAGINA, filteredUsuarios.length)} de{' '}
-            {filteredUsuarios.length} usuarios
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
-              disabled={paginaActual === 1}
-              className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Anterior
-            </button>
 
-            {/* Números de página */}
-            {Array.from({ length: totalPaginas }, (_, i) => i + 1)
-              .filter((p) =>
-                p === 1 ||
-                p === totalPaginas ||
-                Math.abs(p - paginaActual) <= 1
-              )
-              .reduce<(number | '...')[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
-                  acc.push('...');
-                }
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((item, idx) =>
-                item === '...' ? (
-                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => setPaginaActual(item as number)}
-                    className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                      paginaActual === item
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
+        {totalPaginas > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Mostrando {(paginaActual - 1) * ITEMS_POR_PAGINA + 1}–
+              {Math.min(paginaActual * ITEMS_POR_PAGINA, filteredUsuarios.length)} de{' '}
+              {filteredUsuarios.length} usuarios
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Anterior
+              </button>
 
-            <button
-              onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
-              disabled={paginaActual === totalPaginas}
-              className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Siguiente
-            </button>
+              {Array.from({ length: totalPaginas }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPaginas || Math.abs(p - paginaActual) <= 1)
+                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPaginaActual(item as number)}
+                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                        paginaActual === item
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+              <button
+                onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-
+        )}
       </div>
 
-      {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div className="card">
           <div className="flex items-center justify-between">
@@ -452,7 +294,6 @@ export const Usuarios = () => {
         </div>
       </div>
 
-      {/* ── Tabla ── */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -500,7 +341,6 @@ export const Usuarios = () => {
                     key={usuario.id}
                     className="hover:bg-gray-50 transition-colors"
                   >
-                    {/* Usuario */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -523,22 +363,18 @@ export const Usuarios = () => {
                       </div>
                     </td>
 
-                    {/* Rol */}
                     <td className="px-6 py-4">{getRolBadge(usuario.rol)}</td>
 
-                    {/* Empresa (solo superadmin) */}
                     {isSuperAdmin && (
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {usuario.empresa_info?.nombre || '-'}
                       </td>
                     )}
 
-                    {/* Cargo */}
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {usuario.cargo || '-'}
                     </td>
 
-                    {/* Estado */}
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -551,15 +387,12 @@ export const Usuarios = () => {
                       </span>
                     </td>
 
-                    {/* Acciones */}
                     {canManageUsers && (
                       <td className="px-6 py-4 text-right">
                         <div className="relative inline-block">
                           <button
                             onClick={() =>
-                              setMenuOpen(
-                                menuOpen === usuario.id ? null : usuario.id
-                              )
+                              setMenuOpen(menuOpen === usuario.id ? null : usuario.id)
                             }
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                           >
@@ -581,7 +414,7 @@ export const Usuarios = () => {
                                   Editar
                                 </button>
 
-                                {usuario.id !== user?.id && (
+                                {usuario.id !== currentUserId && (
                                   <>
                                     <button
                                       onClick={() => handleToggleStatus(usuario)}
@@ -619,7 +452,6 @@ export const Usuarios = () => {
         </div>
       </div>
 
-      {/* ── Modal Eliminar ── */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div

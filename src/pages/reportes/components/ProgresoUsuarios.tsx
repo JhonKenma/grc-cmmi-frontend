@@ -1,8 +1,9 @@
 // src/pages/reportes/components/ProgresoUsuarios.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/common';
 import { User, TrendingUp, TrendingDown, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { useProgresoUsuariosTable } from '../hooks/useProgresoUsuariosTable';
 import { ModalListaUsuarios } from './ModalListaUsuarios';
 
 interface ProgresoUsuariosProps {
@@ -21,11 +22,20 @@ interface ProgresoUsuariosProps {
 }
 
 export const ProgresoUsuarios: React.FC<ProgresoUsuariosProps> = ({ usuarios }) => {
-  const [sortBy, setSortBy] = useState<'nombre' | 'nivel' | 'gap' | 'cumplimiento'>('cumplimiento');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
-  const [selectedUsuarios, setSelectedUsuarios] = useState<typeof usuarios>([]);
+  const {
+    sortBy,
+    sortOrder,
+    sortedUsuarios,
+    modalOpen,
+    modalTitle,
+    selectedUsuarios,
+    handleSort,
+    handleMejorNivel,
+    handleMenorBrecha,
+    handleMayorCumplimiento,
+    handleTodosUsuarios,
+    closeModal,
+  } = useProgresoUsuariosTable(usuarios);
 
   const getProgressColor = (percentage: number) => {
     if (percentage >= 80) return 'bg-green-500';
@@ -62,76 +72,6 @@ export const ProgresoUsuarios: React.FC<ProgresoUsuariosProps> = ({ usuarios }) 
       .substring(0, 2)
       .toUpperCase();
   };
-
-  // ⭐ Funciones para mostrar modales con usuarios filtrados
-  const handleMejorNivel = () => {
-    const maxNivel = Math.max(...usuarios.map(u => u.nivel_actual_promedio));
-    const filtrados = usuarios.filter(u => u.nivel_actual_promedio === maxNivel);
-    setSelectedUsuarios(filtrados);
-    setModalTitle(`Colaboradores con Mejor Nivel (${maxNivel.toFixed(1)})`);
-    setModalOpen(true);
-  };
-
-  const handleMenorBrecha = () => {
-    const minGap = Math.min(...usuarios.map(u => u.gap_promedio));
-    const filtrados = usuarios.filter(u => u.gap_promedio === minGap);
-    setSelectedUsuarios(filtrados);
-    setModalTitle(`Colaboradores con Menor Brecha (${minGap.toFixed(1)})`);
-    setModalOpen(true);
-  };
-
-  const handleMayorCumplimiento = () => {
-    const maxCumplimiento = Math.max(...usuarios.map(u => u.porcentaje_cumplimiento_promedio));
-    const filtrados = usuarios.filter(u => u.porcentaje_cumplimiento_promedio === maxCumplimiento);
-    setSelectedUsuarios(filtrados);
-    setModalTitle(`Colaboradores con Mayor Cumplimiento (${maxCumplimiento.toFixed(0)}%)`);
-    setModalOpen(true);
-  };
-
-  const handleTodosUsuarios = () => {
-    setSelectedUsuarios(usuarios);
-    setModalTitle('Todos los Colaboradores');
-    setModalOpen(true);
-  };
-
-  const handleSort = (column: typeof sortBy) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('desc');
-    }
-  };
-
-  const sortedUsuarios = [...usuarios].sort((a, b) => {
-    let valueA: number | string;
-    let valueB: number | string;
-
-    switch (sortBy) {
-      case 'nombre':
-        valueA = a.usuario.nombre_completo.toLowerCase();
-        valueB = b.usuario.nombre_completo.toLowerCase();
-        break;
-      case 'nivel':
-        valueA = a.nivel_actual_promedio;
-        valueB = b.nivel_actual_promedio;
-        break;
-      case 'gap':
-        valueA = a.gap_promedio;
-        valueB = b.gap_promedio;
-        break;
-      case 'cumplimiento':
-        valueA = a.porcentaje_cumplimiento_promedio;
-        valueB = b.porcentaje_cumplimiento_promedio;
-        break;
-      default:
-        return 0;
-    }
-
-    if (valueA < valueB) return sortOrder === 'asc' ? -1 : 1;
-    if (valueA > valueB) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
 
   const SortIcon = ({ column }: { column: typeof sortBy }) => {
     if (sortBy !== column) return null;
@@ -329,7 +269,7 @@ export const ProgresoUsuarios: React.FC<ProgresoUsuariosProps> = ({ usuarios }) 
       {/* ⭐ Modal para mostrar lista de usuarios */}
       <ModalListaUsuarios
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         title={modalTitle}
         usuarios={selectedUsuarios}
       />

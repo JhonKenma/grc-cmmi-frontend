@@ -1,6 +1,6 @@
 // src/pages/reportes/components/GraficoBarrasGap.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/common';
 import {
   BarChart,
@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+import { useModalState } from '../hooks/useModalState';
 import { ModalDetalleDimensiones } from './ModalDetalleDimensiones';
 
 interface GraficoBarrasGapProps {
@@ -30,8 +31,11 @@ interface GraficoBarrasGapProps {
 }
 
 export const GraficoBarrasGap: React.FC<GraficoBarrasGapProps> = ({ dimensiones }) => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedDimension, setSelectedDimension] = useState<string | null>(null);
+  const { isOpen, selectedData, openModal, closeModal } = useModalState<{
+    dimensionId: string;
+    dimensionNombre: string;
+    dimensiones: typeof dimensiones;
+  }>();
 
   const data = dimensiones.map((d) => ({
     dimension: d.dimension.codigo,
@@ -51,17 +55,16 @@ export const GraficoBarrasGap: React.FC<GraficoBarrasGapProps> = ({ dimensiones 
   // ⭐ Manejar clic en una barra
   const handleBarClick = (data: any) => {
     console.log('🔍 Click en barra:', data);
-    
     if (data && data.dimensionId) {
-      setSelectedDimension(data.dimensionId);
-      setModalOpen(true);
+      const filtered = dimensiones.filter((dim) => dim.dimension.id === data.dimensionId);
+      if (filtered.length > 0) {
+        openModal({
+          dimensionId: data.dimensionId,
+          dimensionNombre: filtered[0].dimension.nombre,
+          dimensiones: filtered,
+        });
+      }
     }
-  };
-
-  // ⭐ Obtener la dimensión seleccionada
-  const getSelectedDimension = () => {
-    if (!selectedDimension) return [];
-    return dimensiones.filter((dim) => dim.dimension.id === selectedDimension);
   };
 
   // ⭐ Tooltip personalizado con hint de interactividad
@@ -127,17 +130,10 @@ export const GraficoBarrasGap: React.FC<GraficoBarrasGapProps> = ({ dimensiones 
 
       {/* Modal */}
       <ModalDetalleDimensiones
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setSelectedDimension(null);
-        }}
-        title={
-          selectedDimension
-            ? `Detalle de ${getSelectedDimension()[0]?.dimension.nombre || 'Dimensión'}`
-            : 'Detalle de Dimensión'
-        }
-        dimensiones={getSelectedDimension()}
+        isOpen={isOpen}
+        onClose={closeModal}
+        title={selectedData ? `Detalle de ${selectedData.dimensionNombre}` : 'Detalle de Dimensión'}
+        dimensiones={selectedData?.dimensiones || []}
         tipo="nivel"
       />
     </>

@@ -1,46 +1,22 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/common';
-import {
-  useCreateEvaluacionCuantitativa,
-  useDeleteEvaluacionCuantitativa,
-  useEvaluacionesCuantitativasList,
-  useRiesgosList,
-} from '@/hooks/useRiesgosModule';
-import type { CreateEvaluacionCuantitativaPayload, Id } from '@/types';
-
-function computeAle(sle: number, aro: number): number {
-  return Number((sle * aro).toFixed(2));
-}
+import { useEvaluacionesCuantitativasPage } from '@/pages/riesgos/hooks/useEvaluacionesCuantitativasPage';
 
 export function EvaluacionesCuantitativasPage() {
-  const navigate = useNavigate();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState<CreateEvaluacionCuantitativaPayload>({
-    riesgo: '',
-    fecha: new Date().toISOString().slice(0, 10),
-    sle: 0,
-    aro: 0,
-    ale: 0,
-    metodo_evaluacion: 'ale',
-    observaciones: '',
-  });
-
-  const riesgosQuery = useRiesgosList({ page_size: 200 });
-  const evaluacionesQuery = useEvaluacionesCuantitativasList();
-  const createMutation = useCreateEvaluacionCuantitativa();
-  const deleteMutation = useDeleteEvaluacionCuantitativa();
-
-  const riesgosLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    (riesgosQuery.data?.results ?? []).forEach((riesgo) => {
-      map.set(String(riesgo.id), `${riesgo.codigo} - ${riesgo.titulo ?? riesgo.nombre}`);
-    });
-    return map;
-  }, [riesgosQuery.data]);
-
-  const alePreview = useMemo(() => computeAle(Number(formData.sle ?? 0), Number(formData.aro ?? 0)), [formData.sle, formData.aro]);
+  const {
+    navigate,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    riesgosQuery,
+    evaluacionesQuery,
+    createMutation,
+    deleteMutation,
+    riesgosLookup,
+    alePreview,
+    submitCreate,
+  } = useEvaluacionesCuantitativasPage();
 
   return (
     <div className="space-y-5">
@@ -102,31 +78,7 @@ export function EvaluacionesCuantitativasPage() {
 
               <form
                 className="space-y-6 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  createMutation.mutate(
-                    {
-                      ...formData,
-                      sle: Number(formData.sle ?? 0),
-                      aro: Number(formData.aro ?? 0),
-                      ale: alePreview,
-                    },
-                    {
-                      onSuccess: () => {
-                        setFormData({
-                          riesgo: '',
-                          fecha: new Date().toISOString().slice(0, 10),
-                          sle: 0,
-                          aro: 0,
-                          ale: 0,
-                          metodo_evaluacion: 'ale',
-                          observaciones: '',
-                        });
-                        setShowCreateForm(false);
-                      },
-                    },
-                  );
-                }}
+                onSubmit={submitCreate}
               >
                 {/* Información Básica */}
                 <div className="space-y-4">
@@ -301,7 +253,7 @@ export function EvaluacionesCuantitativasPage() {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => deleteMutation.mutate(item.id as Id)}
+                        onClick={() => deleteMutation.mutate(item.id as never)}
                         className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
                       >
                         Eliminar

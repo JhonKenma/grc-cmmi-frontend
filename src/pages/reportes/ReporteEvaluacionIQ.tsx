@@ -1,17 +1,14 @@
 // src/pages/reportes/ReporteEvaluacionIQ.tsx
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import {
   BarChart3, Target, AlertTriangle, Activity,
   Download, ShieldCheck, Users, Layers, RefreshCw,
 } from 'lucide-react';
 import { Card, LoadingScreen } from '@/components/common';
-import { reportesIQApi } from '@/api/endpoints/reportes-iq.api';
 import toast from 'react-hot-toast';
-import type {
-  ReporteEvaluacionIQ as ReporteIQType,
-  EvaluacionIQAuditada,
-} from '@/types/reporte-iq.types';
+import { reportesIQApi } from '@/api/endpoints/reportes-iq.api';
+import { useReporteEvaluacionIQ } from './hooks/useReporteEvaluacionIQ';
 
 // ── Componentes propios IQ ────────────────────────────────────────────────────
 const ResumenIQ = lazy(() =>
@@ -62,59 +59,23 @@ const SectionLoader = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ReporteEvaluacionIQ: React.FC = () => {
-  const [loading,        setLoading]        = useState(true);
-  const [evaluaciones,   setEvaluaciones]   = useState<EvaluacionIQAuditada[]>([]);
-  const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null);
-  const [reporte,        setReporte]        = useState<ReporteIQType | null>(null);
-  const [loadingReporte, setLoadingReporte] = useState(false);
-  const [activeTab,      setActiveTab]      = useState<TabType>('resumen');
+  const [activeTab, setActiveTab] = useState<TabType>('resumen');
 
-  useEffect(() => { cargarEvaluaciones(); }, []);
-
-  const cargarEvaluaciones = async () => {
-    try {
-      setLoading(true);
-      const lista = await reportesIQApi.listarEvaluaciones();
-      setEvaluaciones(lista);
-      if (lista.length > 0) {
-        setSeleccionadaId(lista[0].evaluacion_id);
-        cargarReporte(lista[0].evaluacion_id);
-      }
-    } catch {
-      toast.error('Error al cargar evaluaciones IQ');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cargarReporte = async (evaluacionId: number) => {
-    try {
-      setLoadingReporte(true);
-      const data = await reportesIQApi.getReporte(evaluacionId);
-      setReporte(data);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al cargar reporte IQ');
-    } finally {
-      setLoadingReporte(false);
-    }
-  };
+  const {
+    loading,
+    evaluaciones,
+    seleccionadaId,
+    reporte,
+    loadingReporte,
+    gapStats,
+    cargarEvaluaciones,
+    handleCambiar: cambiarEvaluacion,
+  } = useReporteEvaluacionIQ();
 
   const handleCambiar = (id: number) => {
-    setSeleccionadaId(id);
+    cambiarEvaluacion(id);
     setActiveTab('resumen');
-    cargarReporte(id);
   };
-
-  // ── Stats para tarjetas de análisis ──────────────────────────────────────
-  const gapStats = useMemo(() => {
-    if (!reporte?.clasificaciones_gap) return { criticos: 0, medios: 0, cumplidos: 0 };
-    const c = reporte.clasificaciones_gap;
-    return {
-      criticos:  (c.critico  || 0) + (c.alto    || 0),
-      medios:    (c.medio    || 0) + (c.bajo    || 0),
-      cumplidos: (c.cumplido || 0) + (c.superado || 0),
-    };
-  }, [reporte]);
 
   // ── Estados vacíos ────────────────────────────────────────────────────────
   if (loading) return <LoadingScreen message="Cargando evaluaciones IQ..." />;

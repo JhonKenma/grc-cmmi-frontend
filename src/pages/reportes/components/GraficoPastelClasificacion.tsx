@@ -1,8 +1,9 @@
 // src/pages/reportes/components/GraficoPastelClasificacion.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/common';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useModalState } from '../hooks/useModalState';
 import { ModalDetalleDimensiones } from './ModalDetalleDimensiones';
 
 interface GraficoPastelClasificacionProps {
@@ -50,8 +51,11 @@ export const GraficoPastelClasificacion: React.FC<GraficoPastelClasificacionProp
   clasificaciones,
   dimensiones,
 }) => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedClasificacion, setSelectedClasificacion] = useState<string | null>(null);
+  const { isOpen, selectedData, openModal, closeModal } = useModalState<{
+    clasificacionKey: string;
+    clasificacionLabel: string;
+    dimensiones: typeof dimensiones;
+  }>();
 
   const data = Object.entries(clasificaciones)
     .filter(([_, value]) => value > 0)
@@ -64,29 +68,17 @@ export const GraficoPastelClasificacion: React.FC<GraficoPastelClasificacionProp
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
-  // ⭐ CAMBIO: Manejar clic con la key correcta
+  // ⭐ Manejar clic con la key correcta
   const handleClick = (data: any) => {
-    console.log('🔍 Click en gráfico:', data); // Debug
+    console.log('🔍 Click en gráfico:', data);
     if (data && data.clasificacionKey) {
-      setSelectedClasificacion(data.clasificacionKey);
-      setModalOpen(true);
+      const filtered = dimensiones.filter((dim) => dim.clasificacion_gap === data.clasificacionKey);
+      openModal({
+        clasificacionKey: data.clasificacionKey,
+        clasificacionLabel: data.name,
+        dimensiones: filtered,
+      });
     }
-  };
-
-  // ⭐ CAMBIO: Filtrar con logs para debug
-  const getDimensionesByClasificacion = () => {
-    if (!selectedClasificacion) return [];
-    
-    console.log('🔍 Filtrando por clasificación:', selectedClasificacion);
-    console.log('🔍 Total dimensiones:', dimensiones.length);
-    
-    const filtered = dimensiones.filter((dim) => {
-      console.log(`  - ${dim.dimension.codigo}: clasificacion_gap = "${dim.clasificacion_gap}"`);
-      return dim.clasificacion_gap === selectedClasificacion;
-    });
-    
-    console.log('🔍 Dimensiones filtradas:', filtered.length);
-    return filtered;
   };
 
   if (total === 0) {
@@ -173,12 +165,10 @@ export const GraficoPastelClasificacion: React.FC<GraficoPastelClasificacionProp
 
       {/* Modal */}
       <ModalDetalleDimensiones
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={`Dimensiones con Clasificación: ${
-          selectedClasificacion ? LABELS[selectedClasificacion as keyof typeof LABELS] : ''
-        }`}
-        dimensiones={getDimensionesByClasificacion()}
+        isOpen={isOpen}
+        onClose={closeModal}
+        title={selectedData ? `Dimensiones con Clasificación: ${selectedData.clasificacionLabel}` : ''}
+        dimensiones={selectedData?.dimensiones || []}
         tipo="clasificacion"
       />
     </>

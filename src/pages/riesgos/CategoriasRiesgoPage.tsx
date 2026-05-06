@@ -1,30 +1,21 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
 import { Card } from '@/components/common';
-import {
-  useCategoriasRiesgoList,
-  useCreateCategoriaRiesgo,
-  useDeleteCategoriaRiesgo,
-  useUpdateCategoriaRiesgo,
-} from '@/hooks/useRiesgosModule';
-import type { CreateCategoriaRiesgoPayload, Id } from '@/types';
+import { useCategoriasRiesgoPage } from '@/pages/riesgos/hooks/useCategoriasRiesgoPage';
+import type { Id } from '@/types';
 
 export function CategoriasRiesgoPage() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState<CreateCategoriaRiesgoPayload>({
-    nombre: '',
-    descripcion: '',
-    activo: true,
-  });
-
-  const categoriasQuery = useCategoriasRiesgoList();
-  const createMutation = useCreateCategoriaRiesgo();
-  const updateMutation = useUpdateCategoriaRiesgo();
-  const deleteMutation = useDeleteCategoriaRiesgo();
+  const {
+    navigate,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    categoriasQuery,
+    createMutation,
+    deleteMutation,
+    submitCreate,
+    toggleCategoria,
+  } = useCategoriasRiesgoPage();
 
   return (
     <div className="space-y-5">
@@ -77,18 +68,7 @@ export function CategoriasRiesgoPage() {
 
               <form
                 className="space-y-6 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  createMutation.mutate({
-                    ...formData,
-                    empresa: user?.empresa ?? undefined,
-                  }, {
-                    onSuccess: () => {
-                      setFormData({ nombre: '', descripcion: '', activo: true });
-                      setShowCreateForm(false);
-                    },
-                  });
-                }}
+                onSubmit={submitCreate}
               >
                 {/* Información Básica */}
                 <div className="space-y-4">
@@ -155,7 +135,7 @@ export function CategoriasRiesgoPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => updateMutation.mutate({ id: categoria.id as Id, payload: { activo: !categoria.activo } })}
+                    onClick={() => toggleCategoria({ id: categoria.id as Id, activo: Boolean(categoria.activo) })}
                     className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
                   >
                     {categoria.activo ? 'Desactivar' : 'Activar'}

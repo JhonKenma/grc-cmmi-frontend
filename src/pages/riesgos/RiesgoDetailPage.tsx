@@ -1,20 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Send, ShieldX, XCircle, X } from 'lucide-react';
 
 import { Card } from '@/components/common';
-import { useAuth } from '@/context/AuthContext';
-import {
-  useControlesDeRiesgo,
-  useControlesList,
-  useEvaluacionesCuantitativasList,
-  usePlanesTratamientoList,
-  useRiesgoDetail,
-  useRiesgoFlowActions,
-  useUpdateRiesgo,
-  useVincularControl,
-} from '@/hooks/useRiesgosModule';
-import type { Id } from '@/types';
+import { useRiesgoDetailPage } from '@/pages/riesgos/hooks/useRiesgoDetailPage';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -28,37 +15,38 @@ const formatEstadoLabel = (estado: string): string =>
     .join(' ');
 
 export function RiesgoDetailPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-
-  const riesgoQuery = useRiesgoDetail(id ?? '');
-  const flowActions = useRiesgoFlowActions();
-  const updateMutation = useUpdateRiesgo();
-  const controlesRiesgoQuery = useControlesDeRiesgo(id);
-  const controlesBibliotecaQuery = useControlesList();
-  const planesQuery = usePlanesTratamientoList({ riesgo: id });
-  const evaluacionesQuery = useEvaluacionesCuantitativasList({ riesgo: id });
-  const vincularControlMutation = useVincularControl();
-  const [tabActivo, setTabActivo] = useState<'informacion' | 'controles' | 'planes' | 'cuantitativo'>('informacion');
-  const [showVincularControl, setShowVincularControl] = useState(false);
-  const [controlSeleccionado, setControlSeleccionado] = useState('');
-
-  const [editData, setEditData] = useState({
-    titulo: '',
-    descripcion: '',
-    probabilidad: 1,
-    impacto: 1,
-    categoria_coso: 'Operacional',
-    causa_raiz: '',
-    consecuencia: '',
-    fecha_identificacion: '',
-    fecha_revision: '',
-    controles_asociados: '',
-    estado_tratamiento: 'Pendiente',
-  });
-
-  const canExecuteActions = useMemo(() => Boolean(id), [id]);
+  const {
+    id,
+    navigate,
+    user,
+    riesgoQuery,
+    flowActions,
+    updateMutation,
+    controlesRiesgoQuery,
+    controlesBibliotecaQuery,
+    planesQuery,
+    evaluacionesQuery,
+    vincularControlMutation,
+    tabActivo,
+    setTabActivo,
+    showVincularControl,
+    setShowVincularControl,
+    controlSeleccionado,
+    setControlSeleccionado,
+    editData,
+    setEditData,
+    canExecuteActions,
+    riesgo,
+    estadoRiesgo,
+    canEdit,
+    esAdmin,
+    puedeEnviarRevision,
+    puedeAprobar,
+    puedeRechazar,
+    puedeCerrar,
+    categoriaNombre,
+    procesoNombre,
+  } = useRiesgoDetailPage();
 
   if (!id) {
     return <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-700">ID de riesgo invalido.</div>;
@@ -71,68 +59,6 @@ export function RiesgoDetailPage() {
   if (riesgoQuery.isError || !riesgoQuery.data) {
     return <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-700">No se pudo cargar el riesgo.</div>;
   }
-
-  const riesgo = riesgoQuery.data;
-
-  const riesgoRaw = riesgo as unknown as Record<string, unknown>;
-  const categoriaDetail = isRecord(riesgoRaw.categoria_detail) ? riesgoRaw.categoria_detail : null;
-
-  const categoriaNombre =
-    riesgo.categoria_nombre ??
-    (categoriaDetail && typeof categoriaDetail.nombre === 'string' ? categoriaDetail.nombre : '-');
-
-  const procesoNombre =
-    (typeof riesgoRaw.proceso_nombre === 'string' && riesgoRaw.proceso_nombre) ||
-    (typeof riesgo.proceso === 'string' && !riesgo.proceso.includes('-') ? riesgo.proceso : '') ||
-    '-';
-
-  const estadoRiesgo = String(riesgo.estado);
-  const canEdit = !['cerrado', 'mitigado', 'aceptado', 'en_revision'].includes(estadoRiesgo);
-  const esAdmin = ['administrador', 'superadmin'].includes(String(user?.rol ?? ''));
-
-  useEffect(() => {
-    const fechaIdentificacion =
-      typeof riesgo.fecha_identificacion === 'string' && riesgo.fecha_identificacion
-        ? riesgo.fecha_identificacion.slice(0, 10)
-        : '';
-    const fechaRevision =
-      (typeof riesgo.fecha_revision === 'string' && riesgo.fecha_revision) ||
-      (typeof riesgo.proxima_revision_fecha === 'string' && riesgo.proxima_revision_fecha) ||
-      '';
-
-    setEditData({
-      titulo: riesgo.titulo ?? riesgo.nombre ?? '',
-      descripcion: riesgo.descripcion ?? '',
-      probabilidad: Number(riesgo.probabilidad ?? 1),
-      impacto: Number(riesgo.impacto ?? 1),
-      categoria_coso: riesgo.categoria_coso ?? 'Operacional',
-      causa_raiz: riesgo.causa_raiz ?? '',
-      consecuencia: riesgo.consecuencia ?? '',
-      fecha_identificacion: fechaIdentificacion,
-      fecha_revision: fechaRevision,
-      controles_asociados: riesgo.controles_asociados ?? '',
-      estado_tratamiento: riesgo.estado_tratamiento ?? 'Pendiente',
-    });
-  }, [
-    riesgo.categoria_coso,
-    riesgo.causa_raiz,
-    riesgo.consecuencia,
-    riesgo.controles_asociados,
-    riesgo.descripcion,
-    riesgo.estado_tratamiento,
-    riesgo.fecha_identificacion,
-    riesgo.fecha_revision,
-    riesgo.impacto,
-    riesgo.nombre,
-    riesgo.probabilidad,
-    riesgo.proxima_revision_fecha,
-    riesgo.titulo,
-  ]);
-
-  const puedeEnviarRevision = estadoRiesgo === 'borrador';
-  const puedeAprobar = esAdmin && estadoRiesgo === 'en_revision';
-  const puedeRechazar = esAdmin && estadoRiesgo === 'en_revision';
-  const puedeCerrar = esAdmin && ['aprobado', 'en_tratamiento', 'mitigado', 'aceptado'].includes(estadoRiesgo);
 
   return (
     <div className="space-y-6">

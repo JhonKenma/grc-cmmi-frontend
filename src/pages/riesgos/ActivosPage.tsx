@@ -1,32 +1,20 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/common';
-import {
-  useActivosList,
-  useCreateActivo,
-  useDeleteActivo,
-} from '@/hooks/useRiesgosModule';
-import type { CreateActivoInformacionPayload, Id } from '@/types';
-
-const ACTIVO_DESCRIPCION_MAX_LENGTH = 400;
+import { ACTIVO_DESCRIPCION_MAX_LENGTH, useActivosPage } from '@/pages/riesgos/hooks/useActivosPage';
 
 export function ActivosPage() {
-  const navigate = useNavigate();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState<CreateActivoInformacionPayload>({
-    codigo: '',
-    nombre: '',
-    tipo_activo: 'datos',
-    descripcion: '',
-    valor_economico: 0,
-    criticidad: 'media',
-    propietario: '',
-  });
-
-  const activosQuery = useActivosList();
-  const createMutation = useCreateActivo();
-  const deleteMutation = useDeleteActivo();
+  const {
+    navigate,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    activosQuery,
+    createMutation,
+    deleteMutation,
+    submitCreate,
+  } = useActivosPage();
 
   return (
     <div className="space-y-5">
@@ -79,23 +67,7 @@ export function ActivosPage() {
 
               <form
                 className="space-y-6 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  createMutation.mutate(formData, {
-                    onSuccess: () => {
-                      setFormData({
-                        codigo: '',
-                        nombre: '',
-                        tipo_activo: 'datos',
-                        descripcion: '',
-                        valor_economico: 0,
-                        criticidad: 'media',
-                        propietario: '',
-                      });
-                      setShowCreateForm(false);
-                    },
-                  });
-                }}
+                onSubmit={submitCreate}
               >
                 {/* Información Básica */}
                 <div className="space-y-4">
@@ -167,7 +139,7 @@ export function ActivosPage() {
                     <div>
                       <div className="flex items-center justify-between">
                         <label className="block text-sm font-medium text-slate-600">Descripción</label>
-                        <span className="text-xs text-slate-500">{formData.descripcion.length}/{ACTIVO_DESCRIPCION_MAX_LENGTH}</span>
+                        <span className="text-xs text-slate-500">{(formData.descripcion ?? '').length}/{ACTIVO_DESCRIPCION_MAX_LENGTH}</span>
                       </div>
                       <textarea
                         maxLength={ACTIVO_DESCRIPCION_MAX_LENGTH}
@@ -239,7 +211,7 @@ export function ActivosPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => deleteMutation.mutate(activo.id as Id)}
+                    onClick={() => deleteMutation.mutate(activo.id as never)}
                     className="rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50"
                   >
                     Eliminar

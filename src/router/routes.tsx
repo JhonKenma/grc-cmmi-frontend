@@ -55,28 +55,28 @@ const ResponderDimension = lazy(() => import('@/pages/respuestas/ResponderDimens
 const ReporteEvaluacion = lazy(() => import('@/pages/reportes/ReporteEvaluacion').then(m => ({ default: m.ReporteEvaluacion })));
 const ReporteEvaluacionIQ = lazy(() => import('@/pages/reportes/ReporteEvaluacionIQ').then(m => ({ default: m.ReporteEvaluacionIQ })));
 
-// Riesgos
-const RiesgosDashboardPage = lazy(() => import('@/pages/riesgos/RiesgosDashboardPage').then(m => ({ default: m.RiesgosDashboardPage })));
-const RiesgosListPage = lazy(() => import('@/pages/riesgos/RiesgosListPage').then(m => ({ default: m.RiesgosListPage })));
-const RiesgoDetailPage = lazy(() => import('@/pages/riesgos/RiesgoDetailPage').then(m => ({ default: m.RiesgoDetailPage })));
-const PlanesPage = lazy(() => import('@/pages/riesgos/PlanesPage').then(m => ({ default: m.PlanesPage })));
-const KrisPage = lazy(() => import('@/pages/riesgos/KrisPage').then(m => ({ default: m.KrisPage })));
-const MonitoreoPage = lazy(() => import('@/pages/riesgos/MonitoreoPage').then(m => ({ default: m.MonitoreoPage })));
-const CategoriasRiesgoPage = lazy(() => import('@/pages/riesgos/CategoriasRiesgoPage').then(m => ({ default: m.CategoriasRiesgoPage })));
-const ActivosPage = lazy(() => import('@/pages/riesgos/ActivosPage').then(m => ({ default: m.ActivosPage })));
-const RiesgoActivosPage = lazy(() => import('@/pages/riesgos/RiesgoActivosPage').then(m => ({ default: m.RiesgoActivosPage })));
-const EvaluacionesCuantitativasPage = lazy(() => import('@/pages/riesgos/EvaluacionesCuantitativasPage').then(m => ({ default: m.EvaluacionesCuantitativasPage })));
-const ReporteSimpleRiesgosPage = lazy(() => import('@/pages/riesgos/ReporteSimpleRiesgosPage').then(m => ({ default: m.ReporteSimpleRiesgosPage })));
-const ControlesPage = lazy(() => import('@/pages/riesgos/ControlesPage').then(m => ({ default: m.ControlesPage })));
-const ConfiguracionRevisionPage = lazy(() => import('@/pages/riesgos/ConfiguracionRevisionPage').then(m => ({ default: m.ConfiguracionRevisionPage })));
-const ConfiguracionFormulasPage = lazy(() => import('@/pages/riesgos/config/ConfiguracionFormulasPage').then(m => ({ default: m.ConfiguracionFormulasPage })));
-
 // Proyectos de remediación
 const MisProyectos = lazy(() => import('@/pages/proyectos-remediacion/MisProyectos').then(m => ({ default: m.MisProyectos })));
 const DetalleProyecto = lazy(() => import('@/pages/proyectos-remediacion/DetalleProyecto').then(m => ({ default: m.DetalleProyecto })));
 const ProyectosPorGAP = lazy(() => import('@/pages/proyectos-remediacion/ProyectosPorGAP').then(m => ({ default: m.ProyectosPorGAP })));
 const ProyectosPorDimension = lazy(() => import('@/pages/proyectos-remediacion/ProyectosPorDimension').then(m => ({ default: m.ProyectosPorDimension })));
 const AprobacionesPendientes = lazy(() => import('@/pages/proyectos-remediacion/AprobacionesPendientes').then(m => ({ default: m.AprobacionesPendientes })));
+
+// Riesgos
+const RiesgosDashboardPage = lazy(() => import('@/pages/riesgos/RiesgosDashboardPage').then(m => ({ default: m.RiesgosDashboardPage })));
+const RiesgosListPage = lazy(() => import('@/pages/riesgos/RiesgosListPage').then(m => ({ default: m.RiesgosListPage })));
+const RiesgoDetailPage = lazy(() => import('@/pages/riesgos/RiesgoDetailPage').then(m => ({ default: m.RiesgoDetailPage })));
+const ControlesPage = lazy(() => import('@/pages/riesgos/ControlesPage').then(m => ({ default: m.ControlesPage })));
+const PlanesPage = lazy(() => import('@/pages/riesgos/PlanesPage').then(m => ({ default: m.PlanesPage })));
+const KrisPage = lazy(() => import('@/pages/riesgos/KrisPage').then(m => ({ default: m.KrisPage })));
+const MonitoreoPage = lazy(() => import('@/pages/riesgos/MonitoreoPage').then(m => ({ default: m.MonitoreoPage })));
+const ActivosPage = lazy(() => import('@/pages/riesgos/ActivosPage').then(m => ({ default: m.ActivosPage })));
+const RiesgoActivosPage = lazy(() => import('@/pages/riesgos/RiesgoActivosPage').then(m => ({ default: m.RiesgoActivosPage })));
+const EvaluacionesCuantitativasPage = lazy(() => import('@/pages/riesgos/EvaluacionesCuantitativasPage').then(m => ({ default: m.EvaluacionesCuantitativasPage })));
+const CategoriasRiesgoPage = lazy(() => import('@/pages/riesgos/CategoriasRiesgoPage').then(m => ({ default: m.CategoriasRiesgoPage })));
+const ConfiguracionRevisionPage = lazy(() => import('@/pages/riesgos/ConfiguracionRevisionPage').then(m => ({ default: m.ConfiguracionRevisionPage })));
+const ConfiguracionFormulasPage = lazy(() => import('@/pages/riesgos/config/ConfiguracionFormulasPage').then(m => ({ default: m.ConfiguracionFormulasPage })));
+const ReporteSimpleRiesgosPage = lazy(() => import('@/pages/riesgos/ReporteSimpleRiesgosPage').then(m => ({ default: m.ReporteSimpleRiesgosPage })));
 
 // Notificaciones
 const HistorialNotificaciones = lazy(() => import('@/pages/notificaciones/HistorialNotificaciones').then(m => ({ default: m.HistorialNotificaciones })));
@@ -179,22 +179,6 @@ export const privateRoutes: RouteConfig[] = [
   { path: '/reportes/evaluacion',    element: <ReporteEvaluacion />,   layout: true, roles: ['administrador', 'superadmin'] },
   { path: '/reportes/evaluacion-iq', element: <ReporteEvaluacionIQ />, layout: true, roles: ['administrador', 'superadmin'] },
 
-  // Riesgos
-  { path: '/riesgos/dashboard',                  element: <RiesgosDashboardPage />,            layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos', 'auditor'] },
-  { path: '/riesgos',                            element: <RiesgosListPage />,                 layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos', 'auditor'] },
-  { path: '/riesgos/:id',                        element: <RiesgoDetailPage />,                layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos', 'auditor'] },
-  { path: '/riesgos/planes',                     element: <PlanesPage />,                      layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/kris',                       element: <KrisPage />,                        layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/monitoreo',                  element: <MonitoreoPage />,                   layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos', 'auditor'] },
-  { path: '/riesgos/categorias',                 element: <CategoriasRiesgoPage />,            layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/activos',                    element: <ActivosPage />,                     layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/riesgo-activos',             element: <RiesgoActivosPage />,               layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/evaluaciones-cuantitativas', element: <EvaluacionesCuantitativasPage />,  layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/reporte-simple',             element: <ReporteSimpleRiesgosPage />,        layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos', 'auditor'] },
-  { path: '/riesgos/controles',                  element: <ControlesPage />,                   layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/configuracion-revision',     element: <ConfiguracionRevisionPage />,       layout: true, roles: ['superadmin', 'administrador', 'analista_riesgos'] },
-  { path: '/riesgos/config/formulas',            element: <ConfiguracionFormulasPage />,       layout: true, roles: ['superadmin', 'administrador'] },
-
   // Proyectos remediación
   { path: '/mis-proyectos',                                element: <MisProyectos />,           layout: true, roles: ['superadmin', 'administrador', 'usuario'] },
   { path: '/proyectos-remediacion/dashboard',              element: <DashboardCumplimiento />,  layout: true, roles: ['superadmin', 'administrador'] },   // ⭐ NUEVA
@@ -202,6 +186,23 @@ export const privateRoutes: RouteConfig[] = [
   { path: '/proyectos-remediacion/gap/:gapId',             element: <ProyectosPorGAP />,        layout: true, roles: ['superadmin', 'administrador'] },
   { path: '/proyectos-remediacion/dimension/:dimensionId', element: <ProyectosPorDimension />,  layout: true, roles: ['superadmin', 'administrador'] },
   { path: '/aprobaciones-pendientes',                      element: <AprobacionesPendientes />, layout: true, roles: ['superadmin', 'administrador'] },
+
+  // Riesgos
+  { path: '/riesgos',                           element: <RiesgosListPage />,                layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/dashboard',                 element: <RiesgosDashboardPage />,           layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/:id',                       element: <RiesgoDetailPage />,               layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/controles',                 element: <ControlesPage />,                  layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/planes',                    element: <PlanesPage />,                     layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/kris',                      element: <KrisPage />,                       layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/monitoreo',                 element: <MonitoreoPage />,                  layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/activos',                   element: <ActivosPage />,                    layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/riesgo-activos',            element: <RiesgoActivosPage />,              layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/evaluaciones-cuantitativas',element: <EvaluacionesCuantitativasPage />,  layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/categorias',                element: <CategoriasRiesgoPage />,           layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/configuracion-revision',    element: <ConfiguracionRevisionPage />,      layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/config/formulas',           element: <ConfiguracionFormulasPage />,      layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+  { path: '/riesgos/reporte-simple',            element: <ReporteSimpleRiesgosPage />,       layout: true, roles: ['superadmin', 'administrador', 'auditor', 'analista_riesgos'] },
+
   // Notificaciones
   { path: '/notificaciones',        element: <HistorialNotificaciones />, layout: true },
   { path: '/notificaciones/enviar', element: <EnviarNotificacion />,      layout: true, roles: ['superadmin', 'administrador'] },

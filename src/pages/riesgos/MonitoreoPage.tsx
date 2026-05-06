@@ -1,36 +1,21 @@
-import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/common';
-import {
-  useCreateRegistroMonitoreo,
-  useRegistroMonitoreoList,
-  useRiesgosList,
-} from '@/hooks/useRiesgosModule';
-import type { CreateRegistroMonitoreoPayload } from '@/types';
+import { useMonitoreoPage } from '@/pages/riesgos/hooks/useMonitoreoPage';
 
 export function MonitoreoPage() {
-  const navigate = useNavigate();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState<CreateRegistroMonitoreoPayload>({
-    riesgo: '',
-    fecha: new Date().toISOString().slice(0, 10),
-    estado: 'sin_cambios',
-    comentario: '',
-    alerta: false,
-  });
-
-  const riesgosQuery = useRiesgosList({ page_size: 200 });
-  const monitoreoQuery = useRegistroMonitoreoList();
-  const createMutation = useCreateRegistroMonitoreo();
-
-  const riesgosLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    (riesgosQuery.data?.results ?? []).forEach((riesgo) => {
-      map.set(String(riesgo.id), `${riesgo.codigo} - ${riesgo.titulo ?? riesgo.nombre}`);
-    });
-    return map;
-  }, [riesgosQuery.data]);
+  const {
+    navigate,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    riesgosQuery,
+    monitoreoQuery,
+    createMutation,
+    riesgosLookup,
+    submitCreate,
+  } = useMonitoreoPage();
 
   return (
     <div className="space-y-5">
@@ -93,15 +78,7 @@ export function MonitoreoPage() {
 
               <form
                 className="space-y-6 p-5"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  createMutation.mutate(formData, {
-                    onSuccess: () => {
-                      setFormData((prev) => ({ ...prev, comentario: '', alerta: false }));
-                      setShowCreateForm(false);
-                    },
-                  });
-                }}
+                onSubmit={submitCreate}
               >
                 {/* Información Básica */}
                 <div className="space-y-4">

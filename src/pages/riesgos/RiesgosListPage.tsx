@@ -1,20 +1,8 @@
-import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { Filter, Plus, Search, X, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/common';
-import { documentosApi } from '@/api/endpoints/documentos.api';
-import { usuarioService } from '@/api/usuario.service';
-import {
-  useCausasRiesgo,
-  useCreateRiesgo,
-  useDeleteRiesgo,
-  useNaturalezasConsecuencia,
-  useTiposRiesgo,
-  useUnidadesPerdida,
-  useRiesgosList,
-} from '@/hooks/useRiesgosModule';
-import type { CreateRiesgoPayload, EstadoRiesgo, Id } from '@/types';
+import { useRiesgosListPage } from '@/pages/riesgos/hooks/useRiesgosListPage';
+import type { CreateRiesgoPayload, Id } from '@/types';
 
 const DESCRIPCION_MAX_LENGTH = 500;
 
@@ -37,7 +25,6 @@ type RiesgoFormData = CreateRiesgoPayload & {
   tipo_riesgo: string;
   naturaleza_causa: string;
   naturaleza_consecuencia: string;
-  fecha_identificacion: string;
   proxima_revision_fecha: string;
   evaluacion_cuantitativa_activa: boolean;
   unidad_perdida: string;
@@ -62,7 +49,6 @@ const createInitialFormData = (): RiesgoFormData => ({
   impacto: 3,
   causa_raiz: '',
   consecuencia: '',
-  fecha_identificacion: new Date().toISOString().slice(0, 16),
   fecha_revision: '',
   controles_asociados: '',
   estado_tratamiento: 'Pendiente',
@@ -71,7 +57,6 @@ const createInitialFormData = (): RiesgoFormData => ({
   naturaleza_causa: '',
   naturaleza_consecuencia: '',
   proxima_revision_fecha: '',
-  proceso_texto: '',
   evaluacion_cuantitativa_activa: false,
   unidad_perdida: '',
   monto_perdida: '',
@@ -86,50 +71,33 @@ const createInitialFormData = (): RiesgoFormData => ({
 });
 
 export function RiesgosListPage() {
-  const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [estado, setEstado] = useState<string>('');
-  const [categoria, setCategoria] = useState<string>('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-
-  const [formData, setFormData] = useState<RiesgoFormData>(createInitialFormData);
-
-  const riesgosQuery = useRiesgosList({
-    search: search || undefined,
-    estado: (estado || undefined) as EstadoRiesgo | undefined,
-  });
-
-  const tiposRiesgoQuery = useTiposRiesgo();
-  const causasQuery = useCausasRiesgo();
-  const consecuenciasQuery = useNaturalezasConsecuencia();
-  const unidadesPerdidaQuery = useUnidadesPerdida();
-  const procesosQuery = useQuery({
-    queryKey: ['documentos-procesos', 'riesgos-form'],
-    queryFn: () => documentosApi.getProcesos(),
-  });
-  const usuariosQuery = useQuery({
-    queryKey: ['usuarios-riesgos-form'],
-    queryFn: () => usuarioService.getAll(),
-  });
-  const createMutation = useCreateRiesgo();
-  const deleteMutation = useDeleteRiesgo();
-
-  const riesgos = useMemo(() => {
-    const base = riesgosQuery.data?.results ?? [];
-    if (!categoria) return base;
-    return base.filter((item) => String(item.categoria ?? item.tipo_riesgo ?? '') === categoria);
-  }, [categoria, riesgosQuery.data]);
-
-  const categorias = useMemo(
-    () =>
-      (tiposRiesgoQuery.data ?? []).map((tipo) => ({
-        id: tipo.id,
-        nombre: tipo.nombre,
-      })),
-    [tiposRiesgoQuery.data],
-  );
-  const procesos = useMemo(() => procesosQuery.data ?? [], [procesosQuery.data]);
-  const usuarios = useMemo(() => usuariosQuery.data ?? [], [usuariosQuery.data]);
+  const {
+    navigate,
+    search,
+    setSearch,
+    estado,
+    setEstado,
+    categoria,
+    setCategoria,
+    showCreateForm,
+    setShowCreateForm,
+    formData,
+    setFormData,
+    riesgosQuery,
+    tiposRiesgoQuery,
+    causasQuery,
+    consecuenciasQuery,
+    unidadesPerdidaQuery,
+    procesosQuery,
+    usuariosQuery,
+    createMutation,
+    deleteMutation,
+    riesgos,
+    categorias,
+    procesos,
+    usuarios,
+    createInitialFormData,
+  } = useRiesgosListPage();
 
   return (
     <div className="space-y-5">
@@ -232,17 +200,35 @@ export function RiesgosListPage() {
                 onSubmit={(event) => {
                   event.preventDefault();
                   const code = formData.codigo.trim() || `RSG-${Date.now().toString().slice(-6)}`;
-                  const procesoTexto = formData.proceso_texto?.trim() || '';
+                  const requestPayload: CreateRiesgoPayload = {
+                    titulo: formData.titulo,
+                    codigo: code,
+                    descripcion: formData.descripcion,
+                    categoria_coso: formData.categoria_coso,
+                    probabilidad: formData.probabilidad,
+                    impacto: formData.impacto,
+                    causa_raiz: formData.causa_raiz,
+                    consecuencia: formData.consecuencia,
+                    fecha_revision: formData.fecha_revision,
+                    controles_asociados: formData.controles_asociados,
+                    estado_tratamiento: formData.estado_tratamiento,
+                    tipo_riesgo: formData.categoria || formData.tipo_riesgo || undefined,
+                    naturaleza_causa: formData.naturaleza_causa || undefined,
+                    naturaleza_consecuencia: formData.naturaleza_consecuencia || undefined,
+                    proceso: formData.proceso || undefined,
+                    dueno_riesgo: formData.dueno_riesgo,
+                    evaluacion_cuantitativa_activa: formData.evaluacion_cuantitativa_activa,
+                    unidad_perdida: formData.unidad_perdida || undefined,
+                    monto_perdida: formData.monto_perdida || undefined,
+                    valor_activo: formData.valor_activo || undefined,
+                    factor_exposicion: formData.factor_exposicion || undefined,
+                    impacto_financiero: formData.impacto_financiero,
+                    impacto_operacional: formData.impacto_operacional,
+                    impacto_reputacional: formData.impacto_reputacional,
+                  };
 
                   createMutation.mutate(
-                    {
-                      ...formData,
-                      codigo: code,
-                      categoria: undefined,
-                      tipo_riesgo: formData.categoria || formData.tipo_riesgo || undefined,
-                      proceso: formData.proceso || undefined,
-                      proceso_texto: procesoTexto || undefined,
-                    } as CreateRiesgoPayload,
+                    requestPayload,
                     {
                       onSuccess: () => {
                         setFormData(createInitialFormData());
@@ -310,16 +296,7 @@ export function RiesgosListPage() {
                       <label className="mb-2 block text-sm font-medium text-slate-600">Proceso Asociado</label>
                       <select
                         value={formData.proceso ?? ''}
-                        onChange={(event) => {
-                          const procesoId = event.target.value;
-                          const procesoSeleccionado = procesos.find((item) => String(item.id) === procesoId);
-                          setFormData((prev) => ({
-                            ...prev,
-                            proceso: procesoId,
-                            proceso_texto:
-                              procesoSeleccionado?.nombre ?? prev.proceso_texto,
-                          }));
-                        }}
+                        onChange={(event) => setFormData((prev) => ({ ...prev, proceso: event.target.value }))}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 focus:bg-white"
                       >
                         <option value="">Seleccionar proceso (opcional)</option>
@@ -330,18 +307,7 @@ export function RiesgosListPage() {
                           </option>
                         ))}
                       </select>
-                    </div>
-
-                    <div className="lg:col-span-2">
-                      <label className="mb-2 block text-sm font-medium text-slate-600">Proceso/Área Propietaria</label>
-                      <input
-                        type="text"
-                        value={formData.proceso_texto ?? ''}
-                        onChange={(event) => setFormData((prev) => ({ ...prev, proceso_texto: event.target.value }))}
-                        placeholder="Ej: Gestión TI / Operaciones"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 focus:bg-white"
-                      />
-                      <p className="mt-1 text-xs text-slate-500">Puedes escribir el área manualmente o seleccionar un proceso asociado.</p>
+                      <p className="mt-1 text-xs text-slate-500">Si seleccionas un proceso, el área propietaria se toma automáticamente del catálogo.</p>
                     </div>
                   </div>
                 </div>
@@ -417,14 +383,10 @@ export function RiesgosListPage() {
                   <h3 className="mb-4 font-semibold text-slate-900">Seguimiento</h3>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-600">Fecha de identificación <span className="text-red-500">*</span></label>
-                      <input
-                        type="datetime-local"
-                        required
-                        value={formData.fecha_identificacion ?? ''}
-                        onChange={(event) => setFormData((prev) => ({ ...prev, fecha_identificacion: event.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-cyan-400 focus:bg-white"
-                      />
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Fecha de identificación</label>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                        Se registra automáticamente al guardar el riesgo.
+                      </div>
                     </div>
                     <div>
                       <label className="mb-2 block text-sm font-medium text-slate-600">Fecha de revisión <span className="text-red-500">*</span></label>
